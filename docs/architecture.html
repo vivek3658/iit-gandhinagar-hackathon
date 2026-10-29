@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture Specification | UrjaVatika (GEDA Mission LiFE)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0d1d16',
+        primaryColor: '#10b981',
+        primaryTextColor: '#f0fdf4',
+        primaryBorderColor: '#059669',
+        lineColor: '#34d399',
+        secondaryColor: '#1e3a2f',
+        tertiaryColor: '#0f271e'
+      }
+    });
+  </script>
+  <style>
+    :root {
+      --bg-primary: #0a1410;
+      --bg-secondary: #0f1f18;
+      --bg-card: #152b22;
+      --bg-card-hover: #1c382c;
+      --border-color: #244b3b;
+      --accent-green: #10b981;
+      --accent-green-bright: #34d399;
+      --accent-gold: #f59e0b;
+      --accent-amber: #fbbf24;
+      --accent-blue: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-sub: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(180deg, #0f231b 0%, #0a1410 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 2.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      text-decoration: none;
+    }
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: radial-gradient(circle at 30% 30%, #34d399, #065f46);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .brand-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand-text p {
+      font-size: 0.72rem;
+      color: var(--accent-amber);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav.nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    nav.nav-links a {
+      color: var(--text-sub);
+      text-decoration: none;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    nav.nav-links a:hover, nav.nav-links a.active {
+      color: #fff;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+    }
+    nav.nav-links a.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 2.5rem auto;
+      padding: 0 2rem;
+    }
+    .page-header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+    .page-tag {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent-green-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    h2.title {
+      font-size: 2.3rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    p.subtitle {
+      color: var(--text-sub);
+      font-size: 1.05rem;
+      max-width: 900px;
+    }
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2.5rem;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .section-title span.badge {
+      font-size: 0.75rem;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent-blue);
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+    .diagram-container {
+      background: #08130e;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .card-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .card-item h4 {
+      font-size: 1.1rem;
+      color: var(--accent-green-bright);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-item p {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      margin-bottom: 0.8rem;
+    }
+    ul.tech-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    ul.tech-list li {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    ul.tech-list li::before {
+      content: '✔';
+      color: var(--accent-green);
+      font-size: 0.75rem;
+    }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0,0,0,0.3);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      color: #34d399;
+      font-size: 0.85rem;
+    }
+    .status-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.25rem;
+      font-size: 0.88rem;
+    }
+    .status-table th, .status-table td {
+      border: 1px solid var(--border-color);
+      padding: 0.8rem 1rem;
+      text-align: left;
+    }
+    .status-table th {
+      background: #0f241a;
+      color: #fff;
+      font-weight: 600;
+    }
+    .status-table tr:nth-child(even) {
+      background: rgba(255,255,255,0.02);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">🌿</div>
+        <div class="brand-text">
+          <h1>UrjaVatika System Docs</h1>
+          <p>GEDA Mission LiFE Citizen Platform</p>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Overview</a>
+        <a href="architecture.html" class="active">Architecture</a>
+        <a href="sequence-diagrams.html">Sequence Diagrams</a>
+        <a href="activity-diagrams.html">Activity Diagrams</a>
+        <a href="scalability-report.html">Scalability Report</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-header">
+      <span class="page-tag">System Design Specification</span>
+      <h2 class="title">System Architecture: Fastify v5 Modular Monolith</h2>
+      <p class="subtitle">
+        Architectural blueprint for the Gujarat Energy Development Agency (GEDA) Mission LiFE Citizen Engagement Backend, 
+        combining real-time gamification state machines (sparrow & squirrel mascot / Urja garden), peak-hour demand response nudges, 
+        and high-throughput solar analytics.
+      </p>
+    </div>
+
+    <!-- HIGH LEVEL ARCHITECTURE -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>1. High-Level System Architecture</span>
+        <span class="badge">Mermaid Architecture Flow</span>
+      </div>
+      <p style="color:#cbd5e1; font-size:0.95rem;">
+        The system utilizes a <strong>Modular Monolith</strong> pattern using Fastify v5 with dedicated feature plugins. 
+        High-velocity citizen interactions (garden watering, mascot moods, peak-hour clicks) are processed through an 
+        in-memory Redis 7 layer with write-behind persistence to PostgreSQL to maintain extreme concurrency during DISCOM grid peak alerts.
+      </p>
+
+      <div class="diagram-container">
+        <pre class="mermaid">
+flowchart TB
+    subgraph CLIENTS["Citizen & Admin Client Tier"]
+        M[Mobile App Flutter / React Native]
+        W[Web Portal Next.js / React]
+        ADM[GEDA Admin Portal React Dashboard]
+    end
+
+    subgraph GATEWAY["Fastify v5 Application Server (app.ts)"]
+        RT[Rate Limiter & Sensible @fastify/rate-limit]
+        SEC[Helmet & CORS Security Headers]
+        AUTH_MW[Fastify JWT Auth Decorator]
+        ROUTER[TypeBox Compiled Fastify Router]
+    end
+
+    subgraph MODULES["Feature Modules (src/modules/*)"]
+        MOD_AUTH["auth.module<br/>(JWT, Argon2, Role Check)"]
+        MOD_MASCOT["mascot.module<br/>(Sparrow/Squirrel State Engine)"]
+        MOD_GARDEN["garden.module<br/>(Forest App Style Urja Vatika)"]
+        MOD_FOOTPRINT["footprint.module<br/>(Tariff & Baseline CO2 Calc)"]
+        MOD_NUDGES["nudges.module<br/>(Gujarat DISCOM Peak Alerts)"]
+        MOD_SOLAR["solar.module<br/>(PM Surya Ghar & GEDA Feasibility)"]
+        MOD_LEADER["leaderboard.module<br/>(District & Ward ZSET Ranks)"]
+        MOD_ADMIN["admin.module<br/>(State Energy Savings Aggregator)"]
+    end
+
+    subgraph DATA_TIER["Persistence & Caching Tier"]
+        REDIS[("Redis 7 In-Memory<br/>- Mascot Mood & Garden Cache<br/>- Leaderboard Sorted Sets<br/>- Pub/Sub Grid Alert Bus")]
+        PG[("PostgreSQL 16 DB<br/>- Citizens & Profiles<br/>- Energy Logs & Baselines<br/>- Solar Vendors & Audits")]
+        QUEUE["BullMQ Worker Queue<br/>(Async Notification Fanout & Reports)"]
+    end
+
+    subgraph EXTERNAL["External Integrations"]
+        DISCOM["Gujarat DISCOMs API / Webhook<br/>(UGVCL / DGVCL / PGVCL / MGVCL)"]
+        SOLAR_API["Solar Irradiance API<br/>(OpenWeather / MNRE PVGIS)"]
+        PUSH_SRV["Push Services<br/>(FCM / WebPush Service)"]
+    end
+
+    CLIENTS --> GATEWAY
+    GATEWAY --> ROUTER
+    ROUTER --> MOD_AUTH
+    ROUTER --> MOD_MASCOT
+    ROUTER --> MOD_GARDEN
+    ROUTER --> MOD_FOOTPRINT
+    ROUTER --> MOD_NUDGES
+    ROUTER --> MOD_SOLAR
+    ROUTER --> MOD_LEADER
+    ROUTER --> MOD_ADMIN
+
+    MOD_MASCOT <--> REDIS
+    MOD_GARDEN <--> REDIS
+    MOD_LEADER <--> REDIS
+    MOD_NUDGES <--> REDIS
+
+    MOD_AUTH --> PG
+    MOD_FOOTPRINT --> PG
+    MOD_SOLAR --> PG
+    MOD_ADMIN --> PG
+    REDIS -.->|Write-Behind / Sync| PG
+
+    MOD_NUDGES --> QUEUE
+    QUEUE --> PUSH_SRV
+    DISCOM --> MOD_NUDGES
+    SOLAR_API --> MOD_SOLAR
+        </pre>
+      </div>
+    </div>
+
+    <!-- FASTIFY LAYER SPECIFICATION -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>2. Fastify v5 Architectural Conventions & Modular Structure</span>
+        <span class="badge">AGENTS.md & Fastify Rules Compliance</span>
+      </div>
+      <p style="color:#cbd5e1; font-size:0.95rem;">
+        In adherence with <code>AGENTS.md</code> and <code>.agent/rules/fastify-backend.md</code>, the codebase is structured around strict separation of concerns, testability, and deterministic runtime schemas:
+      </p>
+
+      <div class="grid-2">
+        <div class="card-item">
+          <h4>📁 Application Hierarchy</h4>
+          <ul class="tech-list">
+            <li><code>src/app.ts</code>: Builds & exports Fastify instance without listening. Enables isolated testing via <code>app.inject()</code>.</li>
+            <li><code>src/server.ts</code>: Resolves environment via <code>config/env.ts</code>, registers plugins, and initiates HTTP listener.</li>
+            <li><code>src/plugins/</code>: Encapsulated <code>fastify-plugin</code> wrappers for Database, Redis, Authentication, and Rate Limiting.</li>
+            <li><code>src/modules/&lt;name&gt;/</code>: Feature-contained modules with isolated schemas, controllers, services, and routes.</li>
+          </ul>
+        </div>
+
+        <div class="card-item">
+          <h4>🔒 Validation & Error Boundary</h4>
+          <ul class="tech-list">
+            <li><strong>TypeBox Schemas:</strong> JSON Schemas compiled with <code>@fastify/type-provider-typebox</code> for zero-overhead validation and type derivation via <code>Static&lt;T&gt;</code>.</li>
+            <li><strong>Response Filtering:</strong> Every route explicitly provides response schemas, automatically stripping sensitive attributes.</li>
+            <li><strong>Sensible Error Handler:</strong> Centralized <code>setErrorHandler</code> returning standard shapes: <code>{ statusCode, error, message }</code>.</li>
+            <li><strong>Zero Console Logs:</strong> Fastify built-in Pino logger with sanitization of passwords and tokens.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- MASCOT & GARDEN STATE ENGINE ARCHITECTURE -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>3. Urja Udyan Mascot & Forest Garden Engine</span>
+        <span class="badge">Core Gamification Mechanism</span>
+      </div>
+      <p style="color:#cbd5e1; font-size:0.95rem;">
+        The gamification model combines the focus/discipline psychology of the <em>Forest</em> app with the cultural resonance of Indian garden wildlife: 
+        <strong>Chirpy the House Sparrow</strong> (an urban biodiversity indicator) and <strong>Chiku the Indian Palm Squirrel</strong>.
+      </p>
+
+      <div class="grid-2">
+        <div class="card-item">
+          <h4>🌱 Garden Plot Lifecycle (Urja Vatika)</h4>
+          <p>
+            Citizens own an interactive multi-cell garden plot. Daily energy-saving challenges (e.g., turning off geysers, 24°C AC setpoint, avoiding power spikes between 6 PM - 10 PM) water specific garden zones:
+          </p>
+          <ul class="tech-list">
+            <li><strong>Stage 0: Seedling / Seed</strong> (Initial onboarding challenge accepted).</li>
+            <li><strong>Stage 1: Sapling</strong> (5 micro-tasks completed within Gujarat peak window).</li>
+            <li><strong>Stage 2: Blooming Solar Flora</strong> (Rooftop solar logged or continuous 3-day peak reduction streak).</li>
+            <li><strong>Stage 3: Golden Banyan / Neem Haven</strong> (Long-term community milestone achieved).</li>
+            <li><strong>Wilting Warning:</strong> Excessive peak hour consumption triggers a drought state, recoverable through 2 restorative micro-actions.</li>
+          </ul>
+        </div>
+
+        <div class="card-item">
+          <h4>🐿️ Mascot Companion Mood & Dialogue Matrix</h4>
+          <p>
+            The mascot reacts dynamically to the user's Mission LiFE energy score cached in Redis:
+          </p>
+          <ul class="tech-list">
+            <li><strong>Thriving (Score &gt; 80):</strong> Chirpy sings cheerful melodies; Chiku buries acorns around solar panels. Unlocks voice tips in Gujarati/Hindi/English.</li>
+            <li><strong>Content (Score 50-80):</strong> Active foraging, encouraging prompt peak-hour appliance switch-offs.</li>
+            <li><strong>Thirsty / Sleepy (Score &lt; 50):</strong> Mascot perches quietly near dry bird bath, delivering proactive behavioural nudges.</li>
+            <li><strong>Restorative Tasks:</strong> Mascot presents "One-Click Commitments" (e.g., "Switch fan regulator down by 1 point", "Clean solar panel dust").</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA MODEL ARCHITECTURE -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>4. Relational Data Entity Model</span>
+        <span class="badge">PostgreSQL & Redis Entity Relationship</span>
+      </div>
+      <div class="diagram-container">
+        <pre class="mermaid">
+erDiagram
+    USERS ||--o{ MASCOT_STATES : owns
+    USERS ||--o{ GARDEN_PLOTS : cultivates
+    USERS ||--o{ CARBON_LOGS : records
+    USERS ||--o{ TASK_COMPLETIONS : logs
+    USERS ||--o{ SOLAR_ASSESSMENTS : requests
+    DISCOM_CIRCLES ||--o{ USERS : serves
+    DISCOM_CIRCLES ||--o{ PEAK_NUDGES : broadcasts
+    SOLAR_VENDORS ||--o{ SOLAR_ASSESSMENTS : bids
+
+    USERS {
+        uuid id PK
+        string email
+        string phone
+        string discom_circle
+        string consumer_no
+        string district
+        string ward
+        string language
+        timestamp created_at
+    }
+
+    MASCOT_STATES {
+        uuid id PK
+        uuid user_id FK
+        string mascot_type
+        int mood_score
+        int energy_level
+        int total_seeds_gathered
+        json unlocked_accessories
+        timestamp last_interacted_at
+    }
+
+    GARDEN_PLOTS {
+        uuid id PK
+        uuid user_id FK
+        int plot_index
+        string plant_species
+        string growth_stage
+        int hydration_level
+        timestamp planted_at
+        timestamp last_watered_at
+    }
+
+    CARBON_LOGS {
+        uuid id PK
+        uuid user_id FK
+        float monthly_kwh
+        float calculated_co2_kg
+        float peak_hour_ratio
+        timestamp bill_period
+    }
+
+    TASK_COMPLETIONS {
+        uuid id PK
+        uuid user_id FK
+        string task_code
+        string life_pillar
+        int eco_points_awarded
+        float kwh_saved_est
+        timestamp completed_at
+    }
+
+    PEAK_NUDGES {
+        uuid id PK
+        string discom_code
+        timestamp start_time
+        timestamp end_time
+        string urgency_level
+        string title_gu
+        string title_en
+        int target_mw_reduction
+    }
+
+    SOLAR_ASSESSMENTS {
+        uuid id PK
+        uuid user_id FK
+        float shadow_free_area_sqft
+        float monthly_bill_inr
+        float recommended_kw
+        float estimated_annual_savings_inr
+        float geda_subsidy_amount_inr
+        string lead_status
+    }
+
+    SOLAR_VENDORS {
+        uuid id PK
+        string vendor_name
+        string geda_registration_no
+        string district_coverage
+        float rating
+        boolean is_active
+    }
+        </pre>
+      </div>
+    </div>
+
+    <!-- MODULE RESPONSIBILITY TABLE -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>5. Fastify Feature Module Directory Map</span>
+        <span class="badge">src/modules/ Structure</span>
+      </div>
+      <table class="status-table">
+        <thead>
+          <tr>
+            <th>Module Name</th>
+            <th>Primary Endpoints</th>
+            <th>Persistence Strategy</th>
+            <th>Mission LiFE Pillar & Function</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>auth</code></td>
+            <td><code>/api/v1/auth/register, /login, /refresh</code></td>
+            <td>PostgreSQL + Redis JWT revoke list</td>
+            <td>Identity, Citizen DISCOM linking, GEDA Admin RBAC</td>
+          </tr>
+          <tr>
+            <td><code>mascot</code></td>
+            <td><code>/api/v1/mascot/state, /feed, /interact</code></td>
+            <td>Redis (Write-Behind) & PostgreSQL</td>
+            <td>Sparrow / Squirrel companion mood, dialogue, voice nudges</td>
+          </tr>
+          <tr>
+            <td><code>garden</code></td>
+            <td><code>/api/v1/garden/plots, /plant, /water</code></td>
+            <td>Redis & PostgreSQL</td>
+            <td>Forest app style garden plot blooming, tree progression</td>
+          </tr>
+          <tr>
+            <td><code>footprint</code></td>
+            <td><code>/api/v1/footprint/baseline, /calculate</code></td>
+            <td>PostgreSQL</td>
+            <td>Baseline energy & carbon tracker, Gujarat tariff matrix</td>
+          </tr>
+          <tr>
+            <td><code>nudges</code></td>
+            <td><code>/api/v1/nudges/active, /commit, /discom/alert</code></td>
+            <td>Redis Pub/Sub & BullMQ</td>
+            <td>Peak grid demand response, weather-based energy advice</td>
+          </tr>
+          <tr>
+            <td><code>solar</code></td>
+            <td><code>/api/v1/solar/feasibility, /vendors, /quote</code></td>
+            <td>PostgreSQL + OpenWeather Cache</td>
+            <td>PM Surya Ghar calculator, solar ROI, GEDA vendor matchmaking</td>
+          </tr>
+          <tr>
+            <td><code>leaderboard</code></td>
+            <td><code>/api/v1/leaderboard/ward, /district, /global</code></td>
+            <td>Redis Sorted Sets (ZSET)</td>
+            <td>Microsecond community rank queries across Gujarat cities</td>
+          </tr>
+          <tr>
+            <td><code>admin</code></td>
+            <td><code>/api/v1/admin/kpis, /grid-load, /campaigns</code></td>
+            <td>PostgreSQL Read Replica + TimescaleDB</td>
+            <td>GEDA state administrator monitoring of regional energy saved</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>

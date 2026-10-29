@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Diagrams | UrjaVatika (GEDA Mission LiFE)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0d1d16',
+        primaryColor: '#10b981',
+        primaryTextColor: '#f0fdf4',
+        primaryBorderColor: '#059669',
+        lineColor: '#34d399',
+        secondaryColor: '#1e3a2f',
+        tertiaryColor: '#0f271e'
+      }
+    });
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    }
+  </script>
+  <style>
+    :root {
+      --bg-primary: #0a1410;
+      --bg-secondary: #0f1f18;
+      --bg-card: #152b22;
+      --bg-card-hover: #1c382c;
+      --border-color: #244b3b;
+      --accent-green: #10b981;
+      --accent-green-bright: #34d399;
+      --accent-gold: #f59e0b;
+      --accent-amber: #fbbf24;
+      --accent-blue: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-sub: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(180deg, #0f231b 0%, #0a1410 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 2.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      text-decoration: none;
+    }
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: radial-gradient(circle at 30% 30%, #34d399, #065f46);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .brand-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand-text p {
+      font-size: 0.72rem;
+      color: var(--accent-amber);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav.nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    nav.nav-links a {
+      color: var(--text-sub);
+      text-decoration: none;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    nav.nav-links a:hover, nav.nav-links a.active {
+      color: #fff;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+    }
+    nav.nav-links a.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 2.5rem auto;
+      padding: 0 2rem;
+    }
+    .page-header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+    .page-tag {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent-green-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    h2.title {
+      font-size: 2.3rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    p.subtitle {
+      color: var(--text-sub);
+      font-size: 1.05rem;
+      max-width: 900px;
+    }
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      background: var(--bg-secondary);
+      padding: 0.6rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-sub);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+    .tab-btn.active {
+      background: var(--bg-card);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .diagram-container {
+      background: #08130e;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
+    }
+    .flow-notes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .flow-note {
+      background: var(--bg-secondary);
+      border-left: 3px solid var(--accent-green);
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+    }
+    .flow-note h5 {
+      color: #fff;
+      font-size: 0.92rem;
+      margin-bottom: 0.3rem;
+    }
+    .flow-note p {
+      color: #94a3b8;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">🌿</div>
+        <div class="brand-text">
+          <h1>UrjaVatika System Docs</h1>
+          <p>GEDA Mission LiFE Citizen Platform</p>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="sequence-diagrams.html">Sequence Diagrams</a>
+        <a href="activity-diagrams.html" class="active">Activity Diagrams</a>
+        <a href="scalability-report.html">Scalability Report</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-header">
+      <span class="page-tag">Behavioral & State Transitions</span>
+      <h2 class="title">System Activity & State Diagrams</h2>
+      <p class="subtitle">
+        Visual logic flows mapping citizen daily behavioral nudges, the Forest-app garden ecosystem state machine, 
+        algorithmic rooftop solar sizing decisions, and peak grid demand response pipelines.
+      </p>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="tab-daily-lifecycle" onclick="showTab('tab-daily-lifecycle')">
+        <span>🌅</span> 1. Citizen Daily Life Cycle
+      </button>
+      <button class="tab-btn" data-tab="tab-mascot-statemachine" onclick="showTab('tab-mascot-statemachine')">
+        <span>🐿️</span> 2. Mascot & Garden State Machine
+      </button>
+      <button class="tab-btn" data-tab="tab-solar-decision" onclick="showTab('tab-solar-decision')">
+        <span>☀️</span> 3. Solar Feasibility Decision Pipeline
+      </button>
+      <button class="tab-btn" data-tab="tab-demand-response" onclick="showTab('tab-demand-response')">
+        <span>⚡</span> 4. DISCOM Peak Demand Response Flow
+      </button>
+    </div>
+
+    <!-- TAB 1: DAILY CITIZEN LIFE CYCLE -->
+    <div id="tab-daily-lifecycle" class="tab-content active">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Workflow 1: Citizen Daily Mission LiFE Engagement Lifecycle</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Shows the proactive daily sequence of contextual nudges, solar generation tracking, and peak load compliance 
+          governed by the Fastify backend engine.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart TD
+    START([Citizen Starts Day]) --> WX[Check OpenWeather & Solar Irradiance]
+    WX --> NUDGE_AM[Dispatch Morning Solar Nudge:<br/>'Sunny in Gujarat: Run washing machine / water pump now']
+    NUDGE_AM --> ACT1{Citizen Completes<br/>Morning Solar Task?}
+    
+    ACT1 -- Yes --> REW_AM[+25 Eco-Seeds<br/>Water Garden Plot Zone 1<br/>Chirpy Mascot Sings]
+    ACT1 -- No --> PASS_AM[Normal Garden State]
+    
+    REW_AM --> NOON[Afternoon Weather & Energy Check]
+    PASS_AM --> NOON
+    
+    NOON --> AC_NUDGE[Dispatch Cooling Efficiency Nudge:<br/>'Set AC to 24°C saves 6% power per degree']
+    
+    AC_NUDGE --> PEAK_CHECK{Gujarat DISCOM<br/>Peak Hour Alert?<br/>6:30 PM - 9:30 PM}
+    
+    PEAK_CHECK -- Yes --> PEAK_NUDGE[High-Priority Nudge Delivered:<br/>'Shift geyser/iron load away from peak grid']
+    PEAK_CHECK -- No --> EVENING[Normal Evening Routine]
+    
+    PEAK_NUDGE --> COMMIT{Citizen Tap Commit<br/>Within 15 Mins?}
+    
+    COMMIT -- Yes --> PEAK_BONUS[Double Multiplier Bonus:<br/>+50 Golden Acorns<br/>Chiku Mascot Builds Nest<br/>Ward Rank Ascends]
+    COMMIT -- No --> PEAK_DEFAULT[Wilting Hazard Warning:<br/>Garden Plot Hydration -20%<br/>Mascot Displays Sleepy/Thirsty Mood]
+    
+    PEAK_BONUS --> NIGHT[End of Day Aggregation]
+    PEAK_DEFAULT --> NIGHT
+    EVENING --> NIGHT
+    
+    NIGHT --> SYNC_DB[BullMQ Worker Syncs<br/>Redis Cache to PostgreSQL<br/>Computes CO2 Offset Tally]
+    SYNC_DB --> END([Night Sleep / Mascot Rest])
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>🌞 Weather-Synchronized Action</h5>
+            <p>Directly ties citizen behavioral nudges to actual solar radiation in Gujarat to maximize daytime self-consumption.</p>
+          </div>
+          <div class="flow-note">
+            <h5>🌾 Negative vs Positive Reinforcement</h5>
+            <p>Similar to the Forest app, wilting is gentle and temporary; positive actions immediately trigger mascot celebrations and garden restoration.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: MASCOT & GARDEN STATE MACHINE -->
+    <div id="tab-mascot-statemachine" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Workflow 2: Mascot Mood & Garden Health Statechart</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Detailed state transition machine capturing the evolution of the mascot companion (Chirpy the Sparrow / Chiku the Squirrel) 
+          and the botanical stages of the Urja Vatika garden.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+stateDiagram-v2
+    [*] --> SeedlingEgg : User Registers on Platform
+    
+    state "Seedling & Dormant Egg" as SeedlingEgg {
+        [*] --> Unhatched
+        Unhatched --> Sprouted : Complete Baseline Audit
+    }
+    
+    SeedlingEgg --> ContentNormal : First Micro-Task Completed
+    
+    state "Active Garden Ecosystem" as ActiveEco {
+        state "Content (Chirpy / Chiku)" as ContentNormal
+        state "Thriving / Joyful Singing" as Thriving
+        state "Thirsty / Warning State" as Thirsty
+        state "Wilted Garden (Smog Cloud)" as Wilted
+        
+        ContentNormal --> Thriving : 3 Consecutive Days Streak OR Rooftop Solar Inquiry
+        Thriving --> ContentNormal : Streak broken / Idle for 36 hours
+        
+        ContentNormal --> Thirsty : Ignored Gujarat Peak Grid Alert OR 48h Inactivity
+        Thriving --> Thirsty : 2 Ignored Peak Grid Warnings
+        
+        Thirsty --> ContentNormal : Complete 1 Restorative Challenge
+        Thirsty --> Wilted : 72h Continuous Default / Peak Grid Spikes
+        
+        Wilted --> ContentNormal : Complete 'Mission LiFE Revival Pledge' (2 Micro-Tasks)
+    }
+
+    state "Forest Garden Plots" as GardenStages {
+        [*] --> BareEarth
+        BareEarth --> GreenSprout : Task Completed (+20 Hydration)
+        GreenSprout --> FloweringNeem : Hydration >= 80 & 5 Tasks
+        FloweringNeem --> GoldenSolarHaven : Rooftop Solar Installed or 30-Day Streak
+        GoldenSolarHaven --> [*] : Community Legacy Tree
+    }
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>🛡️ Fast Recovery Mechanic</h5>
+            <p>Citizens are never permanently penalized; a single restorative pledge revives a wilted garden, maintaining high user retention.</p>
+          </div>
+          <div class="flow-note">
+            <h5>🌳 Legacy Trees</h5>
+            <p>Once a citizen achieves a "Golden Solar Haven", the tree is permanently etched into the community park leaderboard.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SOLAR FEASIBILITY DECISION PIPELINE -->
+    <div id="tab-solar-decision" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Workflow 3: Rooftop Solar Feasibility & Payback Logic</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Decision tree applied by <code>solar.service.ts</code> to calculate sizing, central PM Surya Ghar Muft Bijli Yojana subsidies, 
+          and dispatch leads to vetted GEDA vendors.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart TD
+    IN([Citizen Submits Roof Details]) --> CHECK_AREA{Roof Area >= 100 sq ft &<br/>Shadow Free >= 70%?}
+    
+    CHECK_AREA -- No --> COMM_SOLAR[Recommend Community Solar /<br/>Green Tariff from DISCOM<br/>Plant Virtual Solar Flower]
+    
+    CHECK_AREA -- Yes --> CALC_CAP[Calculate Max Rooftop Capacity:<br/>kWp = Shadow_Free_Area_sqft / 100]
+    
+    CALC_CAP --> BILL_MATCH{Compare kWp with<br/>Monthly kWh Consumption}
+    
+    BILL_MATCH --> OPT_CAP[Determine Optimal Capacity kWp<br/>Typically 1 - 3 kWp for Residential]
+    
+    OPT_CAP --> SUB_CHECK{Capacity Bracket}
+    
+    SUB_CHECK -- Up to 2 kWp --> SUB_1[Central Subsidy: ₹30,000 / kW<br/>Max ₹60,000]
+    SUB_CHECK -- 3 kWp and Above --> SUB_2[Central Subsidy: ₹78,000 Capped<br/>+ GEDA State Green Incentive]
+    
+    SUB_1 --> FIN_ROI[Compute Financial ROI & Payback:<br/>- Estimated Cost: ₹55,000 / kW<br/>- Net Cost = Total - Subsidy<br/>- Payback Period = 3.0 to 3.5 Years<br/>- 25-Year Net Profit]
+    SUB_2 --> FIN_ROI
+    
+    FIN_ROI --> CIT_CHOICE{Citizen Requests<br/>Formal Quotation?}
+    
+    CIT_CHOICE -- Yes --> MATCH_VENDOR[Query GEDA Empanelled Vendors<br/>in User's District with Rating >= 4.5]
+    MATCH_VENDOR --> DISPATCH[Dispatch Encrypted Lead via Webhook<br/>Notify Citizen with 3 Vendor Quotes]
+    DISPATCH --> REWARD_GARDEN[Unlock 'Golden Solar Blossom' in Urja Vatika]
+    
+    CIT_CHOICE -- No --> SAVE_REPORT[Save Assessment PDF to Citizen Vault]
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>🇮🇳 PM Surya Ghar Compliant</h5>
+            <p>Accurately mirrors Government of India benchmark subsidies: ₹30,000 for 1kW, ₹60,000 for 2kW, and ₹78,000 for 3kW+.</p>
+          </div>
+          <div class="flow-note">
+            <h5>⚡ GEDA Vendor Verification</h5>
+            <p>Only verified contractors empanelled with GEDA receive citizen leads, eliminating fraudulent or unqualified installers.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: DEMAND RESPONSE FLOW -->
+    <div id="tab-demand-response" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Workflow 4: Gujarat DISCOM Peak Demand Response & Grid Shaving Pipeline</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          End-to-end data pipeline from Gujarat State Load Despatch Centre (SLDC) peak alert ingestion to real-time 
+          Megawatt demand shaving aggregation for GEDA administrators.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart LR
+    subgraph INGESTION["1. DISCOM Ingestion"]
+        SLDC[Gujarat SLDC / DISCOM] -->|POST Alert Webhook| FASTIFY_API[Fastify Webhook Endpoint]
+        FASTIFY_API -->|HMAC Verification| NUDGE_SVC[nudges.service]
+    end
+
+    subgraph PARTITIONING["2. Queue & Partitioning"]
+        NUDGE_SVC -->|Set Active Window| REDIS_PEAK[Redis Peak Flag]
+        NUDGE_SVC -->|Bulk Job| BULLMQ[BullMQ Fanout Queue]
+        BULLMQ -->|500 User Batches| WORKERS[Async Node.js Workers]
+    end
+
+    subgraph CITIZEN_ACTION["3. Action & Ingestion"]
+        WORKERS -->|FCM Push| CITIZENS[Citizen Mobile Apps]
+        CITIZENS -->|One-Tap Commit| ATOMIC_INGEST[Fastify /nudges/commit]
+        ATOMIC_INGEST -->|HINCRBY atomic| REDIS_AGG[Redis Shaved Counter]
+    end
+
+    subgraph REPORTING["4. GEDA Analytics"]
+        REDIS_AGG -->|Every 30s Stream| GEDA_WS[Fastify SSE/WebSocket Engine]
+        GEDA_WS -->|Live Megawatts Shaved| GEDA_DASH[GEDA Command Center Dashboard]
+    end
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>⚡ Zero-Drop Concurrency</h5>
+            <p>BullMQ chunks notifications into 500-user worker batches, delivering 100,000 pushes across Gujarat within 60 seconds without throttling.</p>
+          </div>
+          <div class="flow-note">
+            <h5>📊 Live GEDA Command Center</h5>
+            <p>Streaming SSE (Server-Sent Events) feeds real-time megawatts shaved per district (e.g. Ahmedabad, Surat) directly to GEDA officers.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

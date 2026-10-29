@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UrjaVatika Mascot Test Stage | Duolingo-Style Interactive Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Google's official 3D Model-Viewer web component for any .glb / .gltf 3D model -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #07130e;
+      --card-bg: #0f241a;
+      --card-border: #1e4533;
+      --accent-green: #10b981;
+      --accent-bright: #34d399;
+      --accent-amber: #f59e0b;
+      --accent-sky: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      background-image: 
+        radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 50%);
+    }
+    .header-bar {
+      text-align: center;
+      margin-bottom: 2rem;
+      max-width: 700px;
+    }
+    .tag-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-bright);
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.4rem;
+    }
+    p.sub {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .stage-container {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 24px;
+      padding: 2.5rem 2rem 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 30px rgba(16, 185, 129, 0.1);
+    }
+    /* SPEECH BUBBLE */
+    .speech-bubble {
+      position: relative;
+      background: #173829;
+      border: 2px solid var(--accent-green);
+      border-radius: 16px;
+      padding: 1rem 1.25rem;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      width: 100%;
+      transition: all 0.3s ease;
+    }
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 12px 10px 0;
+      border-style: solid;
+      border-color: var(--accent-green) transparent;
+      display: block;
+      width: 0;
+    }
+    /* MASCOT STAGE */
+    .mascot-viewport {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      cursor: pointer;
+    }
+    .pedestal-ring {
+      position: absolute;
+      bottom: 10px;
+      width: 200px;
+      height: 42px;
+      background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.4) 0%, rgba(16, 185, 129, 0.05) 60%, transparent 80%);
+      border-radius: 50%;
+      filter: blur(4px);
+      animation: pulsePedestal 3s ease-in-out infinite;
+    }
+    @keyframes pulsePedestal {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+    /* ANIMATED PROCEDURAL SPARROW SVG */
+    .mascot-actor {
+      width: 210px;
+      height: 210px;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      filter: drop-shadow(0 15px 20px rgba(0,0,0,0.4));
+      animation: gentleBob 2.5s ease-in-out infinite;
+    }
+    @keyframes gentleBob {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(-1.5deg); }
+    }
+    .mascot-actor:hover {
+      transform: scale(1.08) translateY(-4px);
+    }
+    /* CONTROLS & EXPRESSIONS */
+    .controls-panel {
+      width: 100%;
+      margin-top: 1rem;
+    }
+    .controls-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+      font-weight: 700;
+      text-align: center;
+    }
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+    .expr-btn {
+      background: #153123;
+      border: 1px solid var(--card-border);
+      color: #e2e8f0;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.6rem 0.4rem;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      transition: all 0.2s ease;
+    }
+    .expr-btn:hover {
+      background: #1d4532;
+      border-color: var(--accent-green);
+      color: #fff;
+    }
+    .expr-btn.active {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: var(--accent-green);
+      color: var(--accent-bright);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+    }
+    .expr-btn span.emoji {
+      font-size: 1.2rem;
+    }
+    /* MODEL VIEWER CONTAINER (FOR .GLB 3D FILE) */
+    model-viewer {
+      width: 100%;
+      height: 240px;
+      display: none; /* activated when 3D file is dropped or selected */
+    }
+    /* DRAG & DROP 3D / IMAGE ZONE */
+    .dropzone {
+      width: 100%;
+      border: 2px dashed #244b3b;
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      background: rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.08);
+      color: #fff;
+    }
+    .custom-img-preview {
+      max-width: 190px;
+      max-height: 190px;
+      object-fit: contain;
+      display: none;
+      filter: drop-shadow(0 12px 18px rgba(0,0,0,0.4));
+      animation: gentleBob 2.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <div class="tag-badge">Duolingo-Style Mascot Test Stage</div>
+    <h1>UrjaVatika Mascot Stage</h1>
+    <p class="sub">
+      Live browser stage testing facial expressions, speech bubbles, and 3D / 2D transparent models for 
+      <strong>Chirpy the Sparrow</strong> (and Chiku the Squirrel).
+    </p>
+  </div>
+
+  <div class="stage-container">
+    <!-- SPEECH BUBBLE -->
+    <div class="speech-bubble" id="speechBubble">
+      "Cheep! I'm Chirpy, your Gujarat Mission LiFE energy buddy!"
+    </div>
+
+    <!-- VIEWPORT FOR MASCOT -->
+    <div class="mascot-viewport" id="viewport" onclick="tapMascot()">
+      <div class="pedestal-ring"></div>
+
+      <!-- 1. PROCEDURAL VECTOR SPARROW WITH DYNAMIC EXPRESSIONS -->
+      <svg id="proceduralSparrow" class="mascot-actor" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <!-- SHADOW -->
+        <ellipse cx="100" cy="180" rx="55" ry="12" fill="rgba(0,0,0,0.25)"/>
+        
+        <!-- TAIL FEATHERS -->
+        <path d="M 45 135 L 15 155 L 45 145 L 20 168 L 55 148 Z" fill="#8d5b4c"/>
+        <path d="M 40 140 L 22 155 L 50 148 Z" fill="#6d4336"/>
+
+        <!-- BODY -->
+        <ellipse cx="100" cy="115" rx="55" ry="48" fill="#c48b71"/> <!-- Main chest -->
+        <ellipse cx="110" cy="125" rx="42" ry="34" fill="#eed9c4"/> <!-- Belly patch -->
+
+        <!-- WING (LEFT/FRONT) -->
+        <g id="wingGroup" transform="translate(0, 0)">
+          <path id="wingPath" d="M 65 95 C 60 125, 80 150, 115 145 C 95 140, 80 125, 75 95 Z" fill="#8d5b4c"/>
+          <path d="M 72 105 C 75 125, 90 135, 110 138 C 95 132, 85 120, 80 105 Z" fill="#e2b17a"/>
+        </g>
+
+        <!-- HEAD -->
+        <circle cx="122" cy="72" r="38" fill="#a5654d"/>
+        <!-- CHEEK HIGHLIGHT -->
+        <ellipse cx="132" cy="84" rx="14" ry="10" fill="#f5ede3"/>
+
+        <!-- EYES (DYNAMIC BY EXPRESSION) -->
+        <g id="eyeGroup">
+          <!-- Normal Eye -->
+          <circle id="eyeWhite" cx="134" cy="68" r="9" fill="#ffffff"/>
+          <circle id="eyePupil" cx="136" cy="67" r="5.5" fill="#1e293b"/>
+          <circle id="eyeSparkle" cx="138" cy="65" r="2.2" fill="#ffffff"/>
+        </g>
+
+        <!-- BEAK (DYNAMIC) -->
+        <g id="beakGroup">
+          <polygon id="beakTop" points="152,72 174,77 152,83" fill="#f59e0b"/>
+          <polygon id="beakBottom" points="152,78 168,81 152,84" fill="#d97706"/>
+        </g>
+
+        <!-- ACCESSORY / PROP (SOLAR BADGE / CAP / LEAF) -->
+        <g id="propGroup" style="display:none;">
+          <!-- Green Solar Leaf in beak -->
+          <path d="M 170 78 Q 192 68 195 82 Q 185 92 170 82 Z" fill="#10b981"/>
+          <line x1="172" y1="80" x2="190" y2="80" stroke="#059669" stroke-width="1.5"/>
+        </g>
+
+        <!-- BLUSH CHEEKS -->
+        <ellipse id="blush" cx="124" cy="85" rx="6" ry="3.5" fill="rgba(244, 63, 94, 0.45)"/>
+      </svg>
+
+      <!-- 2. CUSTOM UPLOADED IMAGE PREVIEW -->
+      <img id="customImg" class="custom-img-preview" alt="Mascot Custom Model">
+
+      <!-- 3. GOOGLE MODEL-VIEWER (FOR .GLB 3D MODELS) -->
+      <model-viewer id="modelViewer3D" 
+        src="" 
+        auto-rotate 
+        camera-controls 
+        shadow-intensity="1.5" 
+        exposure="1" 
+        environment-image="neutral"
+        interaction-prompt="none">
+      </model-viewer>
+    </div>
+
+    <!-- EXPRESSION SELECTOR -->
+    <div class="controls-panel">
+      <div class="controls-label">Test Expressions (State Machine)</div>
+      <div class="expression-grid">
+        <button class="expr-btn active" onclick="setExpression('idle', this)">
+          <span class="emoji">🐥</span>
+          <span>1. Normal / Idle</span>
+        </button>
+        <button class="expr-btn" onclick="setExpression('singing', this)">
+          <span class="emoji">🎶</span>
+          <span>2. Singing</span>
+        </button>
+        <button class="expr-btn" onclick="setExpression('cheering', this)">
+          <span class="emoji">🎉</span>
+          <span>3. Cheering</span>
+        </button>
+        <button class="expr-btn" onclick="setExpression('sleepy', this)">
+          <span class="emoji">💤</span>
+          <span>4. Sleepy / Peak</span>
+        </button>
+        <button class="expr-btn" onclick="setExpression('solar', this)">
+          <span class="emoji">☀️</span>
+          <span>5. Solar Hero</span>
+        </button>
+        <button class="expr-btn" onclick="setExpression('thirsty', this)">
+          <span class="emoji">🥀</span>
+          <span>6. Wilted / Alert</span>
+        </button>
+      </div>
+
+      <!-- FILE DROP ZONE (FOR TESTING CLAUDE'S OUTPUT) -->
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        📁 <strong>Drop Claude's Image / 3D Model (.glb / .png / .webp) here</strong><br/>
+        or click to browse file
+        <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg,.jpeg,.webp,.svg" style="display:none;" onchange="handleFileSelect(event)">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dialogues = {
+      idle: "Cheep! I'm Chirpy, your Gujarat Mission LiFE energy buddy!",
+      singing: "♪ Chirp chirp! Gujarat sunny skies are generating free solar power! ♪",
+      cheering: "Woohoo! You set the AC to 24°C! Saved 1.2 kWh today!",
+      sleepy: "Yawn... Peak grid hour starts at 6:30 PM. Please turn off idle lights!",
+      solar: "Look at my solar badge! Rooftop solar saves ₹34,000 every year!",
+      thirsty: "My garden is drying up! Complete 1 micro-task to restore green bliss!"
+    };
+
+    function setExpression(expr, btn) {
+      document.querySelectorAll('.expr-btn').forEach(b => b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+
+      const speech = document.getElementById('speechBubble');
+      speech.innerText = `"${dialogues[expr]}"`;
+
+      const eyeGroup = document.getElementById('eyeGroup');
+      const beakGroup = document.getElementById('beakGroup');
+      const propGroup = document.getElementById('propGroup');
+      const actor = document.getElementById('proceduralSparrow');
+
+      // Reset
+      propGroup.style.display = 'none';
+      actor.style.filter = 'drop-shadow(0 15px 20px rgba(0,0,0,0.4))';
+
+      if (expr === 'idle') {
+        eyeGroup.innerHTML = `
+          <circle cx="134" cy="68" r="9" fill="#ffffff"/>
+          <circle cx="136" cy="67" r="5.5" fill="#1e293b"/>
+          <circle cx="138" cy="65" r="2.2" fill="#ffffff"/>
+        `;
+        beakGroup.innerHTML = `
+          <polygon points="152,72 174,77 152,83" fill="#f59e0b"/>
+          <polygon points="152,78 168,81 152,84" fill="#d97706"/>
+        `;
+      } 
+      else if (expr === 'singing') {
+        eyeGroup.innerHTML = `
+          <!-- Happy closed singing eye -->
+          <path d="M 126 70 Q 134 60 142 70" stroke="#1e293b" stroke-width="3" fill="none" stroke-linecap="round"/>
+        `;
+        beakGroup.innerHTML = `
+          <!-- Open singing beak -->
+          <polygon points="152,69 178,72 152,77" fill="#f59e0b"/>
+          <polygon points="152,80 174,86 152,89" fill="#d97706"/>
+          <ellipse cx="156" cy="78" rx="4" ry="3" fill="#b91c1c"/>
+        `;
+      } 
+      else if (expr === 'cheering') {
+        eyeGroup.innerHTML = `
+          <!-- Stars in eyes -->
+          <circle cx="134" cy="68" r="9" fill="#ffffff"/>
+          <text x="127" y="74" font-size="14" fill="#f59e0b">★</text>
+        `;
+        beakGroup.innerHTML = `
+          <polygon points="152,70 176,75 152,82" fill="#f59e0b"/>
+          <polygon points="152,80 170,85 152,87" fill="#d97706"/>
+        `;
+        actor.style.transform = 'translateY(-14px) scale(1.08)';
+        setTimeout(() => { actor.style.transform = ''; }, 300);
+      }
+      else if (expr === 'sleepy') {
+        eyeGroup.innerHTML = `
+          <!-- Droopy sleepy line -->
+          <path d="M 127 72 L 142 72" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/>
+        `;
+        beakGroup.innerHTML = `
+          <polygon points="152,74 170,78 152,82" fill="#f59e0b"/>
+        `;
+      }
+      else if (expr === 'solar') {
+        eyeGroup.innerHTML = `
+          <circle cx="134" cy="68" r="9" fill="#ffffff"/>
+          <circle cx="136" cy="67" r="5.5" fill="#0284c7"/>
+          <circle cx="138" cy="65" r="2.2" fill="#ffffff"/>
+        `;
+        propGroup.style.display = 'block';
+        actor.style.filter = 'drop-shadow(0 0 16px rgba(245, 158, 11, 0.6))';
+      }
+      else if (expr === 'thirsty') {
+        eyeGroup.innerHTML = `
+          <!-- Sad teary eyes -->
+          <circle cx="134" cy="68" r="8" fill="#ffffff"/>
+          <circle cx="134" cy="70" r="5" fill="#475569"/>
+          <circle cx="138" cy="77" r="2.5" fill="#38bdf8"/>
+        `;
+        beakGroup.innerHTML = `
+          <polygon points="152,75 168,80 152,82" fill="#d97706"/>
+        `;
+        actor.style.filter = 'grayscale(40%) drop-shadow(0 10px 15px rgba(0,0,0,0.4))';
+      }
+    }
+
+    function tapMascot() {
+      const actor = document.getElementById('proceduralSparrow');
+      actor.style.transform = 'scale(1.15) rotate(4deg)';
+      setTimeout(() => {
+        actor.style.transform = '';
+      }, 200);
+
+      // Cycle dialogue
+      const speech = document.getElementById('speechBubble');
+      const quotes = [
+        "Chirp! Tapping me gives +5 Eco-Warmth!",
+        "Did you know? Switching AC from 18°C to 24°C cuts your bill by 24%!",
+        "PM Surya Ghar offers up to ₹78,000 subsidy in Gujarat!",
+        "Chiku the Squirrel says hi from the tree branch!"
+      ];
+      speech.innerText = `"${quotes[Math.floor(Math.random() * quotes.length)]}"`;
+    }
+
+    // FILE UPLOAD HANDLER (.GLB OR IMAGE)
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      loadFile(file);
+    }
+
+    function loadFile(file) {
+      const name = file.name.toLowerCase();
+      const procedural = document.getElementById('proceduralSparrow');
+      const customImg = document.getElementById('customImg');
+      const modelViewer = document.getElementById('modelViewer3D');
+
+      if (name.endsWith('.glb') || name.endsWith('.gltf')) {
+        // Load into 3D Model-Viewer!
+        const url = URL.createObjectURL(file);
+        modelViewer.src = url;
+        modelViewer.style.display = 'block';
+        procedural.style.display = 'none';
+        customImg.style.display = 'none';
+        document.getElementById('speechBubble').innerText = `"Loaded 3D Model: ${file.name}! Drag to rotate!"`;
+      } else {
+        // Load Image (PNG, WebP, SVG)
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          customImg.src = e.target.result;
+          customImg.style.display = 'block';
+          procedural.style.display = 'none';
+          modelViewer.style.display = 'none';
+          document.getElementById('speechBubble').innerText = `"Loaded Mascot Art: ${file.name}!"`;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // DRAG AND DROP LISTENERS
+    const dropzone = document.getElementById('dropzone');
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        loadFile(e.dataTransfer.files[0]);
+      }
+    });
+  </script>
+</body>
+</html>

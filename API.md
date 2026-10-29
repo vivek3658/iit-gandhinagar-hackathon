@@ -69,14 +69,24 @@ Common status codes:
     }
     ```
 
+### Interactive API Documentation (Swagger / OpenAPI 3.1)
+- **`GET /docs`**: Interactive Swagger UI dashboard.
+- **`GET /docs/json`**: Raw OpenAPI 3.1 JSON specification.
+
 ---
 
 ## 3. Modular Feature Endpoints (Roadmap)
 
-### Module 1: Authentication (`/api/v1/auth`)
-- **`POST /api/v1/auth/register`**: Register new citizen with mobile number, DISCOM circle, and consumer ID.
-- **`POST /api/v1/auth/login`**: Authenticate citizen via OTP or credentials, return JWT access token.
-- **`GET /api/v1/auth/me`**: Retrieve active citizen profile and role credentials.
+### Module 1: Authentication & Identity (`/api/v1/auth`)
+- **`POST /api/v1/auth/google`**: One-button Google Sign-In & registration. Verifies Google `idToken`, creates or resolves citizen record, and returns `{ isNewUser, isProfileComplete, accessToken, refreshToken, user }`.
+- **`POST /api/v1/auth/complete-profile`**: (Requires Bearer JWT) Completes onboarding: `{ dob?, district, avatarUrl? }`. Flips `isProfileComplete = true`.
+- **`GET /api/v1/auth/me`**: (Requires Bearer JWT) Retrieves active citizen profile, role, district, and Urja points.
+- **`POST /api/v1/auth/refresh`**: Rotates 30-day refresh token and issues a fresh 15-minute access JWT. Features anti-replay detection.
+- **`POST /api/v1/auth/logout`**: (Requires Bearer JWT) Revokes active refresh token in Redis/DB.
+- **`DELETE /api/v1/auth/account`**: (Requires Bearer JWT) Soft-deletes user record and scrubs personal identifiable information (PII).
+
+### Module 2: Media & Image CDN (`/api/v1/media`)
+- **`GET /api/v1/media/imagekit-auth`**: (Requires Bearer JWT) Issues temporary HMAC-SHA1 signature and token allowing the frontend to upload avatar photos directly to ImageKit CDN without exposing the private key.
 
 ### Module 2: Profile & Citizen Baseline (`/api/v1/profile`)
 - **`GET /api/v1/profile`**: Retrieve citizen profile, selected mascot, and household energy profile.

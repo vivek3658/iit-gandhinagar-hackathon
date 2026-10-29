@@ -54,4 +54,17 @@ describe('Health Module & Core Gateway', () => {
       message: 'Route GET /api/v1/unknown-endpoint not found',
     });
   });
+
+  it('GET /docs/json returns valid OpenAPI 3.1 specification', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/docs/json',
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.openapi).toBe('3.1.0');
+    expect(body.info.title).toContain('UrjaVatika');
+    expect(body.paths['/health']).toBeDefined();
+  });
 });

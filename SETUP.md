@@ -65,6 +65,24 @@ npm run build
 npm start
 ```
 
+### Docker Containerized Cluster (4 Replicas + Redis + Postgres + NGINX)
+Run the entire production-grade cluster locally using Docker:
+```bash
+# Build and boot the cluster with 4 Fastify app instances (1 CPU core & 2GB RAM each)
+docker compose up --build -d
+
+# Check cluster status
+docker compose ps
+
+# View live aggregated logs
+docker compose logs -f app
+```
+The cluster will be accessible at:
+- **API Gateway & Swagger UI:** `http://localhost/docs`
+- **Healthcheck:** `http://localhost/health`
+- **PostgreSQL:** `localhost:5432`
+- **Redis:** `localhost:6379`
+
 ---
 
 ## 5. Verification & Health Check

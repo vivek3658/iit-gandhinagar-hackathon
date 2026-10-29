@@ -18,6 +18,10 @@ export const EnvSchema = Type.Object({
   ], { default: 'info' }),
   CORS_ORIGIN: Type.String({ default: '*' }),
   JWT_SECRET: Type.String({ default: 'dev-jwt-secret-key-must-be-at-least-32-characters-long' }),
+  GOOGLE_CLIENT_ID: Type.String({ default: 'mock-google-client-id.apps.googleusercontent.com' }),
+  IMAGEKIT_PUBLIC_KEY: Type.String({ default: 'public_mock_imagekit_key' }),
+  IMAGEKIT_PRIVATE_KEY: Type.String({ default: 'private_mock_imagekit_key_strictly_secret' }),
+  IMAGEKIT_URL_ENDPOINT: Type.String({ default: 'https://ik.imagekit.io/urjavatika' }),
 });
 
 export type EnvConfig = Static<typeof EnvSchema>;
