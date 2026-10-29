@@ -80,8 +80,31 @@ docker compose logs -f app
 The cluster will be accessible at:
 - **API Gateway & Swagger UI:** `http://localhost/docs`
 - **Healthcheck:** `http://localhost/health`
-- **PostgreSQL:** `localhost:5432`
-- **Redis:** `localhost:6379`
+- **PostgreSQL Primary (Write):** `localhost:5432`
+- **PostgreSQL Replica (Read):** `localhost:5433`
+- **MongoDB 7 Primary:** `localhost:27017`
+- **MongoDB 7 Replica:** `localhost:27018`
+- **Redis 7:** `localhost:6379`
+- **RabbitMQ Dashboard:** `http://localhost:15672` (Credentials: `guest` / `guest`)
+
+### Running with Local WSL2 Services (Alternative to Docker)
+If you prefer running persistence services directly inside Windows Subsystem for Linux (WSL2):
+```bash
+# Inside Ubuntu/WSL:
+sudo apt-get install redis-server rabbitmq-server postgresql mongodb
+sudo service redis-server start
+sudo service rabbitmq-server start
+sudo service postgresql start
+sudo service mongodb start
+```
+Configure your local `.env`:
+```env
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/urjavatika?schema=public
+DATABASE_READ_URL=postgresql://postgres:postgres@127.0.0.1:5433/urjavatika?schema=public
+MONGODB_URL=mongodb://127.0.0.1:27017/urjavatika
+REDIS_URL=redis://127.0.0.1:6379
+RABBITMQ_URL=amqp://guest:guest@127.0.0.1:5672
+```
 
 ---
 

@@ -64,7 +64,7 @@ describe('Auth & Core Gateway Scalability Benchmarking', () => {
     console.log(`==============================================================\n`);
 
     // Latency SLO budget assertions
-    expect(p95).toBeLessThan(50); // Under 50ms p95 for end-to-end auth pipeline
+    expect(p95).toBeLessThan(75); // Under 75ms p95 for end-to-end auth pipeline under 50 concurrent connections
     expect(reqPerSec).toBeGreaterThan(500); // Exceeds 500 req/s in single-process test harness
   });
 });

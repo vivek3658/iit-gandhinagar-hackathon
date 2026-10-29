@@ -16,11 +16,20 @@ services:
       CORS_ORIGIN: "*"
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-for-local-dev-min-32-chars!}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/urjavatika?schema=public
+      DATABASE_READ_URL: postgresql://postgres:postgres@postgres-replica:5432/urjavatika?schema=public
+      MONGODB_URL: mongodb://mongodb:27017/urjavatika
       REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     deploy:
       mode: replicated
@@ -60,7 +69,32 @@ services:
       - urjavatika_net
 
   # ============================================================================
-  # 3. PostgreSQL 16 Relational Persistence
+  # 3. RabbitMQ 3 Message Broker & Worker Queue (with Management Dashboard)
+  # ============================================================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # AMQP protocol port
+      - "15672:15672"  # Management Web UI (guest:guest)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - urjavatika_net
+
+  # ============================================================================
+  # 4. PostgreSQL 16 Primary (Write Node)
   # ============================================================================
   postgres:
     image: postgres:16-alpine
@@ -80,6 +114,84 @@ services:
           memory: 2048M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d urjavatika"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - urjavatika_net
+
+  # ============================================================================
+  # 5. PostgreSQL 16 Read Replica (Read / Analytics Node)
+  # Dedicated to citizen read traffic and GEDA state load despatch queries
+  # ============================================================================
+  postgres-replica:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: urjavatika
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pg_replica_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2048M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d urjavatika"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - urjavatika_net
+
+  # ============================================================================
+  # 6. MongoDB 7 Primary (Unstructured Documents & Vendor Catalogs)
+  # ============================================================================
+  mongodb:
+    image: mongo:7-alpine
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: urjavatika
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_data:/data/db
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1536M
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - urjavatika_net
+
+  # ============================================================================
+  # 7. MongoDB 7 Read Replica (Secondary Node)
+  # ============================================================================
+  mongodb-replica:
+    image: mongo:7-alpine
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_replica_data:/data/db
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1536M
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -109,6 +221,9 @@ services:
 volumes:
   redis_data:
   pg_data:
+  pg_replica_data:
+  mongo_data:
+  mongo_replica_data:
 
 networks:
   urjavatika_net:
