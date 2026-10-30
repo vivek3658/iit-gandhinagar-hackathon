@@ -5,6 +5,6 @@ void main() {
   testWidgets('UrjaApp onboarding loads properly', (WidgetTester tester) async {
     await tester.pumpWidget(const UrjaApp());
     expect(find.text('URJA ONE'), findsOneWidget);
-    expect(find.text('Conserve Energy,\nProtect Earth'), findsOneWidget);
+    expect(find.text('Welcome to'), findsOneWidget);
   });
 }

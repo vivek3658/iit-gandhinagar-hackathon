@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
 
 class UrjaColors {
-  // Brand Palette matching Mission LiFE UI
-  static const Color primaryGreen = Color(0xFF10B981);
-  static const Color darkGreen = Color(0xFF065F46);
-  static const Color emeraldBg = Color(0xFF0D1F17);
-  static const Color cardSurface = Color(0xFF152A20);
-  static const Color cardHover = Color(0xFF1E3A2D);
-  static const Color borderGreen = Color(0xFF244837);
-  static const Color lightMint = Color(0xFFE8FDF3);
-  static const Color amberGold = Color(0xFFF59E0B);
-  static const Color sunnyYellow = Color(0xFFFBBF24);
-  static const Color textLight = Color(0xFFF0FDF4);
-  static const Color textMuted = Color(0xFF94A3B8);
-  static const Color accentBlue = Color(0xFF38BDF8);
-  static const Color lightBg = Color(0xFFF8FAFC);
-  static const Color textDark = Color(0xFF0F172A);
-  static const Color textDarkSub = Color(0xFF475569);
+  // Vibrant, Clean Nature Palette (Matching Design Showcase 1:1)
+  static const Color primary = Color(0xFF1B5E20);       // Rich forest green
+  static const Color primaryLight = Color(0xFF2E7D32);  // Mid forest green
+  static const Color accentGreen = Color(0xFF22C55E);   // Vibrant spring sprout green
+  static const Color mintBadge = Color(0xFFE8F5E9);     // Soft mint pill background
+  static const Color mintBorder = Color(0xFFA5D6A7);    // Light mint border
+  
+  // Backgrounds
+  static const Color bgSkyLight = Color(0xFFF1F8F5);    // Soft sunlit nature backdrop
+  static const Color bgSurface = Color(0xFFFFFFFF);     // Pure card white
+  static const Color bgCardSubtle = Color(0xFFF8FAF8);  // Off-white secondary card
+  
+  // Accents & Badges
+  static const Color goldCoin = Color(0xFFF59E0B);      // Vibrant Urja Mudra gold
+  static const Color goldLight = Color(0xFFFEF3C7);     // Soft gold pill
+  static const Color energyOrange = Color(0xFFEA580C);  // Energy alert / streak flame
+  static const Color skyBlue = Color(0xFF38BDF8);       // Water & solar sky
+  
+  // Text Colors
+  static const Color textMain = Color(0xFF0F291E);      // Deep organic charcoal green
+  static const Color textSub = Color(0xFF4A6B5D);       // Medium moss green
+  static const Color textMuted = Color(0xFF8BA398);     // Light muted green-grey
+  static const Color textWhite = Color(0xFFFFFFFF);
+  
+  // Shadows & Borders
+  static const Color borderLight = Color(0xFFE2EBE5);
+  static const Color shadowColor = Color(0x140F291E);   // Soft premium drop shadow
 }

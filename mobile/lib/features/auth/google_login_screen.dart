@@ -14,9 +14,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
-
-    // Simulate backend /api/v1/auth/google verification call
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 600));
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -26,196 +24,214 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
     }
   }
 
+  void _skipAsGuest() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const MainNavigationShell()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: UrjaColors.emeraldBg,
+      backgroundColor: const Color(0xFFDFF0FE), // Nature sky blue
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
-          child: Column(
-            children: [
-              const Spacer(),
+        bottom: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
 
-              // Brand Icon Visual
-              Center(
-                child: Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      colors: [Color(0xFF34D399), Color(0xFF065F46)],
+            // Top Header: URJA ONE
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'URJA ONE',
+                  style: TextStyle(
+                    color: Color(0xFF1B6B44),
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Text('🌿', style: TextStyle(fontSize: 22)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Small steps. A greener tomorrow.',
+              style: TextStyle(
+                color: UrjaColors.textSub,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 3D Smiling Sparrow Hero Image (from exact design mockup!)
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  image: const DecorationImage(
+                    image: AssetImage('assets/images/sparrow_login_hero.png'),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+
+            // Bottom Login Sheet
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 36),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Welcome Back!',
+                    style: TextStyle(
+                      color: UrjaColors.textMain,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: UrjaColors.primaryGreen.withValues(alpha: 0.4),
-                        blurRadius: 40,
-                        spreadRadius: 8,
+                  ),
+                  const SizedBox(height: 6),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Let\'s continue your green journey',
+                        style: TextStyle(
+                          color: UrjaColors.textSub,
+                          fontSize: 14,
+                        ),
                       ),
+                      SizedBox(width: 4),
+                      Text('🌱', style: TextStyle(fontSize: 14)),
                     ],
                   ),
-                  child: const Center(
-                    child: Text('🕊️', style: TextStyle(fontSize: 54)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-              // App Name & Tagline
-              const Text(
-                'URJA ONE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Gujarat Mission LiFE Citizen Portal',
-                style: TextStyle(
-                  color: UrjaColors.primaryGreen,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Join thousands of Gujarat households reducing peak grid load, earning clean energy mudras, and nurturing wildlife.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: UrjaColors.textMuted,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: 36),
-
-              // 50 Bonus Coins Callout Card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  color: UrjaColors.amberGold.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: UrjaColors.amberGold.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: UrjaColors.amberGold.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
+                  // 1-Click Google Sign In Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleGoogleSignIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: UrjaColors.textMain,
+                        elevation: 2,
+                        shadowColor: Colors.black12,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          side: const BorderSide(color: Color(0xFFE2EBE5), width: 1.5),
+                        ),
                       ),
-                      child: const Text('🪙', style: TextStyle(fontSize: 22)),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '50 Bonus Urja Mudra',
-                            style: TextStyle(
-                              color: UrjaColors.sunnyYellow,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Color(0xFF1B6B44),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Google G logo
+                                Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: const BoxDecoration(shape: BoxShape.circle),
+                                  child: const Center(
+                                    child: Text(
+                                      'G',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF4285F4),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Continue with Google',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: UrjaColors.textMain,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          SizedBox(height: 2),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Skip / Dev Guest Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: _skipAsGuest,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1B6B44),
+                        side: const BorderSide(color: Color(0xFFA5D6A7), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.bolt_rounded, size: 18),
+                          SizedBox(width: 8),
                           Text(
-                            'Granted automatically to new citizens upon 1-click Google verification!',
+                            'Skip Login · Guest / Dev Mode',
                             style: TextStyle(
-                              color: UrjaColors.textMuted,
-                              fontSize: 12,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-
-              const Spacer(),
-
-              // Single 1-Click Google Sign In Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleGoogleSignIn,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF1E293B),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 3,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: UrjaColors.primaryGreen,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Google Logo icon representation
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Text('G',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 18,
-                                      color: Color(0xFF4285F4),
-                                    )),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            const Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              // Disclaimer
-              const Text(
-                'By signing in, you agree to Mission LiFE Community Guidelines.\nNo passwords required. Instant secure OAuth 2.0 login.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 11,
-                  height: 1.4,
-                ),
+                  // Legal
+                  const Text(
+                    'By continuing, you agree to our\nTerms of Service and Privacy Policy',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 11,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

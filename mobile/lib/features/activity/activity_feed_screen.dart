@@ -9,336 +9,219 @@ class ActivityFeedScreen extends StatefulWidget {
 }
 
 class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
-  String _selectedCategory = 'ALL';
+  final String _selectedCategory = 'All Activities';
 
-  final List<ActivityItemModel> _activities = [
-    ActivityItemModel(
-      id: '1',
-      category: 'HABIT',
-      title: 'Welcome to Urja Sanctuary! 🌿',
-      message: 'You received 50 Urja Mudra coins to embark on your Mission LiFE journey.',
-      icon: 'spark',
-      coinsEarned: 50,
-      district: 'Ahmedabad',
-      timeAgo: 'Just now',
-      isRead: false,
+  final List<ActivityEventItem> _events = [
+    ActivityEventItem(
+      icon: '⚡',
+      iconBg: Color(0xFFFEF3C7),
+      title: 'Used less electricity',
+      metric: '+0.8 kg CO₂e',
+      time: '8:12 AM',
+      description: 'Kept AC at 26°C for 4 hours',
     ),
-    ActivityItemModel(
-      id: '2',
-      category: 'ALERT',
-      title: 'Peak Grid Hour Reminder ⚡',
-      message: 'Ahmedabad grid peak begins at 6:30 PM. Switch off standby appliances to earn 2x bonus points!',
-      icon: 'zap',
-      district: 'Ahmedabad',
-      timeAgo: '1 hr ago',
-      isRead: false,
+    ActivityEventItem(
+      icon: '✔️',
+      iconBg: Color(0xFFE8F5E9),
+      title: 'Completed daily task',
+      metric: '+10 pts',
+      time: '9:30 AM',
+      description: 'Checked room temperature',
     ),
-    ActivityItemModel(
-      id: '3',
-      category: 'COMMUNITY',
-      title: 'Surat Solar Park Milestone ☀️',
-      message: 'Citizens in Surat collectively generated 25,000 kWh of rooftop solar energy this week!',
-      icon: 'solar',
-      district: 'Surat',
-      timeAgo: '3 hrs ago',
-      isRead: false,
+    ActivityEventItem(
+      icon: '💡',
+      iconBg: Color(0xFFFEF3C7),
+      title: 'Turned off unused lights',
+      metric: '+0.3 kg CO₂e',
+      time: '11:45 AM',
+      description: 'Living room lights',
     ),
-    ActivityItemModel(
-      id: '4',
-      category: 'SANCTUARY',
-      title: 'Rajkot Eco-Gardener Landmark 🌳',
-      message: 'Citizen Patel unlocked the Sacred Canopy Banyan tree after saving 120 kg of CO2.',
-      icon: 'tree',
-      district: 'Rajkot',
-      timeAgo: '5 hrs ago',
-      isRead: true,
+    ActivityEventItem(
+      icon: '💧',
+      iconBg: Color(0xFFE0F2FE),
+      title: 'Watered your plant',
+      metric: '+5 pts',
+      time: '2:10 PM',
+      description: 'Your Tulsi plant is happy! 🪴',
     ),
-    ActivityItemModel(
-      id: '5',
-      category: 'HABIT',
-      title: 'Solar Water Heater Bonus 🚿',
-      message: 'Completed morning warm bath using solar thermal water heater. +10 Urja Mudra awarded.',
-      icon: 'sun',
-      coinsEarned: 10,
-      district: 'Ahmedabad',
-      timeAgo: '1 day ago',
-      isRead: true,
+    ActivityEventItem(
+      icon: '🚌',
+      iconBg: Color(0xFFE8F5E9),
+      title: 'Used public transport',
+      metric: '+1.2 kg CO₂e',
+      time: '5:40 PM',
+      description: 'College commute (Bus)',
+    ),
+    ActivityEventItem(
+      icon: '🏆',
+      iconBg: Color(0xFFFEF3C7),
+      title: 'Completed 3 tasks!',
+      metric: '+30 pts',
+      time: '9:15 PM',
+      description: 'You\'re doing great! 🥳',
     ),
   ];
 
-  void _markAllRead() {
-    setState(() {
-      for (var a in _activities) {
-        a.isRead = true;
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('All notifications marked as read!'),
-        backgroundColor: UrjaColors.primaryGreen,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final filtered = _selectedCategory == 'ALL'
-        ? _activities
-        : _activities.where((a) => a.category == _selectedCategory).toList();
-
-    final unreadCount = _activities.where((a) => !a.isRead).length;
-
     return Scaffold(
-      backgroundColor: UrjaColors.emeraldBg,
+      backgroundColor: const Color(0xFFF1F8F5),
       appBar: AppBar(
-        backgroundColor: UrjaColors.emeraldBg,
+        backgroundColor: const Color(0xFFF1F8F5),
         elevation: 0,
-        title: Row(
-          children: [
-            const Text(
-              'Activity & Alerts',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-              ),
-            ),
-            if (unreadCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: UrjaColors.primaryGreen,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$unreadCount new',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: UrjaColors.textMain),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Activity Feed',
+          style: TextStyle(
+            color: UrjaColors.textMain,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         actions: [
-          if (unreadCount > 0)
-            TextButton(
-              onPressed: _markAllRead,
-              child: const Text(
-                'Mark all read',
-                style: TextStyle(
-                  color: UrjaColors.primaryGreen,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2EBE5)),
             ),
+            child: Row(
+              children: [
+                Text(
+                  _selectedCategory,
+                  style: const TextStyle(color: UrjaColors.textSub, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: UrjaColors.textSub),
+              ],
+            ),
+          ),
         ],
       ),
-      body: Column(
-        children: [
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: ['ALL', 'HABIT', 'ALERT', 'COMMUNITY', 'SANCTUARY'].map((cat) {
-                final isSelected = _selectedCategory == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    label: Text(cat),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _selectedCategory = cat),
-                    selectedColor: UrjaColors.primaryGreen,
-                    backgroundColor: UrjaColors.cardSurface,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : UrjaColors.textMuted,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(
-                        color: isSelected ? UrjaColors.primaryGreen : UrjaColors.borderGreen,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'A log of your actions and impact',
+              style: TextStyle(
+                color: UrjaColors.textMuted,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            const Text(
+              'Today · Oct 30, 2026',
+              style: TextStyle(
+                color: UrjaColors.textSub,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Event Cards
+            Column(
+              children: _events.map((e) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: e.iconBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(child: Text(e.icon, style: const TextStyle(fontSize: 20))),
                       ),
-                    ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  e.title,
+                                  style: const TextStyle(
+                                    color: UrjaColors.textMain,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  e.metric,
+                                  style: const TextStyle(
+                                    color: Color(0xFF1B6B44),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              e.time,
+                              style: const TextStyle(
+                                color: UrjaColors.textMuted,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              e.description,
+                              style: const TextStyle(
+                                color: UrjaColors.textSub,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }).toList(),
             ),
-          ),
-
-          // Activity List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final item = filtered[index];
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => item.isRead = true);
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: item.isRead ? UrjaColors.cardSurface : const Color(0xFF1B382B),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: item.isRead
-                            ? UrjaColors.borderGreen
-                            : UrjaColors.primaryGreen.withValues(alpha: 0.5),
-                        width: item.isRead ? 1 : 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Icon Circle
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor(item.category).withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              _getEmojiForCategory(item.category),
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Content
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.title,
-                                      style: TextStyle(
-                                        color: item.isRead ? Colors.white : UrjaColors.primaryGreen,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    item.timeAgo,
-                                    style: const TextStyle(
-                                      color: UrjaColors.textMuted,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                item.message,
-                                style: const TextStyle(
-                                  color: Color(0xFFCBD5E1),
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              if (item.coinsEarned != null) ...[
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: UrjaColors.amberGold.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text('🪙', style: TextStyle(fontSize: 12)),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '+${item.coinsEarned} Urja Mudra',
-                                        style: const TextStyle(
-                                          color: UrjaColors.sunnyYellow,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-
-  Color _getCategoryColor(String cat) {
-    switch (cat) {
-      case 'ALERT':
-        return Colors.orange;
-      case 'COMMUNITY':
-        return Colors.lightBlue;
-      case 'SANCTUARY':
-        return Colors.teal;
-      default:
-        return UrjaColors.primaryGreen;
-    }
-  }
-
-  String _getEmojiForCategory(String cat) {
-    switch (cat) {
-      case 'ALERT':
-        return '⚡';
-      case 'COMMUNITY':
-        return '🏙️';
-      case 'SANCTUARY':
-        return '🌳';
-      default:
-        return '🌿';
-    }
-  }
 }
 
-class ActivityItemModel {
-  final String id;
-  final String category;
-  final String title;
-  final String message;
+class ActivityEventItem {
   final String icon;
-  final int? coinsEarned;
-  final String district;
-  final String timeAgo;
-  bool isRead;
+  final Color iconBg;
+  final String title;
+  final String metric;
+  final String time;
+  final String description;
 
-  ActivityItemModel({
-    required this.id,
-    required this.category,
-    required this.title,
-    required this.message,
+  const ActivityEventItem({
     required this.icon,
-    this.coinsEarned,
-    required this.district,
-    required this.timeAgo,
-    this.isRead = false,
+    required this.iconBg,
+    required this.title,
+    required this.metric,
+    required this.time,
+    required this.description,
   });
 }
