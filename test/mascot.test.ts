@@ -51,8 +51,10 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     expect(body.expression).toBe('excited');
     expect(body.activeProps).toContain('sparks');
     expect(body.equipped.head).toBeNull();
+    expect(body.equipped.face).toBeNull();
     expect(body.equipped.neck).toBeNull();
-    expect(body.equipped.body).toBeNull();
+    expect(body.equipped.held).toBeNull();
+    expect(body.equipped.fx).toBeNull();
     expect(body.ownedAccessories).toEqual([]);
     expect(typeof body.dialogue.text).toBe('string');
   });
@@ -90,7 +92,7 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     expect(body.dialogue.context).toBe('TAP');
   });
 
-  it('4. Wardrobe Shop: lists items and enforces pricing >= 100 Urja Mudra', async () => {
+  it('4. Wardrobe Shop: lists items and validates slots and pricing', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/v1/mascot/wardrobe',
@@ -99,17 +101,20 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.citizenPoints).toBe(100);
-    expect(body.items.length).toBeGreaterThanOrEqual(4);
+    expect(body.citizenPoints).toBe(50);
+    expect(body.items.length).toBeGreaterThanOrEqual(15);
 
-    // Verify all items are costly (>= 100)
+    // Verify slots and pricing
     for (const item of body.items) {
-      expect(item.price).toBeGreaterThanOrEqual(100);
-      expect(['HEAD', 'NECK', 'BODY']).toContain(item.slot);
+      expect(item.price).toBeGreaterThanOrEqual(50);
+      expect(['HEAD', 'FACE', 'NECK', 'HELD', 'FX']).toContain(item.slot);
     }
   });
 
   it('5. Wardrobe Shop: buys accessory atomically, prevents overspending & duplicates', async () => {
+    // Top up to 100 points
+    AuthService.getRepository().updateUser(citizenId, { points: 100 });
+
     // 1. Citizen has 100 points, buys solar cap (price: 100)
     const buyRes = await app.inject({
       method: 'POST',
@@ -144,6 +149,9 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
   });
 
   it('6. Wardrobe Equip: equips owned accessory, blocks unowned or wrong slot', async () => {
+    // Top up to 100 points to buy solar cap
+    AuthService.getRepository().updateUser(citizenId, { points: 100 });
+
     // Buy solar cap first
     await app.inject({
       method: 'POST',
@@ -167,25 +175,25 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     const equipBody = JSON.parse(equipRes.body);
     expect(equipBody.equipped.head).toBe('acc_head_solar_cap');
 
-    // 2. Equip unowned item to BODY (fails 400)
+    // 2. Equip unowned item to FACE (fails 400)
     const unownedRes = await app.inject({
       method: 'POST',
       url: '/api/v1/mascot/wardrobe/equip',
       headers: { authorization: `Bearer ${citizenToken}` },
       payload: {
-        slot: 'BODY',
-        accessoryId: 'acc_body_leaf_sweater',
+        slot: 'FACE',
+        accessoryId: 'sunnies',
       },
     });
     expect(unownedRes.statusCode).toBe(400);
 
-    // 3. Equip HEAD item into BODY slot (fails 400)
+    // 3. Equip HEAD item into FACE slot (fails 400)
     const wrongSlotRes = await app.inject({
       method: 'POST',
       url: '/api/v1/mascot/wardrobe/equip',
       headers: { authorization: `Bearer ${citizenToken}` },
       payload: {
-        slot: 'BODY',
+        slot: 'FACE',
         accessoryId: 'acc_head_solar_cap',
       },
     });
@@ -206,7 +214,38 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     expect(unequipBody.equipped.head).toBeNull();
   });
 
-  it('7. CO2 Saved Progression: levels up mascot without coins', () => {
+  it('7. Curated Seasonal Outfits: lists bundles and equips pieces', async () => {
+    const outfitsRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mascot/outfits',
+      headers: { authorization: `Bearer ${citizenToken}` },
+    });
+
+    expect(outfitsRes.statusCode).toBe(200);
+    const outfitsBody = JSON.parse(outfitsRes.body);
+    expect(outfitsBody.outfits.length).toBe(6); // spring, summer, autumn, winter, rainy, festive
+
+    const springOutfit = outfitsBody.outfits.find((o: { id: string }) => o.id === 'spring');
+    expect(springOutfit.season).toBe('spring');
+    expect(springOutfit.head).toBe('flowers');
+    expect(springOutfit.neck).toBe('bow');
+    expect(springOutfit.fx).toBe('petals');
+
+    // Equip outfit bundle
+    const equipOutfitRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/mascot/outfits/equip',
+      headers: { authorization: `Bearer ${citizenToken}` },
+      payload: { outfitId: 'spring' },
+    });
+
+    expect(equipOutfitRes.statusCode).toBe(200);
+    const equipOutfitBody = JSON.parse(equipOutfitRes.body);
+    expect(equipOutfitBody.success).toBe(true);
+    expect(equipOutfitBody.outfitId).toBe('spring');
+  });
+
+  it('8. CO2 Saved Progression: levels up mascot without coins', () => {
     // Add 16 kg of CO2 saved (1600 exp) -> Math.floor(Math.sqrt(1600 / 100)) + 1 = 5
     const mascot = MascotService.addCo2Savings(citizenId, 16);
     expect(mascot.currentExp).toBe(1600);

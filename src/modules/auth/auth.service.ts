@@ -229,7 +229,7 @@ export class AuthService {
           district: null,
           role: 'CITIZEN',
           isProfileComplete: false,
-          points: 100, // 100 bonus welcome points for joining Mission LiFE!
+          points: 50, // 50 bonus welcome points for joining Mission LiFE!
         });
         isNewUser = true;
       }

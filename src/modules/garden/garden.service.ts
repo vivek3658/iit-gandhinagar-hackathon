@@ -593,7 +593,13 @@ export class GardenService {
       throw new Error(`No placed tile found at coordinate (${x}, ${y})`);
     }
 
-    const removed = garden.placedTiles.splice(tileIndex, 1)[0]!;
+    const removed = garden.placedTiles[tileIndex]!;
+
+    if (removed.tileId === 'SPARROW_HOME') {
+      throw new Error('SPARROW_HOME is the sanctuary centerpiece and cannot be removed.');
+    }
+
+    garden.placedTiles.splice(tileIndex, 1);
 
     const inventoryItem: InventoryTile = {
       instanceId: removed.instanceId,

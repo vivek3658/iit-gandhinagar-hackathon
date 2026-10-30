@@ -48,7 +48,7 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
     expect(body.gridSize).toBe(3); // Level 1 mascot = 3x3 grid
     expect(body.maxOccupancy).toBe(9);
     expect(body.currentOccupiedCount).toBe(0);
-    expect(body.citizenCoins).toBe(100);
+    expect(body.citizenCoins).toBe(50);
     expect(body.placedTiles).toEqual([]);
     expect(body.inventory).toEqual([]);
     expect(body.catalog.length).toBe(31);
@@ -142,7 +142,7 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
     expect(buyRes.statusCode).toBe(200);
     const buyBody = JSON.parse(buyRes.body);
     expect(buyBody.success).toBe(true);
-    expect(buyBody.remainingCoins).toBe(50); // 100 - 50 = 50
+    expect(buyBody.remainingCoins).toBe(0); // 50 - 50 = 0
     expect(buyBody.placedTiles.length).toBe(1);
     expect(buyBody.placedTiles[0].tileId).toBe('GRASS_TILE');
     expect(buyBody.placedTiles[0].rotation).toBe(90);
@@ -163,6 +163,9 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
   });
 
   it('4. Remove tile to inventory, place back, and sell for 80% refund', async () => {
+    // Top up to 100 coins
+    AuthService.getRepository().updateUser(citizenId, { points: 100 });
+
     // 1. Buy a 100-coin Stone Path at (1, 1)
     const buyRes = await app.inject({
       method: 'POST',
@@ -264,5 +267,32 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
       },
     });
     expect(JSON.parse(previewRes.body).isValid).toBe(true);
+  });
+
+  it('6. Sparrow Home centerpiece is protected and cannot be removed to inventory', async () => {
+    // Force place SPARROW_HOME at (0, 0)
+    const garden = GardenService.getOrCreateGarden(citizenId);
+    garden.placedTiles.push({
+      instanceId: 'sparrow_manor_inst',
+      tileId: 'SPARROW_HOME',
+      name: 'Chibi Sparrow Manor',
+      category: 'Buildings',
+      x: 0,
+      y: 0,
+      rotation: 0,
+      purchasedPrice: 800,
+      placedAt: new Date().toISOString(),
+    });
+    GardenService.getRepository().save(garden);
+
+    const removeRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/garden/remove-to-inventory',
+      headers: { authorization: `Bearer ${citizenToken}` },
+      payload: { x: 0, y: 0 },
+    });
+
+    expect(removeRes.statusCode).toBe(400);
+    expect(JSON.parse(removeRes.body).message).toContain('SPARROW_HOME is the sanctuary centerpiece and cannot be removed');
   });
 });

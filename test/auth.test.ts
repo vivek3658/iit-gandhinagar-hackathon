@@ -35,7 +35,7 @@ describe('Auth & Media Modules (ACID + Security Tests)', () => {
     expect(typeof body.accessToken).toBe('string');
     expect(typeof body.refreshToken).toBe('string');
     expect(body.user.email).toBe('citizen1@example.com');
-    expect(body.user.points).toBe(100); // 100 bonus Mission LiFE points
+    expect(body.user.points).toBe(50); // 50 bonus Mission LiFE points
     expect(body.user.role).toBe('CITIZEN');
   });
 

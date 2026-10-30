@@ -97,20 +97,27 @@ Common status codes:
 - **`GET /api/v1/footprint/history`**: Get monthly historical carbon emissions and reduction trajectory.
 
 ### Module 4: Gamified Mascot & Companion (`/api/v1/mascot`)
-- **`GET /api/v1/mascot/state`**: Retrieves active mascot entity (sparrow or squirrel), level (CO2-gated), vitality (0–100), mood (`EXCITED`, `HAPPY`, `DROOPY`, `SLEEPY`), canonical 3D expression (`happy`, `excited`, `curious`, `thinking`, `cheering`, `resting`, `planting`, `watering`, `celebrating`, `exploring`, `nest`), active props (`sapling`, `can`, `sparks`, etc.), equipped accessories, owned wardrobe, and context-aware speech dialogue.
+- **`GET /api/v1/mascot/state`**: Retrieves active mascot entity (sparrow or squirrel), level (CO2-gated), vitality (0–100), mood (`EXCITED`, `HAPPY`, `DROOPY`, `SLEEPY`), canonical 3D expression (18 expressions: `tpose`, `happy`, `excited`, `curious`, `thinking`, `cheering`, `resting`, `planting`, `watering`, `celebrating`, `exploring`, `nest`, `angry`, `petted`, `levelup`, `announce`, `frustrated`, `sad`, `crying`), active props, equipped accessories (slots: `head`, `face`, `neck`, `held`, `fx`), owned wardrobe, and context-aware speech dialogue.
 - **`PATCH /api/v1/mascot`**: Renames mascot or switches species between `'sparrow'` and `'squirrel'`.
 - **`POST /api/v1/mascot/interact`**: Taps companion to boost vitality (+5) and trigger tap reaction speech and curious expression.
-- **`GET /api/v1/mascot/wardrobe`**: Lists all available accessories for `HEAD`, `NECK`, and `BODY` slots with Urja Mudra pricing (>= 100 coins) and required level.
+- **`GET /api/v1/mascot/wardrobe`**: Lists all available accessories for `HEAD`, `FACE`, `NECK`, `HELD`, and `FX` slots with Urja Mudra pricing and required level.
 - **`POST /api/v1/mascot/wardrobe/buy`**: Purchases an accessory using earned Urja Mudra coins (atomic balance deduction).
-- **`POST /api/v1/mascot/wardrobe/equip`**: Equips or unequips an owned accessory to a designated slot (`HEAD`, `NECK`, or `BODY`).
+- **`POST /api/v1/mascot/wardrobe/equip`**: Equips or unequips an owned accessory to a designated slot (`HEAD`, `FACE`, `NECK`, `HELD`, or `FX`).
+- **`GET /api/v1/mascot/outfits`**: Lists all seasonal curated outfit collections (`spring`, `summer`, `autumn`, `winter`, `rainy`, `festive`) with owned and equipped statuses.
+- **`POST /api/v1/mascot/outfits/equip`**: Equips all owned pieces from a seasonal outfit bundle.
 
 ### Module 5: Dynamic Garden Sanctuary & Inventory (`/api/v1/garden`)
 - **`GET /api/v1/garden`**: Returns current sanctuary land layout ($N \times N$ grid dynamically sized from $3\times3$ up to $10\times10$ based on verified $CO_2$ mascot level), all currently placed tiles, unplaced inventory items, citizen coin balance, and the master 31-tile catalog with unlock statuses.
 - **`POST /api/v1/garden/preview`**: Ghost placement validator. Verifies whether a prospective tile at coordinate `(x, y)` with rotation `(0, 90, 180, 270)` is valid within current unlocked grid bounds and unoccupied before citizen confirms purchase.
 - **`POST /api/v1/garden/buy-and-place`**: Purchases a catalog tile using Urja Mudra coins and places it immediately onto grid coordinates `(x, y, rotation)`. Enforces atomic balance deduction and grid collision locks.
 - **`POST /api/v1/garden/place-from-inventory`**: Repositions an existing unplaced tile from citizen inventory back onto the grid at 0 coin cost.
-- **`POST /api/v1/garden/remove-to-inventory`**: Picks up a placed tile from `(x, y)` and stores it safely in citizen inventory (prevents loss of owned items).
+- **`POST /api/v1/garden/remove-to-inventory`**: Picks up a placed tile from `(x, y)` and stores it safely in citizen inventory (prevents loss of owned items). Note: `SPARROW_HOME` is the permanent sanctuary centerpiece and cannot be removed to inventory.
 - **`POST /api/v1/garden/sell`**: Permanently liquidates an unplaced tile from inventory, refunding exactly 80% of its original purchase price in Urja Mudra coins back to the citizen.
+
+### Module 10: Activity Feed & Community Stream (`/api/v1/activity`)
+- **`GET /api/v1/activity`**: Retrieves paginated activity updates, personal habit achievements, sanctuary upgrades, and Gujarat community eco-events. Supports query params `?category=HABIT|SANCTUARY|COMMUNITY|ALERT&page=1&limit=20`. Returns `{ activities, totalCount, unreadCount, page, limit }`.
+- **`POST /api/v1/activity/:id/read`**: Marks a specific activity item as read.
+- **`POST /api/v1/activity/read-all`**: Marks all activity notifications as read for current citizen.
 
 ### Module 6: DISCOM Peak Nudges & Micro-Tasks (`/api/v1/nudges`)
 - **`GET /api/v1/nudges/active`**: Retrieve real-time grid alerts (e.g. shift load between 6:30 PM - 9:30 PM).

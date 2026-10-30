@@ -5,8 +5,11 @@ import type {
   BuyAccessoryResponse,
   EquipAccessoryBody,
   EquipAccessoryResponse,
+  EquipOutfitBody,
+  EquipOutfitResponse,
   InteractResponse,
   MascotState,
+  OutfitsResponse,
   UpdateMascotBody,
   WardrobeResponse,
 } from './mascot.schema';
@@ -93,6 +96,36 @@ export class MascotController {
       return MascotService.equipAccessory(userId, body.slot, body.accessoryId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to equip accessory';
+      return reply.badRequest(msg);
+    }
+  }
+
+  public static async getOutfits(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<OutfitsResponse> {
+    const userId = request.user?.id;
+    if (!userId) {
+      return reply.unauthorized('User identity not verified');
+    }
+
+    return MascotService.getOutfits(userId);
+  }
+
+  public static async equipOutfit(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<EquipOutfitResponse> {
+    const userId = request.user?.id;
+    if (!userId) {
+      return reply.unauthorized('User identity not verified');
+    }
+
+    const body = request.body as EquipOutfitBody;
+    try {
+      return MascotService.equipOutfit(userId, body.outfitId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to equip outfit';
       return reply.badRequest(msg);
     }
   }

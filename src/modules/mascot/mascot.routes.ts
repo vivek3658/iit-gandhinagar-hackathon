@@ -2,7 +2,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import {
   BuyAccessoryRouteSchema,
   EquipAccessoryRouteSchema,
+  EquipOutfitRouteSchema,
   GetMascotRouteSchema,
+  GetOutfitsRouteSchema,
   GetWardrobeRouteSchema,
   InteractRouteSchema,
   UpdateMascotRouteSchema,
@@ -22,4 +24,8 @@ export const mascotRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/wardrobe', { schema: GetWardrobeRouteSchema }, MascotController.getWardrobe);
   fastify.post('/wardrobe/buy', { schema: BuyAccessoryRouteSchema }, MascotController.buyAccessory);
   fastify.post('/wardrobe/equip', { schema: EquipAccessoryRouteSchema }, MascotController.equipAccessory);
+
+  // Seasonal Curated Outfits
+  fastify.get('/outfits', { schema: GetOutfitsRouteSchema }, MascotController.getOutfits);
+  fastify.post('/outfits/equip', { schema: EquipOutfitRouteSchema }, MascotController.equipOutfit);
 };

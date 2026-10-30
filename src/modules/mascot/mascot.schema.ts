@@ -26,20 +26,31 @@ export const MascotExpressionSchema = Type.Union([
   Type.Literal('celebrating'),
   Type.Literal('exploring'),
   Type.Literal('nest'),
+  Type.Literal('angry'),
+  Type.Literal('petted'),
+  Type.Literal('levelup'),
+  Type.Literal('announce'),
+  Type.Literal('frustrated'),
+  Type.Literal('sad'),
+  Type.Literal('crying'),
 ]);
 
 export type MascotExpression = Static<typeof MascotExpressionSchema>;
 
 export const AccessorySlotSchema = Type.Union([
   Type.Literal('HEAD'),
+  Type.Literal('FACE'),
   Type.Literal('NECK'),
-  Type.Literal('BODY'),
+  Type.Literal('HELD'),
+  Type.Literal('FX'),
 ]);
 
 export const EquippedAccessoriesSchema = Type.Object({
   head: Type.Union([Type.String(), Type.Null()]),
+  face: Type.Union([Type.String(), Type.Null()]),
   neck: Type.Union([Type.String(), Type.Null()]),
-  body: Type.Union([Type.String(), Type.Null()]),
+  held: Type.Union([Type.String(), Type.Null()]),
+  fx: Type.Union([Type.String(), Type.Null()]),
 });
 
 export const MascotDialogueSchema = Type.Object({
@@ -108,6 +119,45 @@ export const WardrobeResponseSchema = Type.Object({
 });
 
 export type WardrobeResponse = Static<typeof WardrobeResponseSchema>;
+
+// --- Seasonal Outfits (Collections of Accessories + Weather FX) ---
+export const OutfitItemSchema = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  description: Type.String(),
+  season: Type.String(),
+  head: Type.Union([Type.String(), Type.Null()]),
+  face: Type.Union([Type.String(), Type.Null()]),
+  neck: Type.Union([Type.String(), Type.Null()]),
+  held: Type.Union([Type.String(), Type.Null()]),
+  fx: Type.Union([Type.String(), Type.Null()]),
+  isOwned: Type.Boolean(),
+  isEquipped: Type.Boolean(),
+  missingCount: Type.Number(),
+  packageCost: Type.Number(),
+});
+
+export type OutfitItem = Static<typeof OutfitItemSchema>;
+
+export const OutfitsResponseSchema = Type.Object({
+  outfits: Type.Array(OutfitItemSchema),
+});
+
+export type OutfitsResponse = Static<typeof OutfitsResponseSchema>;
+
+export const EquipOutfitBodySchema = Type.Object({
+  outfitId: Type.String(),
+});
+
+export type EquipOutfitBody = Static<typeof EquipOutfitBodySchema>;
+
+export const EquipOutfitResponseSchema = Type.Object({
+  success: Type.Boolean(),
+  outfitId: Type.String(),
+  equipped: EquippedAccessoriesSchema,
+});
+
+export type EquipOutfitResponse = Static<typeof EquipOutfitResponseSchema>;
 
 export const BuyAccessoryBodySchema = Type.Object({
   accessoryId: Type.String(),
@@ -193,5 +243,25 @@ export const EquipAccessoryRouteSchema = {
   body: EquipAccessoryBodySchema,
   response: {
     200: EquipAccessoryResponseSchema,
+  },
+};
+
+
+export const GetOutfitsRouteSchema = {
+  description: 'Lists all seasonal curated outfit collections with weather FX and owned status.',
+  tags: ['Mascot'],
+  security: [{ bearerAuth: [] }],
+  response: {
+    200: OutfitsResponseSchema,
+  },
+};
+
+export const EquipOutfitRouteSchema = {
+  description: 'Equips a full seasonal outfit bundle (all owned pieces across head, face, neck, held, fx).',
+  tags: ['Mascot'],
+  security: [{ bearerAuth: [] }],
+  body: EquipOutfitBodySchema,
+  response: {
+    200: EquipOutfitResponseSchema,
   },
 };

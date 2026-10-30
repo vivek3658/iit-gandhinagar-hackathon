@@ -3,11 +3,14 @@ import { AuthService } from '../auth/auth.service';
 import type {
   BuyAccessoryResponse,
   EquipAccessoryResponse,
+  EquipOutfitResponse,
   EquippedAccessoriesSchema,
   InteractResponse,
   MascotExpression,
   MascotMoodSchema,
   MascotState,
+  OutfitItem,
+  OutfitsResponse,
   WardrobeItem,
   WardrobeResponse,
 } from './mascot.schema';
@@ -29,9 +32,18 @@ export interface MascotRecord {
   lastInteractedAt: string;
 }
 
-// Master Wardrobe Accessory Catalog (Costly items >= 100 Urja Mudra)
+// Master Wardrobe Accessory Catalog
 export const WARDROBE_CATALOG: Omit<WardrobeItem, 'isOwned' | 'isEquipped'>[] = [
-  // HEAD ACCESSORIES
+  // HEAD
+  {
+    id: 'solar_cap',
+    name: 'Solar Peak Baseball Cap',
+    slot: 'HEAD',
+    description: 'A stylish sporty cap equipped with a micro-solar panel visor.',
+    price: 100,
+    requiredLevel: 1,
+    assetModel: 'solar_cap.glb',
+  },
   {
     id: 'acc_head_solar_cap',
     name: 'Solar Peak Baseball Cap',
@@ -42,7 +54,61 @@ export const WARDROBE_CATALOG: Omit<WardrobeItem, 'isOwned' | 'isEquipped'>[] = 
     assetModel: 'solar_cap.glb',
   },
   {
-    id: 'acc_head_gujarati_paghdi',
+    id: 'beanie',
+    name: 'Cozy Wool Beanie',
+    slot: 'HEAD',
+    description: 'Hand-knitted pompom beanie keeping ears warm in chilly mornings.',
+    price: 160,
+    requiredLevel: 1,
+    assetModel: 'beanie.glb',
+  },
+  {
+    id: 'straw',
+    name: 'Eco Straw Sunhat',
+    slot: 'HEAD',
+    description: 'Woven organic sunhat shielding from fierce summer heat.',
+    price: 150,
+    requiredLevel: 1,
+    assetModel: 'straw.glb',
+  },
+  {
+    id: 'flowers',
+    name: 'Floral Blossom Crown',
+    slot: 'HEAD',
+    description: 'Handcrafted circlet of vibrant spring blossoms.',
+    price: 140,
+    requiredLevel: 1,
+    assetModel: 'flowers.glb',
+  },
+  {
+    id: 'acorn',
+    name: 'Acorn Cap Beret',
+    slot: 'HEAD',
+    description: 'Whimsical acorn cap crafted from forest flora.',
+    price: 130,
+    requiredLevel: 1,
+    assetModel: 'acorn.glb',
+  },
+  {
+    id: 'rainhat',
+    name: 'Yellow Fisher Rainhat',
+    slot: 'HEAD',
+    description: 'Waterproof sunny yellow rainhat for monsoon puddle jumping.',
+    price: 150,
+    requiredLevel: 1,
+    assetModel: 'rainhat.glb',
+  },
+  {
+    id: 'santa',
+    name: 'Holiday Santa Cap',
+    slot: 'HEAD',
+    description: 'Jolly red festive cap with a fluffy white pompom.',
+    price: 180,
+    requiredLevel: 1,
+    assetModel: 'santa.glb',
+  },
+  {
+    id: 'gujarati_paghdi',
     name: 'Royal Gujarati Paghdi',
     slot: 'HEAD',
     description: 'Traditional handcrafted Saurashtra turban for state energy champions.',
@@ -50,17 +116,91 @@ export const WARDROBE_CATALOG: Omit<WardrobeItem, 'isOwned' | 'isEquipped'>[] = 
     requiredLevel: 10,
     assetModel: 'gujarati_paghdi.glb',
   },
+
+  // FACE
   {
-    id: 'acc_head_straw_hat',
-    name: 'Eco-Gardener Straw Hat',
-    slot: 'HEAD',
-    description: 'Organic woven bamboo hat that shields your companion from Ahmedabad midday heat.',
-    price: 120,
-    requiredLevel: 5,
-    assetModel: 'straw_hat.glb',
+    id: 'sunnies',
+    name: 'Cool UV Shades',
+    slot: 'FACE',
+    description: 'Tinted sunglasses for soaking in solar rays in style.',
+    price: 90,
+    requiredLevel: 1,
+    assetModel: 'sunnies.glb',
+  },
+  {
+    id: 'readers',
+    name: 'Wireframe Reading Glasses',
+    slot: 'FACE',
+    description: 'Studious spectacles for reviewing energy audit metrics.',
+    price: 80,
+    requiredLevel: 1,
+    assetModel: 'readers.glb',
   },
 
-  // NECK ACCESSORIES
+  // NECK
+  {
+    id: 'bow',
+    name: 'Dapper Green Bow Tie',
+    slot: 'NECK',
+    description: 'Silk bow tie made of eco-certified organic fibers.',
+    price: 70,
+    requiredLevel: 1,
+    assetModel: 'bow.glb',
+  },
+  {
+    id: 'collar',
+    name: 'Smart Leather Band',
+    slot: 'NECK',
+    description: 'Neat collar with a miniature water droplet pendant.',
+    price: 80,
+    requiredLevel: 1,
+    assetModel: 'collar.glb',
+  },
+  {
+    id: 'lei',
+    name: 'Tropical Hawaiian Lei',
+    slot: 'NECK',
+    description: 'Vibrant garland of fragrant plumeria and orchids.',
+    price: 90,
+    requiredLevel: 1,
+    assetModel: 'lei.glb',
+  },
+  {
+    id: 'knit',
+    name: 'Cozy Knitted Scarf',
+    slot: 'NECK',
+    description: 'Long trailing winter muffler woven from recycled wool.',
+    price: 100,
+    requiredLevel: 1,
+    assetModel: 'knit.glb',
+  },
+  {
+    id: 'plaid',
+    name: 'Warm Plaid Scarf',
+    slot: 'NECK',
+    description: 'Autumnal plaid patterned scarf for brisk evening walks.',
+    price: 100,
+    requiredLevel: 1,
+    assetModel: 'plaid.glb',
+  },
+  {
+    id: 'xmas',
+    name: 'Festive Holiday Garland',
+    slot: 'NECK',
+    description: 'Holly leaves and jingle bells celebrating green holidays.',
+    price: 110,
+    requiredLevel: 1,
+    assetModel: 'xmas.glb',
+  },
+  {
+    id: 'green_muffler',
+    name: 'Hand-Knitted Green Muffler',
+    slot: 'NECK',
+    description: 'Cozy woolen green scarf made from recycled eco-fibers.',
+    price: 100,
+    requiredLevel: 1,
+    assetModel: 'green_muffler.glb',
+  },
   {
     id: 'acc_neck_green_muffler',
     name: 'Hand-Knitted Green Muffler',
@@ -71,7 +211,7 @@ export const WARDROBE_CATALOG: Omit<WardrobeItem, 'isOwned' | 'isEquipped'>[] = 
     assetModel: 'green_muffler.glb',
   },
   {
-    id: 'acc_neck_eco_bell',
+    id: 'eco_bell',
     name: 'Solar Brass Eco-Bell',
     slot: 'NECK',
     description: 'Chimes pleasantly whenever you maintain a sustainable energy streak.',
@@ -80,24 +220,152 @@ export const WARDROBE_CATALOG: Omit<WardrobeItem, 'isOwned' | 'isEquipped'>[] = 
     assetModel: 'eco_bell.glb',
   },
 
-  // BODY ACCESSORIES
+  // HELD
   {
-    id: 'acc_body_leaf_sweater',
-    name: 'Cozy Woolen Leaf Sweater',
-    slot: 'BODY',
-    description: 'Warm emerald sweater embroidered with the official Mission LiFE leaf emblem.',
-    price: 150,
+    id: 'umbrella',
+    name: 'Classic Twill Umbrella',
+    slot: 'HELD',
+    description: 'Sturdy wind-resistant parasol for rainy days.',
+    price: 140,
     requiredLevel: 1,
-    assetModel: 'leaf_sweater.glb',
+    assetModel: 'umbrella.glb',
   },
   {
-    id: 'acc_body_khadi_vest',
-    name: 'Heritage Khadi Vest',
-    slot: 'BODY',
-    description: 'Handspun organic cotton jacket celebrating Gujarat craft and zero-carbon living.',
-    price: 220,
-    requiredLevel: 10,
-    assetModel: 'khadi_vest.glb',
+    id: 'leafbrella',
+    name: 'Lotus Leaf Parasol',
+    slot: 'HELD',
+    description: 'Giant rain-shedding lotus leaf plucked straight from the garden pond.',
+    price: 170,
+    requiredLevel: 1,
+    assetModel: 'leafbrella.glb',
+  },
+
+  // FX (Weather & Ambience)
+  {
+    id: 'petals',
+    name: 'Swirling Cherry Petals',
+    slot: 'FX',
+    description: 'Whirling pink sakura blossom petals drifting in the breeze.',
+    price: 50,
+    requiredLevel: 1,
+    assetModel: 'petals.fx',
+  },
+  {
+    id: 'butterflies',
+    name: 'Golden Pollinator Flutters',
+    slot: 'FX',
+    description: 'Glowing yellow and teal butterflies dancing around your sparrow.',
+    price: 80,
+    requiredLevel: 1,
+    assetModel: 'butterflies.fx',
+  },
+  {
+    id: 'leaves',
+    name: 'Autumn Amber Foliage',
+    slot: 'FX',
+    description: 'Crisp russet and golden leaves tumbling gently to the soil.',
+    price: 50,
+    requiredLevel: 1,
+    assetModel: 'leaves.fx',
+  },
+  {
+    id: 'snow',
+    name: 'Soft Winter Flurries',
+    slot: 'FX',
+    description: 'Delicate crystalline snowflakes shimmering in the air.',
+    price: 60,
+    requiredLevel: 1,
+    assetModel: 'snow.fx',
+  },
+  {
+    id: 'rain',
+    name: 'Monsoon Rain Droplets',
+    slot: 'FX',
+    description: 'Refreshing monsoonal rain droplets and subtle ripple splashes.',
+    price: 60,
+    requiredLevel: 1,
+    assetModel: 'rain.fx',
+  },
+];
+
+export interface OutfitDefinition {
+  id: string;
+  name: string;
+  description: string;
+  season: string;
+  head: string | null;
+  face: string | null;
+  neck: string | null;
+  held: string | null;
+  fx: string | null;
+}
+
+export const OUTFITS_CATALOG: OutfitDefinition[] = [
+  {
+    id: 'spring',
+    name: 'Spring Blossom',
+    description: 'Fresh spring floral crown, dapper bow tie, and swirling flower petals.',
+    season: 'spring',
+    head: 'flowers',
+    face: null,
+    neck: 'bow',
+    held: null,
+    fx: 'petals',
+  },
+  {
+    id: 'summer',
+    name: 'Summer Breeze',
+    description: 'Chic straw sunhat, UV-protective shades, tropical floral lei, and fluttering butterflies.',
+    season: 'summer',
+    head: 'straw',
+    face: 'sunnies',
+    neck: 'lei',
+    held: null,
+    fx: 'butterflies',
+  },
+  {
+    id: 'autumn',
+    name: 'Autumn Harvest',
+    description: 'Cozy acorn cap, studious reader glasses, warm plaid scarf, and crisp falling autumn leaves.',
+    season: 'autumn',
+    head: 'acorn',
+    face: 'readers',
+    neck: 'plaid',
+    held: null,
+    fx: 'leaves',
+  },
+  {
+    id: 'winter',
+    name: 'Cozy Winter',
+    description: 'Warm knitted beanie, cozy green muffler, and gentle falling snowflakes.',
+    season: 'winter',
+    head: 'beanie',
+    face: null,
+    neck: 'knit',
+    held: null,
+    fx: 'snow',
+  },
+  {
+    id: 'rainy',
+    name: 'Monsoon Splash',
+    description: 'Waterproof yellow rainhat, rain collar, organic leaf umbrella, and soothing rain ripples.',
+    season: 'rainy',
+    head: 'rainhat',
+    face: null,
+    neck: 'collar',
+    held: 'leafbrella',
+    fx: 'rain',
+  },
+  {
+    id: 'festive',
+    name: 'Festive Celebration',
+    description: 'Celebratory red holiday hat, festive holiday garland, and glistening snow.',
+    season: 'festive',
+    head: 'santa',
+    face: null,
+    neck: 'xmas',
+    held: null,
+    fx: 'snow',
   },
 ];
 
@@ -147,8 +415,10 @@ export class MascotService {
         vitality: 85, // Starts healthy and cheerful
         equipped: {
           head: null,
+          face: null,
           neck: null,
-          body: null,
+          held: null,
+          fx: null,
         },
         ownedAccessories: [],
         lastInteractedAt: new Date().toISOString(),
@@ -216,8 +486,10 @@ export class MascotService {
       const isOwned = mascot.ownedAccessories.includes(item.id);
       const isEquipped =
         mascot.equipped.head === item.id ||
+        mascot.equipped.face === item.id ||
         mascot.equipped.neck === item.id ||
-        mascot.equipped.body === item.id;
+        mascot.equipped.held === item.id ||
+        mascot.equipped.fx === item.id;
 
       return {
         ...item,
@@ -285,7 +557,11 @@ export class MascotService {
   /**
    * Equip or unequip an owned accessory to a designated slot
    */
-  public static equipAccessory(userId: string, slot: 'HEAD' | 'NECK' | 'BODY', accessoryId: string | null | undefined): EquipAccessoryResponse {
+  public static equipAccessory(
+    userId: string,
+    slot: 'HEAD' | 'FACE' | 'NECK' | 'HELD' | 'FX',
+    accessoryId: string | null | undefined
+  ): EquipAccessoryResponse {
     const mascot = this.getOrCreateMascot(userId);
 
     const targetAccessoryId = accessoryId && accessoryId.trim() !== '' ? accessoryId : null;
@@ -301,12 +577,106 @@ export class MascotService {
       }
     }
 
-    const slotKey = slot.toLowerCase() as 'head' | 'neck' | 'body';
+    const slotKey = slot.toLowerCase() as 'head' | 'face' | 'neck' | 'held' | 'fx';
     mascot.equipped[slotKey] = targetAccessoryId;
     this.repository.save(mascot);
 
     return {
       success: true,
+      equipped: mascot.equipped,
+    };
+  }
+
+  /**
+   * Get all seasonal outfits with owned & equipped statuses
+   */
+  public static getOutfits(userId: string): OutfitsResponse {
+    const mascot = this.getOrCreateMascot(userId);
+
+    const outfits: OutfitItem[] = OUTFITS_CATALOG.map((o) => {
+      const requiredPieces = [o.head, o.face, o.neck, o.held, o.fx].filter((p): p is string => Boolean(p));
+      const missingPieces = requiredPieces.filter((p) => !mascot.ownedAccessories.includes(p));
+      const isOwned = missingPieces.length === 0;
+
+      const isEquipped =
+        (!o.head || mascot.equipped.head === o.head) &&
+        (!o.face || mascot.equipped.face === o.face) &&
+        (!o.neck || mascot.equipped.neck === o.neck) &&
+        (!o.held || mascot.equipped.held === o.held) &&
+        (!o.fx || mascot.equipped.fx === o.fx);
+
+      const packageCost = missingPieces.reduce((acc, pieceId) => {
+        const catalogItem = WARDROBE_CATALOG.find((it) => it.id === pieceId);
+        return acc + (catalogItem?.price || 0);
+      }, 0);
+
+      return {
+        id: o.id,
+        name: o.name,
+        description: o.description,
+        season: o.season,
+        head: o.head,
+        face: o.face,
+        neck: o.neck,
+        held: o.held,
+        fx: o.fx,
+        isOwned,
+        isEquipped,
+        missingCount: missingPieces.length,
+        packageCost,
+      };
+    });
+
+    return { outfits };
+  }
+
+  /**
+   * Equip a seasonal outfit bundle
+   */
+  public static equipOutfit(userId: string, outfitId: string): EquipOutfitResponse {
+    const mascot = this.getOrCreateMascot(userId);
+    const outfit = OUTFITS_CATALOG.find((o) => o.id === outfitId);
+
+    if (!outfit) {
+      throw new Error(`Outfit '${outfitId}' not found in catalog`);
+    }
+
+    // Equip whatever pieces the user owns from this outfit
+    if (outfit.head && mascot.ownedAccessories.includes(outfit.head)) {
+      mascot.equipped.head = outfit.head;
+    } else if (outfit.head) {
+      mascot.equipped.head = null;
+    }
+
+    if (outfit.face && mascot.ownedAccessories.includes(outfit.face)) {
+      mascot.equipped.face = outfit.face;
+    } else if (outfit.face) {
+      mascot.equipped.face = null;
+    }
+
+    if (outfit.neck && mascot.ownedAccessories.includes(outfit.neck)) {
+      mascot.equipped.neck = outfit.neck;
+    } else if (outfit.neck) {
+      mascot.equipped.neck = null;
+    }
+
+    if (outfit.held && mascot.ownedAccessories.includes(outfit.held)) {
+      mascot.equipped.held = outfit.held;
+    } else if (outfit.held) {
+      mascot.equipped.held = null;
+    }
+
+    if (outfit.fx && mascot.ownedAccessories.includes(outfit.fx)) {
+      mascot.equipped.fx = outfit.fx;
+    } else if (outfit.fx) {
+      mascot.equipped.fx = null;
+    }
+
+    this.repository.save(mascot);
+
+    return {
+      success: true,
+      outfitId,
       equipped: mascot.equipped,
     };
   }

@@ -13,6 +13,7 @@ import { authRoutes } from './modules/auth/auth.routes';
 import { mediaRoutes } from './modules/media/media.routes';
 import { mascotRoutes } from './modules/mascot/mascot.routes';
 import { gardenRoutes } from './modules/garden/garden.routes';
+import { activityRoutes } from './modules/activity/activity.routes';
 
 export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   const app = fastify({
@@ -82,6 +83,7 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.register(mediaRoutes, { prefix: '/api/v1/media' });
   app.register(mascotRoutes, { prefix: '/api/v1/mascot' });
   app.register(gardenRoutes, { prefix: '/api/v1/garden' });
+  app.register(activityRoutes, { prefix: '/api/v1/activity' });
 
   return app;
 }
