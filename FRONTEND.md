@@ -51,6 +51,12 @@ flowchart TD
 | `POST /api/v1/auth/logout` | `POST` | Bearer JWT | `{ refreshToken?: string }` | `{ success: true }` | Clear local storage & navigate to login |
 | `DELETE /api/v1/auth/account` | `DELETE` | Bearer JWT | None | `{ success: true }` | Account deletion / PII scrubbing |
 | `GET /api/v1/media/imagekit-auth` | `GET` | Bearer JWT | None | `{ token, expire, signature, publicKey }` | Obtain temporary signature for direct image upload |
+| `GET /api/v1/mascot/state` | `GET` | Bearer JWT | None | `{ type, name, level, vitality, mood, equipped, dialogue }` | Render 3D mascot, mood, and active speech bubble |
+| `PATCH /api/v1/mascot` | `PATCH` | Bearer JWT | `{ name?: string, type?: "sparrow" \| "squirrel" }` | `{ ...mascotState }` | Rename mascot or toggle species |
+| `POST /api/v1/mascot/interact` | `POST` | Bearer JWT | None | `{ vitality, mood, dialogue }` | On tap/click: play chirp animation & sound |
+| `GET /api/v1/mascot/wardrobe` | `GET` | Bearer JWT | None | `{ citizenPoints, items: [...] }` | Render Wardrobe Shop (Head, Neck, Body) |
+| `POST /api/v1/mascot/wardrobe/buy` | `POST` | Bearer JWT | `{ accessoryId: string }` | `{ success, remainingPoints, item }` | Buy costly accessory (>=100 Urja Mudra) |
+| `POST /api/v1/mascot/wardrobe/equip` | `POST` | Bearer JWT | `{ slot: "HEAD" \| "NECK" \| "BODY", accessoryId: string \| null }` | `{ success, equipped }` | Equip or unequip accessory on 3D model |
 
 ---
 
@@ -199,3 +205,32 @@ export const GUJARAT_DISTRICTS = [
   'Tapi', 'Vadodara', 'Valsad'
 ];
 ```
+
+---
+
+## 7. Mascot Stage & Lifelike Speech Engine UI
+
+To make the Sparrow mascot feel like a living companion (Duolingo-style) rather than a static widget:
+
+### A. Dynamic Speech Bubble Presentation
+1. **Positioning:** Floating rounded speech bubble placed directly above the mascot's head with a subtle arrow tail pointing down.
+2. **Typewriter Effect:** Reveal speech lines letter-by-letter over ~1.2 seconds with a soft flutter/pop sound.
+3. **Contextual Badge:** Display a small icon indicator corresponding to `dialogue.context`:
+   * `MORNING_SOLAR` ➔ ☀️ Yellow sun icon
+   * `PEAK_HOURS` ➔ ⚡ Amber lightning icon
+   * `BEDTIME` ➔ 🌙 Soft blue moon icon
+   * `LOW_VITALITY` ➔ 💧 Blue droplet icon
+   * `TAP` ➔ 🎵 Music note icon
+
+### B. Visual Mood & Animation Mappings
+| Mood Received from Backend | Flutter / Web Animation State | Ambient Particle Effect |
+| :--- | :--- | :--- |
+| `EXCITED` (Vitality >= 80) | Energetic wing flutter, happy hops, bright eyes | Sparkles & solar rays ✨ |
+| `HAPPY` (Vitality 50–79) | Gentle bobbing / breathing idle loop, warm smile | Gentle green floating leaves 🍃 |
+| `DROOPY` (Vitality 25–49) | Head tilted downward, slower breathing, muted posture | Soft sweat droplet 💧 |
+| `SLEEPY` (Vitality < 25) | Eyes closed, slow resting posture on nest perch | Floating Z-Z-Z cloud 💤 |
+
+### C. Wardrobe Shop Modal UI (3 Slots Only)
+* **Tabs:** `HEAD` (Solar Cap, Gujarati Paghdi, Straw Hat) · `NECK` (Green Muffler, Eco-Bell) · `BODY` (Leaf Sweater, Khadi Vest).
+* **Cost Indicator:** Show item cost in **Urja Mudra** (100–250 coins). Gray out items if citizen balance is insufficient.
+* **Equipped Checkmark:** Highlight equipped items with a glowing green badge. Tapping an equipped item dispatches `accessoryId: null` to unequip.

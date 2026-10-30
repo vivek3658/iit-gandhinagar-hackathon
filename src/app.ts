@@ -11,6 +11,8 @@ import authPlugin from './plugins/auth';
 import { healthRoutes } from './modules/health/health.routes';
 import { authRoutes } from './modules/auth/auth.routes';
 import { mediaRoutes } from './modules/media/media.routes';
+import { mascotRoutes } from './modules/mascot/mascot.routes';
+import { gardenRoutes } from './modules/garden/garden.routes';
 
 export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   const app = fastify({
@@ -78,6 +80,8 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.register(healthRoutes, { prefix: '/api/v1' });
   app.register(authRoutes, { prefix: '/api/v1/auth' });
   app.register(mediaRoutes, { prefix: '/api/v1/media' });
+  app.register(mascotRoutes, { prefix: '/api/v1/mascot' });
+  app.register(gardenRoutes, { prefix: '/api/v1/garden' });
 
   return app;
 }

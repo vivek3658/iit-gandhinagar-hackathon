@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>UrjaVatika | 3D Garden & Mascot Interactive Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1a14;
+      --card: #15291f;
+      --card-hover: #1c382b;
+      --border: #234836;
+      --ink: #f0fdf4;
+      --sub: #86efac;
+      --muted: #64748b;
+      --acc: #10b981;
+      --acc-bright: #34d399;
+      --gold: #f59e0b;
+      --amber: #fbbf24;
+      --danger: #ef4444;
+      --blue: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    header {
+      background: rgba(13, 26, 20, 0.95);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle at 30% 30%, #34d399, #065f46);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 15px rgba(52, 211, 153, 0.3);
+    }
+    .brand h1 { font-size: 1.25rem; font-weight: 700; color: #fff; }
+    .brand p { font-size: 0.75rem; color: var(--sub); }
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+    .stat-pill b { color: var(--acc-bright); }
+    .stat-pill.coin { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); }
+    .stat-pill.coin b { color: var(--amber); }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      flex: 1;
+      height: calc(100vh - 65px);
+    }
+    @media (max-width: 1024px) {
+      .main-layout { grid-template-columns: 1fr; height: auto; }
+    }
+
+    #stage-container {
+      position: relative;
+      background: radial-gradient(circle at 50% 35%, #183324, #0b1711 75%);
+      width: 100%;
+      height: 100%;
+      min-height: 480px;
+      cursor: grab;
+      overflow: hidden;
+    }
+    #stage-container:active { cursor: grabbing; }
+    #stage-canvas { width: 100%; height: 100%; display: block; }
+
+    /* Overlay HUD */
+    .hud-controls {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+    .hud-btn {
+      background: rgba(21, 41, 31, 0.85);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+    }
+    .hud-btn:hover { background: var(--card-hover); border-color: var(--acc); }
+    .hud-btn.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+
+    /* Speech Bubble */
+    #speech-bubble {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      max-width: 320px;
+      background: rgba(21, 41, 31, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      animation: floatBubble 3s ease-in-out infinite;
+    }
+    @keyframes floatBubble {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    #speech-bubble h4 { font-size: 0.8rem; color: var(--acc-bright); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    #speech-text { font-size: 0.85rem; line-height: 1.4; color: #fff; }
+
+    /* Bottom Preview Action Bar */
+    #preview-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(21, 41, 31, 0.95);
+      border: 1px solid var(--acc);
+      border-radius: 16px;
+      padding: 12px 20px;
+      display: none;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+      z-index: 20;
+    }
+    #preview-bar.show { display: flex; }
+    .preview-info b { color: var(--acc-bright); display: block; font-size: 0.95rem; }
+    .preview-info span { font-size: 0.75rem; color: var(--sub); }
+    .preview-actions { display: flex; gap: 8px; }
+    .btn-buy {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-buy:hover { filter: brightness(1.1); }
+    .btn-rotate {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-rotate:hover { border-color: var(--amber); color: var(--amber); }
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { color: #fff; border-color: #fff; }
+
+    /* Right Sidebar (Tabs: Catalog, Inventory, Mascot) */
+    .sidebar {
+      background: var(--card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .tabs-header {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13, 26, 20, 0.6);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--acc-bright); border-bottom-color: var(--acc-bright); background: rgba(16, 185, 129, 0.05); }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: none;
+    }
+    .tab-content.active { display: block; }
+
+    /* Catalog Filters & Items */
+    .cat-filter {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .filter-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-chip.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .catalog-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .catalog-card:hover { border-color: var(--acc); transform: translateY(-1px); }
+    .catalog-card.selected { border-color: var(--acc-bright); box-shadow: 0 0 12px rgba(52, 211, 153, 0.2); }
+    .catalog-card.locked { opacity: 0.5; cursor: not-allowed; }
+    .catalog-card-info h5 { font-size: 0.9rem; margin-bottom: 2px; }
+    .catalog-card-info p { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
+    .catalog-card-price {
+      text-align: right;
+      min-width: 70px;
+    }
+    .price-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--amber);
+      font-size: 0.85rem;
+    }
+    .level-tag {
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: block;
+    }
+
+    /* Inventory Cards */
+    .inventory-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .inv-actions { display: flex; gap: 6px; }
+    .btn-place {
+      background: var(--acc);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .btn-sell {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .btn-sell:hover { background: var(--danger); color: #fff; }
+
+    /* Mascot Expression Buttons */
+    .expr-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .expr-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      padding: 8px;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-align: left;
+    }
+    .expr-btn:hover { border-color: var(--acc); }
+    .expr-btn.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🌿</div>
+      <div>
+        <h1>UrjaVatika 3D Sanctuary</h1>
+        <p>GEDA Mission LiFE Citizen Platform · Dynamic Grid & Mascot Studio</p>
+      </div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-pill">
+        <span>🌱 CO2 Level:</span>
+        <b id="hud-level">Level 1 (0 kg)</b>
+      </div>
+      <div class="stat-pill coin">
+        <span>⚡ Urja Mudra:</span>
+        <b id="hud-coins">1,500 🍃</b>
+      </div>
+      <div class="stat-pill">
+        <span>📐 Grid:</span>
+        <b id="hud-grid">3 × 3 (9 plots)</b>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- 3D Interactive Stage -->
+    <div id="stage-container">
+      <div class="hud-controls">
+        <button class="hud-btn" id="btn-camera-reset">🎥 Reset View</button>
+        <button class="hud-btn" id="btn-spin-toggle">🔄 Auto-Orbit: Off</button>
+        <button class="hud-btn" id="btn-mascot-pet">👋 Pet Sparrow (+Vitality)</button>
+        <button class="hud-btn" id="btn-test-level">⚡ Level Up Mascot (+50kg CO2)</button>
+      </div>
+
+      <div id="speech-bubble">
+        <h4><span id="speech-icon">☀️</span> <span id="speech-title">Chirpy Says:</span></h4>
+        <div id="speech-text">Chirp! Welcome to your digital sanctuary. Click any tile below to preview before building!</div>
+      </div>
+
+      <!-- Preview Confirmation Bar -->
+      <div id="preview-bar">
+        <div class="preview-info">
+          <b id="preview-name">Glass Greenhouse</b>
+          <span id="preview-cost">Cost: 650 Urja Mudra · Angle: 0°</span>
+        </div>
+        <div class="preview-actions">
+          <button class="btn-rotate" id="btn-rotate-ghost">⟳ Rotate 90°</button>
+          <button class="btn-buy" id="btn-confirm-buy">Confirm Buy & Place (650 🍃)</button>
+          <button class="btn-cancel" id="btn-cancel-preview">Cancel</button>
+        </div>
+      </div>
+
+      <canvas id="stage-canvas"></canvas>
+    </div>
+
+    <!-- Right Control Panel -->
+    <div class="sidebar">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="catalog">🌿 Catalog (31)</button>
+        <button class="tab-btn" data-tab="inventory">🎒 Inventory (<span id="inv-count">0</span>)</button>
+        <button class="tab-btn" data-tab="mascot">🐤 Companion</button>
+      </div>
+
+      <!-- TAB 1: CATALOG -->
+      <div class="tab-content active" id="tab-catalog">
+        <div class="cat-filter" id="catalog-filters">
+          <button class="filter-chip active" data-cat="All">All</button>
+          <button class="filter-chip" data-cat="Buildings">Buildings</button>
+          <button class="filter-chip" data-cat="Energy">Energy</button>
+          <button class="filter-chip" data-cat="Water">Water</button>
+          <button class="filter-chip" data-cat="Flora">Flora</button>
+          <button class="filter-chip" data-cat="Paths">Paths</button>
+          <button class="filter-chip" data-cat="Furniture">Furniture</button>
+        </div>
+        <div class="catalog-grid" id="catalog-list"></div>
+      </div>
+
+      <!-- TAB 2: INVENTORY -->
+      <div class="tab-content" id="tab-inventory">
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">
+          Removed tiles are stored here safely. Place them back onto your grid for 0 coins, or sell them for an 80% coin recovery!
+        </p>
+        <div id="inventory-list">
+          <div style="text-align: center; color: var(--muted); padding: 30px 10px; font-size: 0.85rem;">
+            Your inventory is empty. Click any placed tile on the grid to store it here!
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: MASCOT EXPRESSIONS -->
+      <div class="tab-content" id="tab-mascot">
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+          <h4 style="font-size: 0.9rem; margin-bottom: 4px;">Sparrow Companion</h4>
+          <p style="font-size: 0.75rem; color: var(--sub);">Articulated procedural 3D rig with 12 canonical expression poses.</p>
+        </div>
+        <h5 style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted); margin: 8px 0 4px;">Expressions & Poses</h5>
+        <div class="expr-grid" id="expr-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script>
+  (()=>{
+    // ==========================================
+    // 1. STATE & DATA INITIALIZATION
+    // ==========================================
+    const STATE = {
+      coins: 1500,
+      co2SavedKg: 0,
+      level: 1,
+      gridSize: 3,
+      placedTiles: [], // { instanceId, tileId, x, y, rotation, cost }
+      inventory: [],   // { instanceId, tileId, cost, refundPrice }
+      selectedCatalogId: null,
+      previewCoordinates: null, // { x, y, rotation: 0 }
+      currentExpression: 'happy',
+      autoSpin: false,
+    };
+
+    // Calculate grid size from level
+    function calcGridSize(lvl) {
+      if (lvl >= 90) return 10;
+      if (lvl >= 75) return 8;
+      if (lvl >= 50) return 7;
+      if (lvl >= 40) return 6;
+      if (lvl >= 25) return 5;
+      if (lvl >= 10) return 4;
+      return 3;
+    }
+
+    // Master Catalog from backend specification
+    const CATALOG = [
+      // Paths & Fences (Cheap around 100+)
+      { id: 'EMPTY_LAND', name: 'Empty Land Block', cat: 'Paths', lv: 1, cost: 50, d: 'Fresh tilled soil plot ready for green development.' },
+      { id: 'GRASS_TILE', name: 'Lush Meadow Tile', cat: 'Paths', lv: 1, cost: 50, d: 'Soft native Gujarati grass meadow.' },
+      { id: 'STONE_PATH', name: 'Cobblestone Way', cat: 'Paths', lv: 1, cost: 100, d: 'Charming permeable stone path connecting plots.' },
+      { id: 'DIRT_PATH', name: 'Rammed Earth Trail', cat: 'Paths', lv: 1, cost: 100, d: 'Traditional compressed clay path for rainwater drainage.' },
+      { id: 'WOOD_FENCE', name: 'Rustic Picket Fence', cat: 'Paths', lv: 1, cost: 100, d: 'Sturdy boundary fence made from upcycled timber.' },
+      { id: 'WOOD_PATH', name: 'Timber Deck Tile', cat: 'Paths', lv: 2, cost: 120, d: 'Polished recycled teakwood decking.' },
+      { id: 'GARDEN_GATE', name: 'Garden Gate Arch', cat: 'Paths', lv: 3, cost: 150, d: 'Arched floral entryway welcoming songbirds.' },
+
+      // Flora & Agriculture (200 - 450 coins)
+      { id: 'ROCK_BOULDER', name: 'Boulder Rock', cat: 'Flora', lv: 1, cost: 150, d: 'Natural sandstone formation offering shade.' },
+      { id: 'TULSI_KYARO', name: 'Sacred Tulsi Altar', cat: 'Flora', lv: 1, cost: 250, d: 'Traditional terracotta Tulsi planter.' },
+      { id: 'FLOWER_BED', name: 'Pollinator Flower Patch', cat: 'Flora', lv: 2, cost: 200, d: 'Vibrant marigolds and jasmine attracting local bees.' },
+      { id: 'VEGETABLE_PLOT', name: 'Organic Vegetable Plot', cat: 'Flora', lv: 2, cost: 300, d: 'Kitchen garden patch producing fresh zero-mile carrots.' },
+      { id: 'TREE_SMALL', name: 'Young Fruit Tree', cat: 'Flora', lv: 3, cost: 300, d: 'Young sapling yielding fresh organic fruit.' },
+      { id: 'ROSE_BUSH', name: 'Flowering Bush', cat: 'Flora', lv: 4, cost: 220, d: 'Perennial flowering shrub supporting micro-climate cooling.' },
+      { id: 'TREE_LARGE', name: 'Mature Apple Tree', cat: 'Flora', lv: 6, cost: 450, d: 'Flourishing tree creating dense canopy shade.' },
+      { id: 'HERITAGE_BANYAN', name: 'Sacred Canopy Banyan', cat: 'Flora', lv: 25, cost: 1200, d: 'Grand Gujarat heritage tree with fairy lanterns.' },
+      { id: 'FREEDOM_TREE', name: 'Freedom Blossom Tree', cat: 'Flora', lv: 25, cost: 1500, d: 'Majestic landmark celebrating green independence.' },
+
+      // Furniture & Sanctuary Decor
+      { id: 'BIRD_HOUSE', name: 'Wooden Bird House', cat: 'Furniture', lv: 1, cost: 200, d: 'Cozy elevated nest box for native sparrows.' },
+      { id: 'SPARROW_BATH', name: 'Solar Bird Bath', cat: 'Furniture', lv: 2, cost: 250, d: 'Circulating fountain powered by integrated mini solar cell.' },
+      { id: 'RUSTIC_BENCH', name: 'Garden Bench', cat: 'Furniture', lv: 3, cost: 200, d: 'Handcrafted timber bench for resting.' },
+      { id: 'CAMPFIRE_PIT', name: 'Eco-Briquette Fire Pit', cat: 'Furniture', lv: 10, cost: 400, d: 'Clean-burning circular stone pit fueled by biomass.' },
+      { id: 'ZEN_STONE', name: 'Zen Milestone Boulder', cat: 'Furniture', lv: 12, cost: 350, d: 'Engraved granite boulder honoring your carbon journey.' },
+
+      // Water Conservation Assets
+      { id: 'POND_TILE', name: 'Lily Pond Tile', cat: 'Water', lv: 1, cost: 350, d: 'Mini-pond with floating lily pads.' },
+      { id: 'WOODEN_BRIDGE_TILE', name: 'Garden Footbridge', cat: 'Water', lv: 5, cost: 400, d: 'Arched timber bridge spanning across waterways.' },
+      { id: 'WATER_WELL', name: 'Stone Recharge Well', cat: 'Water', lv: 10, cost: 450, d: 'Traditional step-well style percolation pit.' },
+
+      // Energy & Major Structures (Costly 300+ to 1000+)
+      { id: 'SOLAR_STREET_LAMP', name: 'Solar Lantern Post', cat: 'Energy', lv: 1, cost: 300, d: 'Self-powered LED lantern post illuminating walkways.' },
+      { id: 'SOLAR_PANEL_T1', name: 'Mini Solar Flower', cat: 'Energy', lv: 1, cost: 500, d: 'Photovoltaic sunflower tracking the sun.' },
+      { id: 'COMPOST_TUMBLER', name: 'Organic Compost Tumbler', cat: 'Energy', lv: 8, cost: 500, d: 'Aerated dual drum turning food scraps into fertilizer.' },
+      { id: 'WINDMILL_RUSTIC', name: 'Mini Kinetic Windmill', cat: 'Energy', lv: 5, cost: 750, d: 'Micro-wind turbine rotating in Gujarat breezes.' },
+      { id: 'GREENHOUSE', name: 'Glass Greenhouse', cat: 'Buildings', lv: 8, cost: 650, d: 'Climate-controlled passive solar glass nursery.' },
+      { id: 'SPARROW_HOME', name: 'Chibi Sparrow Manor', cat: 'Buildings', lv: 5, cost: 800, d: 'Multi-level green estate with smoking chimney.' },
+      { id: 'BIOGAS_DOME', name: 'Village Bio-Digester', cat: 'Energy', lv: 20, cost: 1000, d: 'Converts organic waste into clean cooking biogas.' },
+    ];
+
+    const POSES = ['happy', 'excited', 'curious', 'thinking', 'cheering', 'resting', 'planting', 'watering', 'celebrating', 'exploring', 'nest'];
+
+    // ==========================================
+    // 2. THREE.JS 3D SCENE SETUP
+    // ==========================================
+    const container = document.getElementById('stage-container');
+    const canvas = document.getElementById('stage-canvas');
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(9, 11, 11);
+    camera.lookAt(0, 0.5, 0);
+
+    // Lights
+    const hemiLight = new THREE.HemisphereLight(0xfff5e6, 0x1f3624, 0.9);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfff1cf, 1.4);
+    dirLight.position.set(12, 18, 8);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.bias = -0.0005;
+    dirLight.shadow.camera.left = dirLight.shadow.camera.bottom = -12;
+    dirLight.shadow.camera.right = dirLight.shadow.camera.top = 12;
+    scene.add(dirLight);
+
+    // Ground Plane & Shadows
+    const groundGeo = new THREE.PlaneGeometry(80, 80);
+    const groundMat = new THREE.ShadowMaterial({ opacity: 0.25 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.01;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    const gridGroup = new THREE.Group();
+    worldGroup.add(gridGroup);
+
+    const mascotGroup = new THREE.Group();
+    worldGroup.add(mascotGroup);
+
+    // ==========================================
+    // 3. PROCEDURAL PROCEDURAL 3D MESH BUILDERS
+    // ==========================================
+    const BX = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+    const CY = (a, b, h, s = 14) => new THREE.CylinderGeometry(a, b, h, s);
+    const SP = (r, s = 14) => new THREE.SphereGeometry(r, s, Math.max(6, s - 4));
+    const T = 0.22;
+
+    function createMat(color, opts = {}) {
+      return new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.75,
+        metalness: 0.1,
+        ...opts,
+      });
+    }
+
+    function addMesh(group, geo, mat, x, y, z, rot) {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      if (rot) m.rotation.set(rot.x || 0, rot.y || 0, rot.z || 0);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      group.add(m);
+      return m;
+    }
+
+    // Base Tile Slab
+    function buildBaseSlab(topColor = 0x6fcf5a, dirtColor = 0x8b5a2b) {
+      const g = new THREE.Group();
+      addMesh(g, BX(1, 0.12, 1), createMat(dirtColor), 0, 0.06, 0);
+      addMesh(g, BX(1.02, 0.1, 1.02), createMat(topColor), 0, 0.17, 0);
+      return g;
+    }
+
+    // Procedural Tile Geometry Dispatcher
+    function buildTileMesh(tileId) {
+      const g = buildBaseSlab();
+
+      switch (tileId) {
+        case 'GRASS_TILE':
+        case 'EMPTY_LAND': {
+          for (let i = 0; i < 5; i++) {
+            const a = (i * 1.3) % 6.28;
+            addMesh(g, SP(0.04, 6), createMat(0x38a169), Math.cos(a) * 0.3, T + 0.02, Math.sin(a) * 0.3);
+          }
+          break;
+        }
+        case 'STONE_PATH': {
+          const stones = [[-0.25,-0.25,0.18],[0.22,-0.22,0.16],[0,0.02,0.2],[-0.22,0.25,0.16],[0.24,0.24,0.18]];
+          stones.forEach(([x, z, r]) => addMesh(g, CY(r, r, 0.04, 6), createMat(0x94a3b8), x, T + 0.02, z));
+          break;
+        }
+        case 'WOOD_FENCE': {
+          [-0.35, 0, 0.35].forEach(x => {
+            addMesh(g, BX(0.08, 0.35, 0.04), createMat(0xb45309), x, T + 0.17, -0.42);
+          });
+          [0.12, 0.27].forEach(y => {
+            addMesh(g, BX(0.96, 0.04, 0.04), createMat(0x92400e), 0, T + y, -0.42);
+          });
+          break;
+        }
+        case 'TULSI_KYARO': {
+          addMesh(g, CY(0.24, 0.18, 0.28, 4), createMat(0xea580c), 0, T + 0.14, 0, { y: Math.PI / 4 });
+          addMesh(g, BX(0.36, 0.04, 0.36), createMat(0xc2410c), 0, T + 0.3, 0);
+          addMesh(g, SP(0.18, 8), createMat(0x16a34a), 0, T + 0.44, 0);
+          break;
+        }
+        case 'FLOWER_BED': {
+          const cols = [0xfacc15, 0xdc2626, 0xffffff, 0xf472b6];
+          for (let i = 0; i < 16; i++) {
+            const x = (i % 4 - 1.5) * 0.22;
+            const z = (Math.floor(i / 4) - 1.5) * 0.22;
+            addMesh(g, CY(0.006, 0.006, 0.12, 4), createMat(0x15803d), x, T + 0.06, z);
+            addMesh(g, SP(0.04, 6), createMat(cols[i % cols.length]), x, T + 0.13, z);
+          }
+          break;
+        }
+        case 'TREE_SMALL':
+        case 'TREE_LARGE': {
+          const trunkH = tileId === 'TREE_LARGE' ? 0.65 : 0.42;
+          const crownR = tileId === 'TREE_LARGE' ? 0.36 : 0.25;
+          addMesh(g, CY(0.06, 0.09, trunkH, 8), createMat(0x7c4a24), 0, T + trunkH / 2, 0);
+          addMesh(g, SP(crownR, 10), createMat(0x3f9a3a), 0, T + trunkH + crownR * 0.7, 0);
+          // Red fruits
+          [[-0.15, 0.1], [0.12, -0.12], [-0.08, -0.15]].forEach(([fx, fz]) => {
+            addMesh(g, SP(0.035, 6), createMat(0xdc2626), fx, T + trunkH + crownR * 0.6, fz);
+          });
+          break;
+        }
+        case 'SOLAR_PANEL_T1': {
+          addMesh(g, CY(0.02, 0.02, 0.5, 6), createMat(0xcbd5e1, { metalness: 0.6 }), 0, T + 0.25, 0);
+          const panel = addMesh(g, BX(0.65, 0.025, 0.45), createMat(0x1e3a8a, { metalness: 0.5, roughness: 0.3 }), 0, T + 0.52, 0, { x: -0.45 });
+          break;
+        }
+        case 'WINDMILL_RUSTIC': {
+          addMesh(g, CY(0.14, 0.25, 0.65, 8), createMat(0xf3e6c8), 0, T + 0.32, 0);
+          addMesh(g, CY(0, 0.2, 0.2, 8), createMat(0x92400e), 0, T + 0.75, 0);
+          const blades = new THREE.Group();
+          blades.position.set(0, T + 0.62, 0.2);
+          for (let i = 0; i < 4; i++) {
+            const b = addMesh(blades, BX(0.08, 0.32, 0.01), createMat(0xfef3c7), 0.04, 0.16, 0);
+            b.rotation.z = i * Math.PI / 2;
+          }
+          g.add(blades);
+          g.userData.tick = (t) => { blades.rotation.z = -t * 1.5; };
+          break;
+        }
+        case 'GREENHOUSE': {
+          addMesh(g, BX(0.74, 0.06, 0.6), createMat(0x9a6a35), 0, T + 0.03, 0);
+          addMesh(g, BX(0.7, 0.34, 0.56), createMat(0xbfe3ee, { transparent: true, opacity: 0.45, roughness: 0.1 }), 0, T + 0.23, 0);
+          [-1, 1].forEach(s => {
+            addMesh(g, BX(0.4, 0.03, 0.6), createMat(0xbfe3ee, { transparent: true, opacity: 0.45 }), s * 0.17, T + 0.5, 0, { z: -s * 0.6 });
+          });
+          break;
+        }
+        case 'SPARROW_HOME': {
+          addMesh(g, BX(0.64, 0.35, 0.5), createMat(0xe8cf9f), 0, T + 0.22, 0);
+          [-1, 1].forEach(s => {
+            addMesh(g, BX(0.42, 0.04, 0.64), createMat(0x5c8f2e), s * 0.17, T + 0.52, 0, { z: -s * 0.72 });
+          });
+          addMesh(g, BX(0.1, 0.3, 0.1), createMat(0xa8553a), 0.2, T + 0.6, -0.12); // Chimney
+          break;
+        }
+        case 'POND_TILE': {
+          addMesh(g, BX(0.8, 0.02, 0.8), createMat(0x38bdf8, { transparent: true, opacity: 0.85 }), 0, T + 0.02, 0);
+          addMesh(g, CY(0.12, 0.12, 0.015, 8), createMat(0x4ade80), -0.15, T + 0.03, 0.1);
+          addMesh(g, SP(0.04, 6), createMat(0xf9a8d4), 0.2, T + 0.04, -0.15);
+          break;
+        }
+        default: {
+          // Generic decorative plot with marker
+          addMesh(g, CY(0.12, 0.12, 0.25, 8), createMat(0x10b981), 0, T + 0.12, 0);
+          addMesh(g, SP(0.08, 6), createMat(0xf59e0b), 0, T + 0.28, 0);
+          break;
+        }
+      }
+      return g;
+    }
+
+    // ==========================================
+    // 4. PROCEDURAL CHIBI SPARROW MASCOT
+    // ==========================================
+    let sparrowGroup, sparrowHead, sparrowLeftWing, sparrowRightWing, sparrowSprout;
+    let sparrowProps = {};
+
+    function buildArticulatedSparrow() {
+      const g = new THREE.Group();
+
+      // Body (Chibi sphere squash)
+      const bodyGeo = SP(0.38, 16);
+      bodyGeo.scale(1, 0.9, 1.05);
+      const bodyMat = createMat(0x945228); // Chestnut brown
+      const body = addMesh(g, bodyGeo, bodyMat, 0, 0.42, 0);
+
+      // Belly (Soft cream bib)
+      const bellyGeo = SP(0.32, 14);
+      bellyGeo.scale(0.85, 0.85, 0.4);
+      const bellyMat = createMat(0xfaebd7); // Cream beige
+      addMesh(g, bellyGeo, bellyMat, 0, 0.38, 0.22);
+
+      // Articulated Head
+      sparrowHead = new THREE.Group();
+      sparrowHead.position.set(0, 0.65, 0.12);
+      g.add(sparrowHead);
+
+      const headGeo = SP(0.32, 16);
+      const headMesh = addMesh(sparrowHead, headGeo, bodyMat, 0, 0, 0);
+
+      // Anime Rosy Cheeks
+      [-0.22, 0.22].forEach(x => {
+        addMesh(sparrowHead, SP(0.06, 8), createMat(0xfca5a5), x, -0.06, 0.24);
+      });
+
+      // Eyes
+      [-0.14, 0.14].forEach(x => {
+        const eye = addMesh(sparrowHead, SP(0.045, 8), createMat(0x1c1917), x, 0.05, 0.28);
+        addMesh(eye, SP(0.015, 6), createMat(0xffffff), 0.012, 0.015, 0.035); // Highlight
+      });
+
+      // Orange Beak
+      const beak = addMesh(sparrowHead, CY(0, 0.07, 0.14, 6), createMat(0xf97316), 0, -0.02, 0.38, { x: Math.PI / 2 });
+
+      // Signature 2-Leaf Green Head Sprout
+      sparrowSprout = new THREE.Group();
+      sparrowSprout.position.set(0, 0.32, 0);
+      sparrowHead.add(sparrowSprout);
+      addMesh(sparrowSprout, CY(0.015, 0.02, 0.12, 6), createMat(0x22c55e), 0, 0.06, 0);
+      [-0.05, 0.05].forEach((lx, i) => {
+        const leaf = addMesh(sparrowSprout, SP(0.06, 6), createMat(0x22c55e), lx, 0.14, 0);
+        leaf.scale.set(1.5, 0.4, 0.8);
+        leaf.rotation.z = (i === 0 ? -1 : 1) * 0.6;
+      });
+
+      // Articulated Left & Right Wings
+      sparrowLeftWing = new THREE.Group();
+      sparrowLeftWing.position.set(-0.36, 0.48, 0);
+      g.add(sparrowLeftWing);
+      const lWingMesh = addMesh(sparrowLeftWing, BX(0.08, 0.35, 0.25), createMat(0x78350f), -0.04, -0.12, 0);
+      lWingMesh.rotation.z = -0.15;
+
+      sparrowRightWing = new THREE.Group();
+      sparrowRightWing.position.set(0.36, 0.48, 0);
+      g.add(sparrowRightWing);
+      const rWingMesh = addMesh(sparrowRightWing, BX(0.08, 0.35, 0.25), createMat(0x78350f), 0.04, -0.12, 0);
+      rWingMesh.rotation.z = 0.15;
+
+      // Feet (grounded)
+      [-0.14, 0.14].forEach(fx => {
+        addMesh(g, CY(0.02, 0.02, 0.12, 6), createMat(0xf97316), fx, 0.06, 0.05);
+        addMesh(g, BX(0.08, 0.025, 0.14), createMat(0xf97316), fx, 0.015, 0.09);
+      });
+
+      // Props (sapling, water can, sparks)
+      const saplingProp = new THREE.Group();
+      addMesh(saplingProp, CY(0.015, 0.02, 0.2, 5), createMat(0x15803d), 0, 0.1, 0);
+      addMesh(saplingProp, SP(0.08, 6), createMat(0x22c55e), 0, 0.22, 0);
+      saplingProp.position.set(0.28, 0.25, 0.35);
+      saplingProp.visible = false;
+      g.add(saplingProp);
+      sparrowProps.sapling = saplingProp;
+
+      g.scale.setScalar(1.2);
+      return g;
+    }
+
+    // ==========================================
+    // 5. GRID & GHOST TILE LOGIC
+    // ==========================================
+    let ghostTileMesh = null;
+    let gridCellMeshes = [];
+
+    function rebuildGrid() {
+      gridGroup.clear();
+      gridCellMeshes = [];
+
+      const size = STATE.gridSize;
+      const offset = (size - 1) / 2;
+
+      // Render Floor Tiles & Grid Cells
+      for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+          const posX = (x - offset) * 1.15;
+          const posZ = (y - offset) * 1.15;
+
+          // Check if tile already placed
+          const placed = STATE.placedTiles.find(t => t.x === x && t.y === y);
+          let cellTile;
+
+          if (placed) {
+            cellTile = buildTileMesh(placed.tileId);
+            cellTile.rotation.y = (placed.rotation || 0) * (Math.PI / 180);
+            cellTile.userData = { isPlaced: true, tileData: placed, x, y };
+          } else {
+            cellTile = buildBaseSlab(0x4a7c38, 0x5b3a1e); // Raw unoccupied plot
+            cellTile.userData = { isPlaced: false, x, y };
+          }
+
+          cellTile.position.set(posX, 0, posZ);
+          gridGroup.add(cellTile);
+          gridCellMeshes.push(cellTile);
+        }
+      }
+
+      // Position Sparrow Mascot in front of sanctuary
+      mascotGroup.position.set(0, 0, (size * 0.58) + 0.8);
+    }
+
+    // Ghost Preview Tile Generation
+    function showGhostPreview(x, y, rotation = 0) {
+      if (ghostTileMesh) {
+        gridGroup.remove(ghostTileMesh);
+        ghostTileMesh = null;
+      }
+
+      if (!STATE.selectedCatalogId) return;
+
+      const offset = (STATE.gridSize - 1) / 2;
+      const posX = (x - offset) * 1.15;
+      const posZ = (y - offset) * 1.15;
+
+      ghostTileMesh = buildTileMesh(STATE.selectedCatalogId);
+      ghostTileMesh.position.set(posX, 0.05, posZ);
+      ghostTileMesh.rotation.y = rotation * (Math.PI / 180);
+
+      // Make translucent green ghost
+      ghostTileMesh.traverse(child => {
+        if (child.isMesh) {
+          child.material = child.material.clone();
+          child.material.transparent = true;
+          child.material.opacity = 0.65;
+          child.material.emissive = new THREE.Color(0x34d399);
+          child.material.emissiveIntensity = 0.5;
+        }
+      });
+
+      gridGroup.add(ghostTileMesh);
+      STATE.previewCoordinates = { x, y, rotation };
+
+      // Update Preview Bar UI
+      const item = CATALOG.find(t => t.id === STATE.selectedCatalogId);
+      document.getElementById('preview-name').textContent = item.name;
+      document.getElementById('preview-cost').textContent = `Cost: ${item.cost} Urja Mudra · Angle: ${rotation}° · Plot (${x}, ${y})`;
+      document.getElementById('btn-confirm-buy').textContent = `Confirm Buy & Place (${item.cost} 🍃)`;
+      document.getElementById('preview-bar').classList.add('show');
+
+      say(`Previewing ${item.name} at plot (${x}, ${y})! Use 'Rotate 90°' to adjust or confirm to build.`);
+    }
+
+    function hideGhostPreview() {
+      if (ghostTileMesh) {
+        gridGroup.remove(ghostTileMesh);
+        ghostTileMesh = null;
+      }
+      STATE.previewCoordinates = null;
+      document.getElementById('preview-bar').classList.remove('show');
+    }
+
+    // ==========================================
+    // 6. MASCOT ANIMATIONS & EXPRESSIONS
+    // ==========================================
+    function setMascotExpression(expr) {
+      STATE.currentExpression = expr;
+      document.querySelectorAll('.expr-btn').forEach(b => b.classList.toggle('active', b.dataset.expr === expr));
+
+      // Reset props
+      Object.values(sparrowProps).forEach(p => p.visible = false);
+
+      gsap.killTweensOf(sparrowGroup.position);
+      gsap.killTweensOf(sparrowGroup.rotation);
+      gsap.killTweensOf(sparrowHead.rotation);
+      gsap.killTweensOf(sparrowLeftWing.rotation);
+      gsap.killTweensOf(sparrowRightWing.rotation);
+
+      switch (expr) {
+        case 'happy':
+          say('Feeling joyful! Keep up Gujarat Mission LiFE energy habits! 🌿');
+          gsap.to(sparrowHead.rotation, { z: 0, x: 0, duration: 0.4 });
+          break;
+
+        case 'excited':
+          say('So much green energy! Wing flutter engaged! ✨');
+          gsap.to(sparrowLeftWing.rotation, { z: -1.2, duration: 0.12, yoyo: true, repeat: 9 });
+          gsap.to(sparrowRightWing.rotation, { z: 1.2, duration: 0.12, yoyo: true, repeat: 9 });
+          gsap.to(sparrowGroup.position, { y: 0.25, duration: 0.18, yoyo: true, repeat: 5, ease: 'power1.out' });
+          break;
+
+        case 'curious':
+          say('Chirp? Inspecting new sanctuary blueprints! 👀');
+          gsap.to(sparrowHead.rotation, { z: 0.45, x: -0.15, duration: 0.4 });
+          break;
+
+        case 'planting':
+          say('Planting new sapling for our Gujarat green cover! 🌱');
+          if (sparrowProps.sapling) sparrowProps.sapling.visible = true;
+          gsap.to(sparrowHead.rotation, { x: 0.35, duration: 0.4 });
+          gsap.to(sparrowLeftWing.rotation, { z: -0.6, duration: 0.4 });
+          break;
+
+        case 'celebrating':
+          say('Hurrah! Milestone achievement unlocked! 🥳✨');
+          gsap.to(sparrowGroup.position, { y: 0.8, duration: 0.35, yoyo: true, repeat: 3 });
+          gsap.to(sparrowGroup.rotation, { y: sparrowGroup.rotation.y + Math.PI * 2, duration: 0.7 });
+          gsap.to(sparrowLeftWing.rotation, { z: -1.3, duration: 0.15, yoyo: true, repeat: 7 });
+          gsap.to(sparrowRightWing.rotation, { z: 1.3, duration: 0.15, yoyo: true, repeat: 7 });
+          break;
+
+        case 'nest':
+          say('Resting cozily in the nest. Bedtime wind-down! 🌙💤');
+          gsap.to(sparrowHead.rotation, { x: 0.3, z: 0.1, duration: 0.5 });
+          gsap.to(sparrowGroup.position, { y: -0.08, duration: 0.5 });
+          break;
+
+        default:
+          gsap.to(sparrowHead.rotation, { z: 0, x: 0, duration: 0.3 });
+          break;
+      }
+    }
+
+    function say(text, title = 'Chirpy Says:') {
+      const bubble = document.getElementById('speech-bubble');
+      document.getElementById('speech-title').textContent = title;
+      document.getElementById('speech-text').textContent = text;
+      bubble.style.display = 'block';
+    }
+
+    // ==========================================
+    // 7. USER ACTIONS (BUY, REMOVE, RESELL)
+    // ==========================================
+    function confirmBuyAndPlace() {
+      if (!STATE.previewCoordinates || !STATE.selectedCatalogId) return;
+
+      const { x, y, rotation } = STATE.previewCoordinates;
+      const item = CATALOG.find(t => t.id === STATE.selectedCatalogId);
+
+      if (STATE.coins < item.cost) {
+        alert(`Insufficient Urja Mudra coins! Required: ${item.cost}, Available: ${STATE.coins}`);
+        return;
+      }
+
+      // Deduct coins & place tile
+      STATE.coins -= item.cost;
+      const newPlaced = {
+        instanceId: 'inst_' + Date.now(),
+        tileId: item.id,
+        x,
+        y,
+        rotation,
+        cost: item.cost,
+      };
+
+      STATE.placedTiles.push(newPlaced);
+      hideGhostPreview();
+      rebuildGrid();
+      updateHUD();
+      setMascotExpression('planting');
+
+      say(`Successfully built '${item.name}'! Remaining coins: ${STATE.coins} 🍃`);
+    }
+
+    function removeTileToInventory(placedTile) {
+      const idx = STATE.placedTiles.findIndex(t => t.instanceId === placedTile.instanceId);
+      if (idx === -1) return;
+
+      STATE.placedTiles.splice(idx, 1);
+      const refundVal = Math.floor(placedTile.cost * 0.8);
+
+      STATE.inventory.push({
+        instanceId: placedTile.instanceId,
+        tileId: placedTile.tileId,
+        cost: placedTile.cost,
+        refundPrice: refundVal,
+      });
+
+      rebuildGrid();
+      updateHUD();
+      renderInventory();
+      say(`Stored '${placedTile.tileId}' in inventory. Available to reposition or sell for 80% refund!`);
+    }
+
+    function sellInventoryTile(instanceId) {
+      const idx = STATE.inventory.findIndex(i => i.instanceId === instanceId);
+      if (idx === -1) return;
+
+      const item = STATE.inventory.splice(idx, 1)[0];
+      STATE.coins += item.refundPrice;
+
+      updateHUD();
+      renderInventory();
+      setMascotExpression('excited');
+      say(`Sold '${item.tileId}'! Recovered 80% of price (+${item.refundPrice} Urja Mudra).`);
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-level').textContent = `Level ${STATE.level} (${STATE.co2SavedKg} kg CO2)`;
+      document.getElementById('hud-coins').textContent = `${STATE.coins.toLocaleString()} 🍃`;
+      document.getElementById('hud-grid').textContent = `${STATE.gridSize} × ${STATE.gridSize} (${STATE.gridSize * STATE.gridSize} plots)`;
+      document.getElementById('inv-count').textContent = STATE.inventory.length;
+    }
+
+    // ==========================================
+    // 8. SIDEBAR RENDERING (CATALOG, INVENTORY, EXPR)
+    // ==========================================
+    function renderCatalog(filterCat = 'All') {
+      const container = document.getElementById('catalog-list');
+      container.innerHTML = '';
+
+      const filtered = CATALOG.filter(t => filterCat === 'All' || t.cat === filterCat);
+      filtered.forEach(item => {
+        const isLocked = STATE.level < item.lv;
+        const card = document.createElement('div');
+        card.className = `catalog-card ${isLocked ? 'locked' : ''} ${STATE.selectedCatalogId === item.id ? 'selected' : ''}`;
+        card.innerHTML = `
+          <div class="catalog-card-info">
+            <h5>${item.name}</h5>
+            <p>${item.d}</p>
+          </div>
+          <div class="catalog-card-price">
+            <span class="price-tag">${item.cost} 🍃</span>
+            <span class="level-tag">Lv ${item.lv}</span>
+          </div>
+        `;
+
+        if (!isLocked) {
+          card.onclick = () => {
+            document.querySelectorAll('.catalog-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            STATE.selectedCatalogId = item.id;
+
+            // Find first available cell to preview
+            const emptyCell = findFirstEmptyCell();
+            if (emptyCell) {
+              showGhostPreview(emptyCell.x, emptyCell.y, 0);
+            } else {
+              say('Grid is full! Level up to expand land or remove a tile to inventory.');
+            }
+          };
+        }
+        container.appendChild(card);
+      });
+    }
+
+    function findFirstEmptyCell() {
+      for (let x = 0; x < STATE.gridSize; x++) {
+        for (let y = 0; y < STATE.gridSize; y++) {
+          if (!STATE.placedTiles.some(t => t.x === x && t.y === y)) {
+            return { x, y };
+          }
+        }
+      }
+      return null;
+    }
+
+    function renderInventory() {
+      const container = document.getElementById('inventory-list');
+      if (STATE.inventory.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 30px 10px; font-size: 0.85rem;">Your inventory is empty. Click any placed tile on the grid to store it here!</div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      STATE.inventory.forEach(invItem => {
+        const catalogItem = CATALOG.find(t => t.id === invItem.tileId) || { name: invItem.tileId };
+        const card = document.createElement('div');
+        card.className = 'inventory-card';
+        card.innerHTML = `
+          <div>
+            <b style="font-size: 0.88rem; color: #fff;">${catalogItem.name}</b>
+            <div style="font-size: 0.72rem; color: var(--sub);">Refund Value: ${invItem.refundPrice} 🍃 (80%)</div>
+          </div>
+          <div class="inv-actions">
+            <button class="btn-place" data-id="${invItem.instanceId}">Place (0 🍃)</button>
+            <button class="btn-sell" data-id="${invItem.instanceId}">Sell (+${invItem.refundPrice} 🍃)</button>
+          </div>
+        `;
+
+        card.querySelector('.btn-place').onclick = () => {
+          const empty = findFirstEmptyCell();
+          if (empty) {
+            // Remove from inventory and place
+            const idx = STATE.inventory.findIndex(i => i.instanceId === invItem.instanceId);
+            STATE.inventory.splice(idx, 1);
+            STATE.placedTiles.push({
+              instanceId: invItem.instanceId,
+              tileId: invItem.tileId,
+              x: empty.x,
+              y: empty.y,
+              rotation: 0,
+              cost: invItem.cost,
+            });
+            rebuildGrid();
+            updateHUD();
+            renderInventory();
+            say(`Placed ${catalogItem.name} back onto grid plot (${empty.x}, ${empty.y})!`);
+          } else {
+            alert('No empty plot available on grid!');
+          }
+        };
+
+        card.querySelector('.btn-sell').onclick = () => {
+          sellInventoryTile(invItem.instanceId);
+        };
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderExpressions() {
+      const container = document.getElementById('expr-list');
+      container.innerHTML = '';
+      POSES.forEach(pose => {
+        const btn = document.createElement('button');
+        btn.className = `expr-btn ${STATE.currentExpression === pose ? 'active' : ''}`;
+        btn.dataset.expr = pose;
+        btn.textContent = pose.charAt(0).toUpperCase() + pose.slice(1);
+        btn.onclick = () => setMascotExpression(pose);
+        container.appendChild(btn);
+      });
+    }
+
+    // ==========================================
+    // 9. RAYCASTING & INTERACTION
+    // ==========================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check click on Mascot
+      const mascotHits = raycaster.intersectObjects(mascotGroup.children, true);
+      if (mascotHits.length > 0) {
+        setMascotExpression('curious');
+        say('Chirp! You tapped me! Vitality boosted! ⚡');
+        return;
+      }
+
+      // Check click on Grid Cells
+      const cellHits = raycaster.intersectObjects(gridCellMeshes, true);
+      if (cellHits.length > 0) {
+        // Find topmost cell group
+        let hitObj = cellHits[0].object;
+        while (hitObj.parent && hitObj.parent !== gridGroup) {
+          hitObj = hitObj.parent;
+        }
+
+        const cellData = hitObj.userData;
+        if (!cellData) return;
+
+        if (cellData.isPlaced) {
+          // Placed tile clicked: Offer to store in inventory
+          const catItem = CATALOG.find(t => t.id === cellData.tileData.tileId);
+          if (confirm(`Store '${catItem.name}' at plot (${cellData.x}, ${cellData.y}) into inventory?`)) {
+            removeTileToInventory(cellData.tileData);
+          }
+        } else {
+          // Empty cell clicked
+          if (STATE.selectedCatalogId) {
+            showGhostPreview(cellData.x, cellData.y, STATE.previewCoordinates?.rotation || 0);
+          } else {
+            say(`Plot (${cellData.x}, ${cellData.y}) is available! Pick a block from the catalog to build here.`);
+          }
+        }
+      }
+    });
+
+    // Orbit Controls via Drag
+    let isDragging = false, prevMouseX = 0, prevMouseY = 0;
+    container.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevMouseX;
+      const dy = e.clientY - prevMouseY;
+      worldGroup.rotation.y += dx * 0.008;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    });
+    window.addEventListener('pointerup', () => isDragging = false);
+
+    // Zoom on wheel
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      camera.position.multiplyScalar(e.deltaY > 0 ? 1.05 : 0.95);
+      camera.position.clampLength(6, 28);
+    }, { passive: false });
+
+    // ==========================================
+    // 10. BUTTON ATTACHMENTS
+    // ==========================================
+    document.getElementById('btn-camera-reset').onclick = () => {
+      camera.position.set(9, 11, 11);
+      camera.lookAt(0, 0.5, 0);
+      worldGroup.rotation.set(0, 0, 0);
+    };
+
+    document.getElementById('btn-spin-toggle').onclick = (e) => {
+      STATE.autoSpin = !STATE.autoSpin;
+      e.target.textContent = `🔄 Auto-Orbit: ${STATE.autoSpin ? 'On' : 'Off'}`;
+      e.target.classList.toggle('active', STATE.autoSpin);
+    };
+
+    document.getElementById('btn-mascot-pet').onclick = () => {
+      setMascotExpression('excited');
+    };
+
+    document.getElementById('btn-test-level').onclick = () => {
+      STATE.co2SavedKg += 50;
+      STATE.level = Math.min(100, Math.floor(Math.sqrt((STATE.co2SavedKg * 100) / 100)) + 1);
+      const newGrid = calcGridSize(STATE.level);
+      if (newGrid !== STATE.gridSize) {
+        STATE.gridSize = newGrid;
+        say(`🌿 Grid Expanded to ${newGrid}x${newGrid} plots as mascot reached Level ${STATE.level}!`);
+        setMascotExpression('celebrating');
+      } else {
+        say(`Logged 50 kg CO2 saved! Mascot is Level ${STATE.level}.`);
+        setMascotExpression('excited');
+      }
+      rebuildGrid();
+      updateHUD();
+      renderCatalog();
+    };
+
+    document.getElementById('btn-rotate-ghost').onclick = () => {
+      if (!STATE.previewCoordinates) return;
+      const nextRot = (STATE.previewCoordinates.rotation + 90) % 360;
+      showGhostPreview(STATE.previewCoordinates.x, STATE.previewCoordinates.y, nextRot);
+    };
+
+    document.getElementById('btn-confirm-buy').onclick = confirmBuyAndPlace;
+    document.getElementById('btn-cancel-preview').onclick = hideGhostPreview;
+
+    // Tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      };
+    });
+
+    // Catalog Category Filter Chips
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.onclick = () => {
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        renderCatalog(chip.dataset.cat);
+      };
+    });
+
+    // ==========================================
+    // 11. INITIALIZATION & RENDER LOOP
+    // ==========================================
+    sparrowGroup = buildArticulatedSparrow();
+    mascotGroup.add(sparrowGroup);
+
+    rebuildGrid();
+    updateHUD();
+    renderCatalog();
+    renderInventory();
+    renderExpressions();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // Idle breathing
+      if (sparrowGroup) {
+        sparrowGroup.position.y = Math.sin(t * 3) * 0.025;
+        if (sparrowSprout) sparrowSprout.rotation.z = Math.sin(t * 2) * 0.12;
+      }
+
+      if (STATE.autoSpin) {
+        worldGroup.rotation.y += 0.005;
+      }
+
+      // Animate dynamic tiles (like windmills)
+      gridGroup.traverse(child => {
+        if (child.userData && child.userData.tick) {
+          child.userData.tick(t);
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+  })();
+  </script>
+</body>
+</html>
