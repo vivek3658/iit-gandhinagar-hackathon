@@ -1,0 +1,8 @@
+import type {Profile,Reading,TravelMode} from '@/types/urja';
+export const GRID_FACTOR=0.710; // Demonstration assumption; not a live grid value
+const travelFactors:Record<TravelMode,number>={walk:0,bus:0.06,bike:0.09,car:0.17};
+export function footprint(profile:Profile){const electricity=Math.max(0,Number.isFinite(Number(profile.units))?Number(profile.units):0)*GRID_FACTOR;const travel=travelFactors[profile.vehicle]*Math.max(0,Number.isFinite(Number(profile.km))?Number(profile.km):0)*2*4*4.33;return {electricity,travel,total:electricity+travel}}
+export function compareReadings(readings:Reading[]){const ordered=[...readings].sort((a,b)=>a.month.localeCompare(b.month));if(ordered.length<2)return null;const old=ordered[ordered.length-2],latest=ordered[ordered.length-1];return {old,latest,difference:old.units-latest.units,emissionChange:(old.units-latest.units)*GRID_FACTOR}}
+export function solarEstimate({roof,tariff,units,systemCost=55000}:{roof:number|string;tariff:number|string;units:number|string;systemCost?:number}){const proposedKW=Math.min(10,Math.max(0,Number(roof)||0)/100);const monthlyKwh=proposedKW*120;const monthlySavings=Math.min(monthlyKwh,Math.max(0,Number(units)||0))*Math.max(0,Number(tariff)||0);const grossCost=proposedKW*systemCost;return {proposedKW,monthlyKwh,monthlySavings,grossCost,paybackYears:monthlySavings>0?grossCost/(12*monthlySavings):null}}
+export function gardenStage(xp:number){return Math.min(7,1+Math.floor(xp/105))}
+export function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
