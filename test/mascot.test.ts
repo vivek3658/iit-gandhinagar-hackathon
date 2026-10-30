@@ -48,8 +48,9 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     expect(body.level).toBe(1);
     expect(body.vitality).toBe(85);
     expect(body.mood).toBe('EXCITED');
-    expect(body.expression).toBe('excited');
-    expect(body.activeProps).toContain('sparks');
+    const isNightTime = new Date().getHours() >= 22 || new Date().getHours() < 5;
+    expect(body.expression).toBe(isNightTime ? 'nest' : 'excited');
+    expect(body.activeProps).toContain(isNightTime ? 'zzz' : 'sparks');
     expect(body.equipped.head).toBeNull();
     expect(body.equipped.face).toBeNull();
     expect(body.equipped.neck).toBeNull();
