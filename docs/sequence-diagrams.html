@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sequence Diagrams | UrjaVatika (GEDA Mission LiFE)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0d1d16',
+        primaryColor: '#10b981',
+        primaryTextColor: '#f0fdf4',
+        primaryBorderColor: '#059669',
+        lineColor: '#34d399',
+        secondaryColor: '#1e3a2f',
+        tertiaryColor: '#0f271e',
+        actorBkg: '#152b22',
+        actorBorder: '#10b981',
+        actorTextColor: '#f0fdf4',
+        signalColor: '#34d399',
+        signalTextColor: '#f0fdf4'
+      }
+    });
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    }
+  </script>
+  <style>
+    :root {
+      --bg-primary: #0a1410;
+      --bg-secondary: #0f1f18;
+      --bg-card: #152b22;
+      --bg-card-hover: #1c382c;
+      --border-color: #244b3b;
+      --accent-green: #10b981;
+      --accent-green-bright: #34d399;
+      --accent-gold: #f59e0b;
+      --accent-amber: #fbbf24;
+      --accent-blue: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-sub: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(180deg, #0f231b 0%, #0a1410 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 2.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      text-decoration: none;
+    }
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: radial-gradient(circle at 30% 30%, #34d399, #065f46);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .brand-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand-text p {
+      font-size: 0.72rem;
+      color: var(--accent-amber);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav.nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    nav.nav-links a {
+      color: var(--text-sub);
+      text-decoration: none;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    nav.nav-links a:hover, nav.nav-links a.active {
+      color: #fff;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+    }
+    nav.nav-links a.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 2.5rem auto;
+      padding: 0 2rem;
+    }
+    .page-header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+    .page-tag {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent-green-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    h2.title {
+      font-size: 2.3rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    p.subtitle {
+      color: var(--text-sub);
+      font-size: 1.05rem;
+      max-width: 900px;
+    }
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      background: var(--bg-secondary);
+      padding: 0.6rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-sub);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+    .tab-btn.active {
+      background: var(--bg-card);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .diagram-container {
+      background: #08130e;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
+    }
+    .flow-notes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .flow-note {
+      background: var(--bg-secondary);
+      border-left: 3px solid var(--accent-green);
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+    }
+    .flow-note h5 {
+      color: #fff;
+      font-size: 0.92rem;
+      margin-bottom: 0.3rem;
+    }
+    .flow-note p {
+      color: #94a3b8;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">🌿</div>
+        <div class="brand-text">
+          <h1>UrjaVatika System Docs</h1>
+          <p>GEDA Mission LiFE Citizen Platform</p>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="use-case-diagrams.html">Use Cases</a>
+        <a href="sequence-diagrams.html" class="active">Sequence Diagrams</a>
+        <a href="activity-diagrams.html">Activity Diagrams</a>
+        <a href="scalability-report.html">Scalability Report</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-header">
+      <span class="page-tag">Interaction Flow Specifications</span>
+      <h2 class="title">System Sequence Diagrams</h2>
+      <p class="subtitle">
+        Visual sequence charts detailing Fastify request-response lifecycles, TypeBox schema contracts, 
+        Redis cache interactions, asynchronous queue jobs, and external DISCOM grid integrations.
+      </p>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="tab-onboarding" onclick="showTab('tab-onboarding')">
+        <span>🌱</span> 1. Onboarding & Baseline Footprint
+      </button>
+      <button class="tab-btn" data-tab="tab-gamification" onclick="showTab('tab-gamification')">
+        <span>🐿️</span> 2. Task Verification & Garden Growth
+      </button>
+      <button class="tab-btn" data-tab="tab-nudges" onclick="showTab('tab-nudges')">
+        <span>⚡</span> 3. DISCOM Peak Grid Hour Nudge
+      </button>
+      <button class="tab-btn" data-tab="tab-solar" onclick="showTab('tab-solar')">
+        <span>☀️</span> 4. Rooftop Solar Feasibility
+      </button>
+      <button class="tab-btn" data-tab="tab-leaderboard" onclick="showTab('tab-leaderboard')">
+        <span>🏆</span> 5. High-Concurrency Leaderboards
+      </button>
+    </div>
+
+    <!-- TAB 1: ONBOARDING & BASELINE -->
+    <div id="tab-onboarding" class="tab-content active">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Flow 1: Citizen Onboarding & Baseline Footprint Calibration</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Citizen signs up, provides household energy profiles (DISCOM consumer number, AC count, monthly power bill), 
+          calculates baseline carbon footprint against Gujarat benchmarks, and initializes their mascot companion (Chirpy or Chiku).
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Citizen as Citizen (Mobile/Web)
+    participant Fastify as Fastify Router & TypeBox
+    participant AuthCtrl as auth.controller
+    participant FootprintSrv as footprint.service
+    participant MascotSrv as mascot.service
+    participant GardenSrv as garden.service
+    participant DB as PostgreSQL DB
+    participant Cache as Redis 7 Cache
+
+    Citizen->>Fastify: POST /api/v1/auth/register<br/>{email, phone, discom, bill_inr, appliances}
+    Fastify->>Fastify: Validate schema with TypeBox
+    Fastify->>AuthCtrl: register(request, reply)
+    AuthCtrl->>DB: Hash password (argon2) & insert Citizen User
+    DB-->>AuthCtrl: User Record Created (UUID)
+    
+    AuthCtrl->>FootprintSrv: calculateBaseline(userId, bill_inr, appliances)
+    Note over FootprintSrv: Applies Gujarat CEA Grid Emission Factor<br/>(0.82 kg CO2 / kWh) & Tariffs
+    FootprintSrv->>DB: Save BaselineFootprintRecord
+    
+    AuthCtrl->>MascotSrv: initializeMascot(userId, "sparrow" | "squirrel")
+    MascotSrv->>DB: Insert MascotState (mood=100, seeds=50)
+    MascotSrv->>Cache: Set mascot:state:{userId} in Redis
+    
+    AuthCtrl->>GardenSrv: initializeGarden(userId)
+    GardenSrv->>DB: Provision 3x3 Plot Matrix (Plot #0: "Sprout")
+    
+    AuthCtrl->>Citizen: 201 Created + JWT Access Token<br/>{user, baseline_co2, mascot, initial_plot}
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>⚡ Fastify Schema Isolation</h5>
+            <p>Body validation uses strict TypeBox schema; invalid fields or malformed appliance counts are rejected with HTTP 400 before hitting services.</p>
+          </div>
+          <div class="flow-note">
+            <h5>🌿 Seed Provisioning</h5>
+            <p>Onboarding awards the citizen's mascot 50 eco-seeds and activates the first plot in their digital Urja Vatika garden.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: TASK & GARDEN GROWTH -->
+    <div id="tab-gamification" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Flow 2: Micro-Task Verification & Forest Garden Growth Loop</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Citizen completes a daily Mission LiFE micro-task (e.g. setting AC to 24°C, switching off TV standby, morning solar shift). 
+          The backend validates the action, rewards eco-points, feeds the mascot, and blooms the forest garden plot.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Citizen as Citizen (Mobile App)
+    participant Fastify as Fastify (app.inject/live)
+    participant TaskCtrl as tasks.controller
+    participant TaskSrv as tasks.service
+    participant MascotSrv as mascot.service
+    participant GardenSrv as garden.service
+    participant Redis as Redis Cache & PubSub
+    participant DB as PostgreSQL DB
+
+    Citizen->>Fastify: POST /api/v1/tasks/complete<br/>Bearer JWT {taskId: "AC_24_DEGREE", proofData}
+    Fastify->>TaskCtrl: verifyAuth & routeHandler
+    TaskCtrl->>TaskSrv: recordCompletion(userId, taskId)
+    TaskSrv->>DB: Check daily duplicate & insert TaskCompletion
+    TaskSrv-->>TaskCtrl: Award: 30 Eco-Seeds, 1.2 kWh Saved
+
+    par Sync Mascot Mood
+        TaskCtrl->>MascotSrv: feedMascot(userId, seeds=30)
+        MascotSrv->>Redis: HINCRBY mascot:{userId} mood 15
+        MascotSrv->>Redis: HINCRBY mascot:{userId} seeds 30
+    and Advance Urja Garden Bloom
+        TaskCtrl->>GardenSrv: waterActivePlot(userId, plotId=0)
+        GardenSrv->>Redis: HSET garden:{userId}:plot:0 stage "Blooming Neem"
+        GardenSrv->>DB: Update GardenPlot stage & hydration
+    and Update District Leaderboard
+        TaskCtrl->>Redis: ZINCRBY leaderboard:district:ahmedabad 30 userId
+    end
+
+    TaskCtrl->>Citizen: 200 OK {success: true, new_stage: "Blooming Neem", mascot_dialogue: "Chirpy chirped happily!"}
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>🚀 Parallel Pipeline Execution</h5>
+            <p>Mascot mood updates, garden plot blooming, and leaderboard increment run concurrently via Promise.all() for minimum latency (&lt;15ms).</p>
+          </div>
+          <div class="flow-note">
+            <h5>🐦 Interactive Mascot Reaction</h5>
+            <p>The response includes localized celebratory dialogue from Chirpy or Chiku in Gujarati/Hindi/English.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: DISCOM PEAK NUDGES -->
+    <div id="tab-nudges" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Flow 3: Gujarat DISCOM Peak Grid Hour Demand Response Nudge</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Gujarat DISCOM (e.g. UGVCL/DGVCL) triggers an impending peak load alert. The backend broadcasts geo-targeted nudges, 
+          citizens commit to 1-hour appliance throttling, and the grid demand response is aggregated for GEDA administrators.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor DISCOM as Gujarat DISCOM / SLDC Webhook
+    participant NudgeCtrl as nudges.controller
+    participant NudgeSrv as nudges.service
+    participant Queue as BullMQ Worker Queue
+    participant FCM as Push Notification Service
+    actor Citizen as 100,000+ Citizens (Ahmedabad/Surat)
+    participant Redis as Redis Pub/Sub
+
+    DISCOM->>NudgeCtrl: POST /api/v1/nudges/discom-alert<br/>X-Signature-Auth {circle: "UGVCL", peak: "18:30-21:30", target_mw: 50}
+    NudgeCtrl->>NudgeSrv: validateAndScheduleAlert(payload)
+    NudgeSrv->>Redis: SETEX active_peak:UGVCL 10800 {status: "PEAK"}
+    NudgeSrv->>Queue: Enqueue BroadcastJob(circle: "UGVCL", urgency: "HIGH")
+    NudgeCtrl-->>DISCOM: 202 Accepted {broadcast_job_id: "job_94812"}
+
+    Note over Queue,FCM: BullMQ Worker batch partitions 100k citizens into 500-user chunks
+    Queue->>FCM: Send Batch Push ("Peak Grid Alert: Help Chirpy protect Gujarat Grid!")
+    FCM->>Citizen: Notification: "Turn off 1 heavy appliance now for 3x Solar Acorns"
+
+    Citizen->>NudgeCtrl: POST /api/v1/nudges/commit<br/>{alertId, commitment: "OFF_GEYSER_AC"}
+    NudgeCtrl->>Redis: HINCRBY grid_response:UGVCL committed_users 1
+    NudgeCtrl->>Citizen: 200 OK {multiplier: 3, mascot_shield_active: true}
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>⚡ 50,000 req/sec Surge Protection</h5>
+            <p>Citizen commitments increment a Redis atomic counter (<code>HINCRBY</code>) rather than hitting relational table row locks.</p>
+          </div>
+          <div class="flow-note">
+            <h5>🛡️ Mascot Shield Mechanic</h5>
+            <p>Committing to peak demand protection grants the citizen's garden a "Drought Shield", preventing wilting during peak power surges.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SOLAR FEASIBILITY -->
+    <div id="tab-solar" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Flow 4: Rooftop Solar Feasibility & GEDA Vendor Matchmaking</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Citizen enters rooftop dimensions and power bills. The engine calculates system capacity, PM Surya Ghar Muft Bijli 
+          subsidies, payback horizon, and routes leads to vetted GEDA vendors.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Citizen as Citizen User
+    participant SolarCtrl as solar.controller
+    participant SolarSrv as solar.service
+    participant WeatherAPI as OpenWeather / Solar Irradiance API
+    participant DB as PostgreSQL DB
+    actor Vendor as GEDA Certified Vendor
+
+    Citizen->>SolarCtrl: POST /api/v1/solar/feasibility<br/>{roof_area_sqft: 450, monthly_bill_inr: 2800, district: "Vadodara"}
+    SolarCtrl->>SolarSrv: evaluateSolarFeasibility(data)
+    SolarSrv->>WeatherAPI: Get Global Horizontal Irradiance (GHI) for Vadodara
+    WeatherAPI-->>SolarSrv: GHI = 5.4 kWh/m2/day
+    
+    Note over SolarSrv: Algorithmic Sizing Engine:<br/>- Capacity = 3 kWp<br/>- PM Surya Ghar Subsidy = ₹78,000<br/>- Payback = 3.2 Years
+    
+    SolarSrv->>DB: Save SolarAssessment record
+    SolarSrv-->>SolarCtrl: Feasibility Breakdown Result
+    SolarCtrl->>Citizen: 200 OK {capacity_kw: 3, subsidy_inr: 78000, annual_savings: 34000}
+
+    Citizen->>SolarCtrl: POST /api/v1/solar/request-quotes<br/>{assessmentId, contactConsent: true}
+    SolarCtrl->>DB: Query Top 3 GEDA Vendors in Vadodara District
+    SolarCtrl->>Vendor: Lead Dispatched via Webhook / SMS
+    SolarCtrl->>Citizen: 200 OK {status: "QUOTATION_REQUESTED", vendors_notified: 3}
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>☀️ PM Surya Ghar Integration</h5>
+            <p>Calculates standardized Central & Gujarat State rooftop subsidies (up to ₹78,000 for 3kW systems) dynamically.</p>
+          </div>
+          <div class="flow-note">
+            <h5>🌱 Mascot Reward</h5>
+            <p>Requesting a solar quotation plants an exclusive "Golden Solar Flower" in the citizen's Urja Vatika garden.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: LEADERBOARDS -->
+    <div id="tab-leaderboard" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Flow 5: High-Concurrency Ward & District Leaderboards</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Shows how millions of citizen eco-point updates are ingested without DB table locks, leveraging Redis Sorted Sets 
+          for sub-millisecond leaderboard retrieval across Gujarat districts.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Citizen as Citizen / Ward Resident
+    participant Fastify as Fastify Router
+    participant LeaderCtrl as leaderboard.controller
+    participant LeaderSrv as leaderboard.service
+    participant Redis as Redis 7 (ZSET Engine)
+    participant DB as PostgreSQL (Read-Replica)
+
+    Citizen->>Fastify: GET /api/v1/leaderboard/district?district=Ahmedabad&range=1-10
+    Fastify->>LeaderCtrl: getDistrictLeaderboard(request, reply)
+    LeaderCtrl->>LeaderSrv: fetchTopRankings("Ahmedabad", 0, 9)
+    
+    LeaderSrv->>Redis: ZREVRANGE leaderboard:district:Ahmedabad 0 9 WITHSCORES
+    Redis-->>LeaderSrv: Top 10 User IDs + Eco-Points in 0.8ms
+    
+    LeaderSrv->>Redis: MGET user:names:{id1, id2, ...} (Hydration Cache)
+    alt Cache Miss on Names
+        LeaderSrv->>DB: SELECT id, name, mascot_skin FROM users WHERE id IN (...)
+        DB-->>LeaderSrv: Profile Metadata
+    end
+    
+    LeaderSrv->>Redis: ZREVRANK leaderboard:district:Ahmedabad {currentUserId}
+    Redis-->>LeaderSrv: Citizen Rank: 42
+    
+    LeaderSrv-->>LeaderCtrl: Composite Leaderboard View
+    LeaderCtrl->>Citizen: 200 OK {district: "Ahmedabad", rank: 42, top_10: [...]}
+          </pre>
+        </div>
+
+        <div class="flow-notes">
+          <div class="flow-note">
+            <h5>⚡ O(log N) Time Complexity</h5>
+            <p>Redis Sorted Sets (<code>ZREVRANGE</code>) allow 500,000 concurrent citizens to check real-time rank with near-zero latency.</p>
+          </div>
+          <div class="flow-note">
+            <h5>🛡️ Zero DB Overload</h5>
+            <p>PostgreSQL is shielded by Redis profile hydration cache, ensuring no queries are executed on the primary database for rank reads.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

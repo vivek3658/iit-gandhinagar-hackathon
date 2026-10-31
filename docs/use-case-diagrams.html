@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Use Case Diagrams | UrjaVatika (GEDA Mission LiFE)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0d1d16',
+        primaryColor: '#10b981',
+        primaryTextColor: '#f0fdf4',
+        primaryBorderColor: '#059669',
+        lineColor: '#34d399',
+        secondaryColor: '#1e3a2f',
+        tertiaryColor: '#0f271e'
+      }
+    });
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    }
+  </script>
+  <style>
+    :root {
+      --bg-primary: #0a1410;
+      --bg-secondary: #0f1f18;
+      --bg-card: #152b22;
+      --bg-card-hover: #1c382c;
+      --border-color: #244b3b;
+      --accent-green: #10b981;
+      --accent-green-bright: #34d399;
+      --accent-gold: #f59e0b;
+      --accent-amber: #fbbf24;
+      --accent-blue: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-sub: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(180deg, #0f231b 0%, #0a1410 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 2.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      text-decoration: none;
+    }
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: radial-gradient(circle at 30% 30%, #34d399, #065f46);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .brand-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand-text p {
+      font-size: 0.72rem;
+      color: var(--accent-amber);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav.nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    nav.nav-links a {
+      color: var(--text-sub);
+      text-decoration: none;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    nav.nav-links a:hover, nav.nav-links a.active {
+      color: #fff;
+      background: var(--bg-card);
+      border-color: var(--border-color);
+    }
+    nav.nav-links a.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 2.5rem auto;
+      padding: 0 2rem;
+    }
+    .page-header {
+      margin-bottom: 2rem;
+    }
+    .page-tag {
+      font-size: 0.75rem;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: var(--accent-green-bright);
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: inline-block;
+      margin-bottom: 0.75rem;
+    }
+    .title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      color: #cbd5e1;
+      font-size: 1.05rem;
+      max-width: 880px;
+    }
+    .tab-bar {
+      display: flex;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-sub);
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      background: var(--bg-card);
+      color: #fff;
+      border-color: var(--accent-green);
+    }
+    .tab-btn.active {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .diagram-container {
+      background: #08130e;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
+    }
+    .use-case-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .use-case-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .use-case-card h5 {
+      color: var(--accent-green-bright);
+      font-size: 1rem;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .use-case-card p {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">🌿</div>
+        <div class="brand-text">
+          <h1>UrjaVatika System Docs</h1>
+          <p>GEDA Mission LiFE Citizen Platform</p>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="use-case-diagrams.html" class="active">Use Cases</a>
+        <a href="sequence-diagrams.html">Sequence Diagrams</a>
+        <a href="activity-diagrams.html">Activity Diagrams</a>
+        <a href="scalability-report.html">Scalability Report</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-header">
+      <span class="page-tag">System Actor & Boundary Specifications</span>
+      <h2 class="title">System Use Case Diagrams</h2>
+      <p class="subtitle">
+        Comprehensive use case models representing interactions between Citizens, Gujarat Energy Development Agency (GEDA) Administrators, 
+        State DISCOMs, and external integrations.
+      </p>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="tab-citizen" onclick="showTab('tab-citizen')">
+        <span>👤</span> 1. Citizen Core Use Cases
+      </button>
+      <button class="tab-btn" data-tab="tab-admin" onclick="showTab('tab-admin')">
+        <span>🏛️</span> 2. GEDA State Admin & DISCOM Use Cases
+      </button>
+      <button class="tab-btn" data-tab="tab-solar" onclick="showTab('tab-solar')">
+        <span>☀️</span> 3. Solar & Vendor Ecosystem Use Cases
+      </button>
+    </div>
+
+    <!-- TAB 1: CITIZEN USE CASES -->
+    <div id="tab-citizen" class="tab-content active">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Actor: Gujarat Citizen (Mission LiFE Participant)</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Everyday citizens interact with the mobile/web application to track baseline carbon emissions, interact with their 3D Sparrow mascot,
+          customize their expanding land grid, and participate in peak grid hour conservation.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart LR
+    Citizen((Gujarat Citizen))
+
+    subgraph SYSTEM["UrjaVatika Platform Boundary"]
+        UC1(["One-Button Google Authentication"])
+        UC2(["Complete Profile & Select District"])
+        UC3(["Upload Avatar via ImageKit Direct CDN"])
+        UC4(["Interact with 3D Sparrow Mascot"])
+        UC5(["Equip Mascot Wardrobe (Hats/Paghdi/Sweater)"])
+        UC6(["Expand & Customize Land Grid (3x3 to 10x10)"])
+        UC7(["Commit to DISCOM Peak Nudge (6:30 - 9:30 PM)"])
+        UC8(["Log Phone Full Battery Unplug Event"])
+        UC9(["Record Eco-Commute Mode (Walk/Bus/Car)"])
+        UC10(["Set Municipal Water Supply Window Timer"])
+        UC11(["Input Monthly Electricity Bill (kWh drop)"])
+        UC12(["Play Daily 45s Waste Sorting Mini-Game"])
+        UC13(["View Gujarat District & Ward Leaderboard"])
+    end
+
+    Citizen --> UC1
+    Citizen --> UC2
+    Citizen --> UC3
+    Citizen --> UC4
+    Citizen --> UC5
+    Citizen --> UC6
+    Citizen --> UC7
+    Citizen --> UC8
+    Citizen --> UC9
+    Citizen --> UC10
+    Citizen --> UC11
+    Citizen --> UC12
+    Citizen --> UC13
+          </pre>
+        </div>
+
+        <div class="use-case-grid">
+          <div class="use-case-card">
+            <h5>⚡ Peak Demand Response</h5>
+            <p>Citizen receives real-time grid surge alert from their DISCOM and commits to shifting high-wattage AC/washing machine away from 6:30–9:30 PM.</p>
+          </div>
+          <div class="use-case-card">
+            <h5>🌱 Zero-Cost Phone Sensors</h5>
+            <p>Phone automatically prompts when battery reaches 100% to unplug charger, and warns when leaving home WiFi about idle fans.</p>
+          </div>
+          <div class="use-case-card">
+            <h5>💧 Municipal Water Alarm</h5>
+            <p>Reminds citizen 15 minutes before the daily municipal water window ends to switch off terrace water pumps, preventing tank overflow.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: ADMIN & DISCOM USE CASES -->
+    <div id="tab-admin" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Actors: GEDA State Administrator & Gujarat DISCOM Operators</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          State-level officials monitoring real-time load shed across UGVCL, DGVCL, PGVCL, MGVCL, and Torrent Power,
+          broadcasting emergency demand response alerts and inspecting district leaderboards.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart LR
+    Admin((GEDA State Admin))
+    DISCOM((DISCOM Dispatcher))
+
+    subgraph ADMIN_SYSTEM["State Load & Carbon Monitoring Portal"]
+        AUC1(["View Statewide Real-Time Megawatt Load Reduction"])
+        AUC2(["Broadcast Peak Demand Grid Alert (Circle / District)"])
+        AUC3(["Inspect 33-District Leaderboard Rankings"])
+        AUC4(["Export State Mission LiFE Carbon Audit Reports"])
+        AUC5(["Audit Empanelled Rooftop Solar Vendors"])
+        AUC6(["Configure Urja Mudra Reward Multipliers"])
+    end
+
+    Admin --> AUC1
+    Admin --> AUC3
+    Admin --> AUC4
+    Admin --> AUC5
+    Admin --> AUC6
+    DISCOM --> AUC1
+    DISCOM --> AUC2
+          </pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SOLAR & VENDOR ECOSYSTEM -->
+    <div id="tab-solar" class="tab-content">
+      <div class="section-card">
+        <div class="section-title">
+          <span>Actors: Citizen, Solar Vendor, MNRE / PM Surya Ghar API</span>
+        </div>
+        <p style="color:#cbd5e1; font-size:0.92rem;">
+          Connecting citizen intent with direct rooftop solar execution under PM Surya Ghar Muft Bijli Yojana.
+        </p>
+
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart LR
+    Citizen((Citizen))
+    Vendor((Empanelled Solar Vendor))
+    SolarAPI[(MNRE / Weather Solar API)]
+
+    subgraph SOLAR_SYSTEM["Solar Feasibility & Vendor Hub"]
+        SUC1(["Input Rooftop Area & Monthly Bill Amount"])
+        SUC2(["Calculate Estimated kW Capacity & ROI"])
+        SUC3(["Calculate PM Surya Ghar Central & GEDA Subsidy"])
+        SUC4(["Browse Empanelled Solar Vendors by District"])
+        SUC5(["Request Site Audit & Quotation"])
+        SUC6(["Vendor Submits Installation Proposal"])
+    end
+
+    Citizen --> SUC1
+    SUC1 --> SUC2
+    SUC2 --> SUC3
+    SUC2 -.-> SolarAPI
+    Citizen --> SUC4
+    Citizen --> SUC5
+    Vendor --> SUC6
+    SUC5 --> Vendor
+          </pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

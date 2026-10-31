@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UrjaVatika | GEDA Mission LiFE Engagement Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a1410;
+      --bg-secondary: #0f1f18;
+      --bg-card: #152b22;
+      --bg-card-hover: #1c382c;
+      --border-color: #244b3b;
+      --accent-green: #10b981;
+      --accent-green-bright: #34d399;
+      --accent-gold: #f59e0b;
+      --accent-amber: #fbbf24;
+      --accent-blue: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-sub: #94a3b8;
+      --badge-bg: rgba(16, 185, 129, 0.15);
+      --badge-border: rgba(16, 185, 129, 0.35);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    header {
+      background: linear-gradient(180deg, #0f231b 0%, #0a1410 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.5rem 2.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-container {
+      max-width: 1380px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      text-decoration: none;
+    }
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      background: radial-gradient(circle at 30% 30%, #34d399, #065f46);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(52, 211, 153, 0.3);
+      font-size: 1.6rem;
+    }
+    .brand-text h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--accent-amber);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav.nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    nav.nav-links a {
+      color: var(--text-sub);
+      text-decoration: none;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    nav.nav-links a:hover, nav.nav-links a.active {
+      color: #fff;
+      background: var(--bg-card);
+      border-color: var(--border-color);
+    }
+    nav.nav-links a.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+    }
+    .hero {
+      max-width: 1380px;
+      margin: 3rem auto 2rem;
+      padding: 0 2.5rem;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: var(--accent-green-bright);
+      padding: 0.35rem 0.9rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .hero h2 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ffffff 30%, #a7f3d0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      max-width: 900px;
+    }
+    .hero p.lead {
+      color: #cbd5e1;
+      font-size: 1.15rem;
+      max-width: 820px;
+      margin-bottom: 2rem;
+    }
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      padding: 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 3rem;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .meta-label {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .meta-val {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .doc-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+    }
+    .doc-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent-green);
+      background: var(--bg-card-hover);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 20px rgba(16, 185, 129, 0.15);
+    }
+    .doc-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-green), var(--accent-gold));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .doc-card:hover::before {
+      opacity: 1;
+    }
+    .doc-card-icon {
+      font-size: 2.2rem;
+      margin-bottom: 1.2rem;
+      width: 54px;
+      height: 54px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .doc-card h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .doc-card p {
+      font-size: 0.92rem;
+      color: #94a3b8;
+      margin-bottom: 1.5rem;
+      flex-grow: 1;
+    }
+    .doc-card-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-green-bright);
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .doc-card-action span.status-tag {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .mascot-banner {
+      background: linear-gradient(135deg, #0e2a1d 0%, #153e2d 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 2.5rem;
+      display: flex;
+      gap: 2.5rem;
+      align-items: center;
+      margin-bottom: 3.5rem;
+      flex-wrap: wrap;
+    }
+    .mascot-avatar {
+      font-size: 4.5rem;
+      background: rgba(16, 185, 129, 0.15);
+      border: 2px solid var(--accent-green);
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.25);
+    }
+    .mascot-info {
+      flex: 1;
+      min-width: 280px;
+    }
+    .mascot-info h3 {
+      font-size: 1.6rem;
+      color: #fff;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .mascot-info p {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+    .mascot-tags {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .tag {
+      font-size: 0.78rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      color: #a7f3d0;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 2rem 2.5rem;
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      background: var(--bg-secondary);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">🌿</div>
+        <div class="brand-text">
+          <h1>UrjaVatika System Docs</h1>
+          <p>GEDA Mission LiFE Citizen Platform</p>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="active">Overview</a>
+        <a href="onboarding.html" style="color: var(--accent-amber); font-weight: 600;">📱 Onboarding UI</a>
+        <a href="sparrow-animator.html" style="color: var(--accent-green-bright); font-weight: 600;">🐤 3D Animator</a>
+        <a href="garden-studio.html">🌱 Garden Studio</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="use-case-diagrams.html">Use Cases</a>
+        <a href="sequence-diagrams.html">Sequence Diagrams</a>
+        <a href="activity-diagrams.html">Activity Diagrams</a>
+        <a href="scalability-report.html">Scalability Report</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="hero">
+    <div class="badge-pill">
+      <span>●</span> Problem Statement HC26-GEDA01 · Fastify v5 Modular Monolith
+    </div>
+    <h2>Interactive Mascot & Forest Garden Sustainability Engine</h2>
+    <p class="lead">
+      UrjaVatika operationalises the <strong>Mission LiFE (Lifestyle for Environment)</strong> movement for the 
+      <strong>Gujarat Energy Development Agency (GEDA)</strong>. By blending behavioural nudges, rooftop solar analytics, 
+      and a "Forest"-style garden nurtured by citizen energy savings and our interactive mascot companions 
+      (<strong>Chirpy the Sparrow</strong> & <strong>Chiku the Squirrel</strong>), we turn abstract climate goals into tangible daily citizen habits.
+    </p>
+
+    <div class="meta-strip">
+      <div class="meta-item">
+        <span class="meta-label">Organisation</span>
+        <span class="meta-val">Gujarat Energy Development Agency (GEDA)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Problem Code</span>
+        <span class="meta-val">HC26-GEDA01 (Track 1: Green Energy)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Backend Core</span>
+        <span class="meta-val">Node.js LTS + Fastify v5 + TypeScript</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Data Tier</span>
+        <span class="meta-val">PostgreSQL (Relational) + Redis (Mascot/Nudge/Leaderboard)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Architecture Goal</span>
+        <span class="meta-val">High Concurrency (50k req/s Peak Grid Alert Surge)</span>
+      </div>
+    </div>
+
+    <div class="mascot-banner">
+      <div class="mascot-avatar">🐿️ 🐦</div>
+      <div class="mascot-info">
+        <h3>Urja Udyan Mascot Engine: Chirpy & Chiku <span style="font-size:0.9rem; color:var(--accent-amber); font-weight:normal;">(ચકલી & ખિસકોલી)</span></h3>
+        <p>
+          Inspired by the popular "Forest" app gamification mechanism, each citizen tends a digital botanical garden ("Urja Vatika"). 
+          When citizens save energy during Gujarat DISCOM peak grid hours, switch off idle appliances, or log rooftop solar generation, 
+          their garden flowers bloom, the sparrow chirps in harmony, and the squirrel gathers solar acorns. 
+          Unattended peak consumption leads to dry spells, visually nudging immediate behavioral correction.
+        </p>
+        <div class="mascot-tags">
+          <span class="tag">🌾 Urja Garden State Machine</span>
+          <span class="tag">⚡ Dynamic Peak Grid Nudges</span>
+          <span class="tag">☀️ Rooftop Solar Feasibility</span>
+          <span class="tag">🏆 Ward & District Leaderboards</span>
+          <span class="tag">📊 GEDA State Monitoring Dashboard</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 1.4rem; margin-bottom: 1.25rem; color:#fff;">System Blueprint & Technical Artifacts</h3>
+
+    <div class="docs-grid">
+      <a href="onboarding.html" class="doc-card" style="border-color: rgba(245, 158, 11, 0.6); box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);">
+        <div>
+          <div class="doc-card-icon" style="background: rgba(245, 158, 11, 0.2); border-color: var(--accent-amber);">📱</div>
+          <h3>URJA ONE Onboarding Experience</h3>
+          <p>
+            Interactive triple-screen Flutter UI showcase featuring the 3D flying sparrow mascot, real-time device 
+            monitoring (AC, Refrigerator, TV, Microwave), glass-style energy recommendations, and animated carbon progress milestones.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>Launch Onboarding Showcase</span>
+          <span class="status-tag" style="background: rgba(245, 158, 11, 0.25); color: var(--accent-amber);">Interactive UI</span>
+        </div>
+      </a>
+
+      <a href="architecture.html" class="doc-card">
+        <div>
+          <div class="doc-card-icon">🏛️</div>
+          <h3>System Architecture</h3>
+          <p>
+            Complete architectural blueprint detailing Fastify v5 modular plugins, TypeBox schema contracts, 
+            PostgreSQL relational schemas, Redis real-time cache layer, BullMQ asynchronous worker queues, 
+            and GEDA administrative analytics feeds.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>Explore Architecture</span>
+          <span class="status-tag">Core Spec</span>
+        </div>
+      </a>
+
+      <a href="use-case-diagrams.html" class="doc-card">
+        <div>
+          <div class="doc-card-icon">👤</div>
+          <h3>Use Case Diagrams</h3>
+          <p>
+            Visual actor models and operational use cases detailing interactions between Gujarat Citizens, 
+            GEDA State Administrators, DISCOM Dispatchers, and Empanelled Solar Vendors.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>View Use Cases</span>
+          <span class="status-tag">3 Actor Models</span>
+        </div>
+      </a>
+
+      <a href="sequence-diagrams.html" class="doc-card">
+        <div>
+          <div class="doc-card-icon">🔄</div>
+          <h3>Sequence Diagrams</h3>
+          <p>
+            End-to-end interactive sequence diagrams covering: Citizen Onboarding & Baseline Footprint, 
+            Peak Grid Hour Nudge Broadcasting, Micro-Task Verification & Mascot Garden Bloom, 
+            and Rooftop Solar Feasibility Payback Calculations.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>View Sequence Flows</span>
+          <span class="status-tag">5 Live Flows</span>
+        </div>
+      </a>
+
+      <a href="activity-diagrams.html" class="doc-card">
+        <div>
+          <div class="doc-card-icon">🧭</div>
+          <h3>Activity Diagrams</h3>
+          <p>
+            Comprehensive statecharts and workflow activity diagrams: Citizen Daily Mission LiFE Lifecycle, 
+            Mascot Mood & Garden Health State Machine, Solar Adoption Assessment Pipeline, and District 
+            Leaderboard Aggregation.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>Inspect Statecharts</span>
+          <span class="status-tag">4 State Models</span>
+        </div>
+      </a>
+
+      <a href="garden-studio.html" class="doc-card" style="border-color: rgba(52, 211, 153, 0.6); box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);">
+        <div>
+          <div class="doc-card-icon" style="background: rgba(16, 185, 129, 0.25); border-color: var(--accent-green-bright);">🌿</div>
+          <h3>Interactive Garden & 3D Mascot Studio</h3>
+          <p>
+            Complete visual playground: 3D Sparrow companion with 12 canonical expressions alongside a level-gated 
+            $N \times N$ sanctuary grid. Features 31 procedural tiles, ghost preview before purchase, 
+            4-way 90° rotation, inventory storage, and 80% coin recovery resale.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>Launch Sanctuary Studio</span>
+          <span class="status-tag" style="background: rgba(16, 185, 129, 0.25); color: var(--accent-green-bright);">Live Web Studio</span>
+        </div>
+      </a>
+
+      <a href="sparrow-animator.html" class="doc-card" style="border-color: rgba(16, 185, 129, 0.4);">
+        <div>
+          <div class="doc-card-icon" style="background: rgba(16, 185, 129, 0.2); border-color: var(--accent-green);">🐤</div>
+          <h3>3D Mascot Animator Studio</h3>
+          <p>
+            Interactive character testbed rendering your custom Sparrow 3D mesh via Three.js. 
+            Features procedural clay shading, real-time GSAP animations (Idle Breathe, Happy Hop, Curious Tilt, 
+            Victory Leap, Sleeping Nest), and live Mission LiFE behavioral nudge simulation.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>Open 3D Studio</span>
+          <span class="status-tag" style="background: rgba(16, 185, 129, 0.2); color: var(--accent-green-bright);">Interactive 3D</span>
+        </div>
+      </a>
+
+      <a href="scalability-report.html" class="doc-card">
+        <div>
+          <div class="doc-card-icon">⚡</div>
+          <h3>Scalability & Benchmarking Report</h3>
+          <p>
+            High-scale operational capacity plan for 10M+ Gujarat citizens: Event-loop latency budgets, 
+            Redis Sorted Set memory footprints, high-concurrency push nudge distribution, connection pool tuning, 
+            and iterative module scale report milestones.
+          </p>
+        </div>
+        <div class="doc-card-action">
+          <span>Review Scalability</span>
+          <span class="status-tag">Capacity Plan</span>
+        </div>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    <p>UrjaVatika · Built for Gujarat Energy Development Agency (GEDA) · Mission LiFE (Lifestyle for Environment) · Fastify v5 Monolith Architecture</p>
+  </footer>
+</body>
+</html>

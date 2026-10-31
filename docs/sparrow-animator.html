@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UrjaVatika | 3D Sparrow Mascot Animator Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Three.js + GLTFLoader + OrbitControls + GLTFExporter + GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  
+  <!-- Embedded Model Data for Zero-CORS Raw Mesh Fallback -->
+  <script src="assets/sparrow-data.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0a1410;
+      --bg-secondary: #0f1f18;
+      --bg-card: rgba(21, 43, 34, 0.85);
+      --bg-card-hover: #1c382c;
+      --border-color: #244b3b;
+      --accent-green: #10b981;
+      --accent-green-bright: #34d399;
+      --accent-gold: #f59e0b;
+      --accent-amber: #fbbf24;
+      --accent-blue: #38bdf8;
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-sub: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: linear-gradient(180deg, #0f231b 0%, #0a1410 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.85rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-gold) 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .nav-links {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .nav-link {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .nav-link:hover {
+      color: var(--text-main);
+      background: var(--bg-card);
+    }
+    .badge {
+      font-size: 0.72rem;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: var(--accent-green-bright);
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Workspace */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      height: calc(100vh - 65px);
+      position: relative;
+    }
+
+    /* 3D Viewport */
+    .viewport-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 45%, #1b382b 0%, #0d1e16 60%, #060e0a 100%);
+      overflow: hidden;
+    }
+    #threeCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Model Switcher Bar in Viewport */
+    .model-selector-bar {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      display: flex;
+      gap: 8px;
+      background: rgba(10, 20, 16, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      border-radius: 10px;
+      z-index: 20;
+    }
+    .model-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .model-tab-btn.active {
+      background: var(--accent-green);
+      color: #052e16;
+    }
+
+    /* Speech Bubble */
+    .speech-bubble {
+      position: absolute;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(15, 31, 24, 0.95);
+      border: 1px solid var(--accent-green);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(16, 185, 129, 0.25);
+      padding: 12px 24px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 15;
+    }
+    .speech-bubble.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .speech-avatar {
+      font-size: 24px;
+    }
+    .speech-text {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+    .speech-xp {
+      background: var(--accent-gold);
+      color: #000;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .drag-drop-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 20, 16, 0.85);
+      border: 1px dashed var(--border-color);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      pointer-events: none;
+    }
+
+    /* Side Control Panel */
+    .control-panel {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      padding: 1.4rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .panel-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.1rem;
+    }
+    .section-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-title span {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      font-weight: 400;
+      text-transform: none;
+    }
+
+    /* Buttons */
+    .anim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .btn-anim {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 500;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .btn-anim:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-green);
+      transform: translateY(-1px);
+    }
+    .btn-anim.active {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--accent-green);
+      color: var(--accent-green-bright);
+      font-weight: 600;
+    }
+
+    /* Download GLB Button */
+    .btn-download-glb {
+      width: 100%;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #042f1c;
+      border: none;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 11px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-download-glb:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Nudge Simulator Action Buttons */
+    .nudge-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .nudge-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .nudge-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-gold);
+    }
+    .badge-xp {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: var(--accent-amber);
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Stats */
+    .stats-table {
+      width: 100%;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      color: var(--text-sub);
+      border-collapse: collapse;
+    }
+    .stats-table td {
+      padding: 3px 0;
+    }
+    .stats-table td:last-child {
+      text-align: right;
+      color: var(--text-main);
+    }
+
+    /* Notice banner */
+    .info-box {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.76rem;
+      color: #bae6fd;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <a href="index.html" class="brand">
+      <div class="brand-icon">🌱</div>
+      <div class="brand-text">
+        <h1>UrjaVatika 3D Mascot Character Studio</h1>
+        <p>Dynamic Anatomy & Flapping Wing Physics (No Fused Rock)</p>
+      </div>
+    </a>
+    <div class="nav-links">
+      <span class="badge" id="modelStatusBadge">CLEAN PROCEDURAL MASCOT</span>
+      <a href="index.html" class="nav-link">← Portal Dashboard</a>
+      <a href="architecture.html" class="nav-link">Architecture</a>
+    </div>
+  </header>
+
+  <!-- Workspace -->
+  <div class="workspace">
+    
+    <!-- 3D Viewport -->
+    <div class="viewport-container" id="dropZone">
+      <canvas id="threeCanvas"></canvas>
+
+      <!-- Active Model Toggle -->
+      <div class="model-selector-bar">
+        <button class="model-tab-btn active" id="tabClean" onclick="switchModel('clean')">
+          <span>✨</span> Clean Colored Mascot (No Rock)
+        </button>
+        <button class="model-tab-btn" id="tabRaw" onclick="switchModel('raw')">
+          <span>🗿</span> Raw Scanned Mesh (With Rock)
+        </button>
+      </div>
+
+      <!-- Dialogue Bubble -->
+      <div class="speech-bubble" id="speechBubble">
+        <span class="speech-avatar">🐦</span>
+        <div>
+          <div class="speech-text" id="speechText">Chirp! I can hop and flap freely now!</div>
+        </div>
+        <div class="speech-xp" id="speechXP">+100 EXP</div>
+      </div>
+
+      <!-- Drag & Drop Hint -->
+      <div class="drag-drop-hint">
+        🖱️ Drag to Orbit | Scroll to Zoom | Right Click to Pan
+      </div>
+    </div>
+
+    <!-- Side Control Panel -->
+    <div class="control-panel">
+      
+      <!-- 1. Download Model Button -->
+      <button class="btn-download-glb" onclick="exportCleanGlb()">
+        <span>💾</span> Download Clean Colored .GLB File
+      </button>
+
+      <!-- 2. Articulation Notice -->
+      <div class="info-box" id="infoNotice">
+        💡 <strong>Clean Mascot:</strong> Modeled with individual pivot points for head, body, wings, and feet. When hopping, wings flap dynamically with <strong>zero rock</strong>!
+      </div>
+
+      <!-- 3. Character Animations -->
+      <div class="panel-section">
+        <div class="section-title">
+          Articulated Motions
+          <span>GSAP Easing</span>
+        </div>
+        <div class="anim-grid">
+          <button class="btn-anim active" id="btnIdle" onclick="setAnimation('idle')">
+            <span class="icon">🍃</span>
+            <span>Idle Breathe</span>
+          </button>
+          <button class="btn-anim" id="btnHappy" onclick="setAnimation('happy')">
+            <span class="icon">🦘</span>
+            <span>Happy Hop</span>
+          </button>
+          <button class="btn-anim" id="btnCurious" onclick="setAnimation('curious')">
+            <span class="icon">❓</span>
+            <span>Head Tilt</span>
+          </button>
+          <button class="btn-anim" id="btnCheer" onclick="setAnimation('cheer')">
+            <span class="icon">🎉</span>
+            <span>Victory Flap</span>
+          </button>
+          <button class="btn-anim" id="btnSleep" onclick="setAnimation('sleep')">
+            <span class="icon">💤</span>
+            <span>Resting Nest</span>
+          </button>
+          <button class="btn-anim" id="btnSpin" onclick="toggleTurntable()">
+            <span class="icon">🔄</span>
+            <span id="spinLabel">Turntable: Off</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Behavioral Nudge Simulator -->
+      <div class="panel-section">
+        <div class="section-title">
+          Mission LiFE Nudge Simulator
+          <span>Real Reactions</span>
+        </div>
+        <div class="nudge-list">
+          <button class="nudge-btn" onclick="triggerNudge('water')">
+            <div>
+              <strong>💧 Tap Turned Off</strong>
+              <div style="font-size: 0.7rem; color: var(--text-sub);">Happy hop & wing flutter</div>
+            </div>
+            <span class="badge-xp">+30 EXP</span>
+          </button>
+          <button class="nudge-btn" onclick="triggerNudge('ac')">
+            <div>
+              <strong>❄️ AC 24°C Optimized</strong>
+              <div style="font-size: 0.7rem; color: var(--text-sub);">Victory leap & chirping spin</div>
+            </div>
+            <span class="badge-xp">+197 EXP</span>
+          </button>
+          <button class="nudge-btn" onclick="triggerNudge('geofence')">
+            <div>
+              <strong>🚪 Left Home Geofence</strong>
+              <div style="font-size: 0.7rem; color: var(--text-sub);">Independent 25° head tilt</div>
+            </div>
+            <span class="badge-xp">+50 EXP</span>
+          </button>
+          <button class="nudge-btn" onclick="triggerNudge('sleep')">
+            <div>
+              <strong>🌙 10:30 PM Sleep Bedtime</strong>
+              <div style="font-size: 0.7rem; color: var(--text-sub);">Tucks head & deep breathing</div>
+            </div>
+            <span class="badge-xp">+20 EXP</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 5. Active Geometry Diagnostics -->
+      <div class="panel-section">
+        <div class="section-title">
+          Geometry Diagnostics
+          <span id="statModeTag">Procedural Rig</span>
+        </div>
+        <table class="stats-table">
+          <tr><td>Model Type:</td><td id="statSource">Articulated Chibi Rig</td></tr>
+          <tr><td>Body Parts:</td><td id="statParts">Head, Wings, Beak, Sprout</td></tr>
+          <tr><td>Rock Status:</td><td id="statRock" style="color: var(--accent-green-bright);">REMOVED (Clean Standalone)</td></tr>
+          <tr><td>Flapping Wings:</td><td id="statFlap" style="color: var(--accent-green-bright);">YES (Independent Rotations)</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // --- Global State ---
+    let scene, camera, renderer, controls;
+    let activeModelMode = 'clean'; // 'clean' or 'raw'
+    let currentAnim = 'idle';
+    let isTurntable = false;
+    let baseTimeline = null;
+    let shadowMesh = null;
+    let particleSystem = null;
+
+    // Sparrow Rig Nodes (For Articulated Clean Model)
+    let sparrowRig = {
+      root: null,
+      bodyGroup: null,
+      headGroup: null,
+      wingLeftGroup: null,
+      wingRightGroup: null,
+      sprout: null,
+      eyes: []
+    };
+
+    // Raw Mesh Root
+    let rawMeshRoot = null;
+
+    // --- Init Scene ---
+    function init() {
+      const container = document.getElementById('dropZone');
+      const canvas = document.getElementById('threeCanvas');
+
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 1.1, 2.8);
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 + 0.05;
+      controls.minDistance = 1.2;
+      controls.maxDistance = 5.0;
+      controls.target.set(0, 0.45, 0);
+
+      setupLighting();
+      setupGroundShadow();
+      setupFloatingParticles();
+
+      // Build Clean Colored Articulated Sparrow
+      buildCleanArticulatedSparrow();
+
+      // Pre-load raw mesh in background
+      loadRawScannedModel();
+
+      window.addEventListener('resize', onWindowResize);
+      animate();
+    }
+
+    function setupLighting() {
+      const sun = new THREE.DirectionalLight(0xfff7ed, 1.7);
+      sun.position.set(3, 5, 3.5);
+      sun.castShadow = true;
+      sun.shadow.mapSize.width = 1024;
+      sun.shadow.mapSize.height = 1024;
+      sun.shadow.bias = -0.001;
+      scene.add(sun);
+
+      const hemi = new THREE.HemisphereLight(0xdcfce7, 0x14532d, 0.75);
+      scene.add(hemi);
+
+      const rim = new THREE.DirectionalLight(0x38bdf8, 0.85);
+      rim.position.set(-3, 3, -3);
+      scene.add(rim);
+    }
+
+    function setupGroundShadow() {
+      const geo = new THREE.PlaneGeometry(1.4, 1.4);
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0, 'rgba(0, 0, 0, 0.55)');
+      grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.2)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+
+      const shadowTex = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false });
+      shadowMesh = new THREE.Mesh(geo, mat);
+      shadowMesh.rotation.x = -Math.PI / 2;
+      shadowMesh.position.y = 0.01;
+      scene.add(shadowMesh);
+    }
+
+    function setupFloatingParticles() {
+      const count = 35;
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array(count * 3);
+      for (let i = 0; i < count * 3; i += 3) {
+        pos[i] = (Math.random() - 0.5) * 4;
+        pos[i + 1] = Math.random() * 2.5;
+        pos[i + 2] = (Math.random() - 0.5) * 4;
+      }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const mat = new THREE.PointsMaterial({ color: 0x34d399, size: 0.035, transparent: true, opacity: 0.45 });
+      particleSystem = new THREE.Points(geo, mat);
+      scene.add(particleSystem);
+    }
+
+    // --- Build Clean Colored Articulated Sparrow (Matching EcoNest Design Sheet) ---
+    function buildCleanArticulatedSparrow() {
+      const root = new THREE.Group();
+      root.name = "EcoNest_Sparrow_Clean";
+
+      // Materials matching the color palette from EcoNest design sheet
+      const brownMat = new THREE.MeshStandardMaterial({ color: 0x945228, roughness: 0.7, metalness: 0.05 });
+      const creamMat = new THREE.MeshStandardMaterial({ color: 0xfaebd7, roughness: 0.65, metalness: 0.0 });
+      const darkWingMat = new THREE.MeshStandardMaterial({ color: 0x6e3817, roughness: 0.7 });
+      const beakMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.1, metalness: 0.2 });
+      const eyeSparkleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const blushMat = new THREE.MeshBasicMaterial({ color: 0xfca5a5, transparent: true, opacity: 0.85 });
+      const sproutMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5 });
+      const footMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.6 });
+
+      // 1. Body Group
+      const bodyGroup = new THREE.Group();
+      bodyGroup.position.set(0, 0.42, 0);
+
+      // Main chubby egg body
+      const bodyGeo = new THREE.SphereGeometry(0.44, 32, 24);
+      const bodyMesh = new THREE.Mesh(bodyGeo, brownMat);
+      bodyMesh.scale.set(0.9, 0.85, 0.95);
+      bodyMesh.castShadow = true;
+      bodyMesh.receiveShadow = true;
+      bodyGroup.add(bodyMesh);
+
+      // Cream beige belly oval
+      const bellyGeo = new THREE.SphereGeometry(0.42, 32, 24);
+      const bellyMesh = new THREE.Mesh(bellyGeo, creamMat);
+      bellyMesh.scale.set(0.85, 0.78, 0.55);
+      bellyMesh.position.set(0, -0.06, 0.22);
+      bellyMesh.castShadow = true;
+      bodyGroup.add(bellyMesh);
+
+      // Tail feathers (fan)
+      const tailGroup = new THREE.Group();
+      tailGroup.position.set(0, -0.05, -0.42);
+      tailGroup.rotation.x = -0.3;
+      for (let i = -1; i <= 1; i++) {
+        const feather = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.25), darkWingMat);
+        feather.position.set(i * 0.06, 0, -0.1);
+        feather.rotation.y = i * 0.15;
+        feather.castShadow = true;
+        tailGroup.add(feather);
+      }
+      bodyGroup.add(tailGroup);
+      root.add(bodyGroup);
+
+      // 2. Head Group (Independent Pivot at Neck)
+      const headGroup = new THREE.Group();
+      headGroup.position.set(0, 0.68, 0.12); // Neck pivot height
+
+      // Head sphere
+      const headGeo = new THREE.SphereGeometry(0.36, 32, 24);
+      const headMesh = new THREE.Mesh(headGeo, brownMat);
+      headMesh.scale.set(0.98, 0.92, 0.95);
+      headMesh.castShadow = true;
+      headGroup.add(headMesh);
+
+      // Face front cream mask
+      const faceGeo = new THREE.SphereGeometry(0.33, 32, 24);
+      const faceMesh = new THREE.Mesh(faceGeo, creamMat);
+      faceMesh.scale.set(0.88, 0.78, 0.45);
+      faceMesh.position.set(0, -0.08, 0.18);
+      headGroup.add(faceMesh);
+
+      // Triangular orange beak
+      const beakGeo = new THREE.ConeGeometry(0.075, 0.16, 16);
+      const beakMesh = new THREE.Mesh(beakGeo, beakMat);
+      beakMesh.rotation.x = Math.PI / 2;
+      beakMesh.position.set(0, -0.06, 0.4);
+      beakMesh.castShadow = true;
+      headGroup.add(beakMesh);
+
+      // Eyes (Glistening black anime eyes with specular highlights)
+      const eyeGeo = new THREE.SphereGeometry(0.065, 16, 16);
+      const sparkleGeo = new THREE.SphereGeometry(0.022, 12, 12);
+      const blushGeo = new THREE.CircleGeometry(0.055, 16);
+
+      [-1, 1].forEach((side) => {
+        const eye = new THREE.Mesh(eyeGeo, eyeMat);
+        eye.position.set(side * 0.16, 0.02, 0.32);
+        
+        const sparkle = new THREE.Mesh(sparkleGeo, eyeSparkleMat);
+        sparkle.position.set(side * 0.14, 0.04, 0.37);
+
+        const blush = new THREE.Mesh(blushGeo, blushMat);
+        blush.position.set(side * 0.22, -0.08, 0.28);
+        blush.rotation.y = side * 0.4;
+
+        headGroup.add(eye);
+        headGroup.add(sparkle);
+        headGroup.add(blush);
+      });
+
+      // Signature 2-Leaf Green Sprout on Head
+      const sproutGroup = new THREE.Group();
+      sproutGroup.position.set(0.08, 0.34, -0.02);
+      sproutGroup.rotation.z = -0.2;
+
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.1, 8), sproutMat);
+      stem.position.y = 0.05;
+      sproutGroup.add(stem);
+
+      const leafGeo = new THREE.SphereGeometry(0.06, 12, 8);
+      const leafL = new THREE.Mesh(leafGeo, sproutMat);
+      leafL.scale.set(0.6, 1.2, 0.2);
+      leafL.rotation.z = 0.6;
+      leafL.position.set(0.04, 0.11, 0);
+      sproutGroup.add(leafL);
+
+      const leafR = new THREE.Mesh(leafGeo, sproutMat);
+      leafR.scale.set(0.5, 1.0, 0.2);
+      leafR.rotation.z = -0.8;
+      leafR.position.set(-0.03, 0.09, 0);
+      sproutGroup.add(leafR);
+
+      headGroup.add(sproutGroup);
+      root.add(headGroup);
+
+      // 3. Left Wing (Independent Shoulder Pivot)
+      const wingLeftGroup = new THREE.Group();
+      wingLeftGroup.position.set(-0.35, 0.48, 0.02);
+
+      const wingLMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.26, 0.38), darkWingMat);
+      wingLMesh.position.set(-0.04, -0.1, 0);
+      wingLMesh.rotation.x = 0.35;
+      wingLMesh.rotation.z = -0.15;
+      wingLMesh.castShadow = true;
+      wingLeftGroup.add(wingLMesh);
+      root.add(wingLeftGroup);
+
+      // 4. Right Wing (Independent Shoulder Pivot)
+      const wingRightGroup = new THREE.Group();
+      wingRightGroup.position.set(0.35, 0.48, 0.02);
+
+      const wingRMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.26, 0.38), darkWingMat);
+      wingRMesh.position.set(0.04, -0.1, 0);
+      wingRMesh.rotation.x = 0.35;
+      wingRMesh.rotation.z = 0.15;
+      wingRMesh.castShadow = true;
+      wingRightGroup.add(wingRMesh);
+      root.add(wingRightGroup);
+
+      // 5. Feet (Two small orange feet)
+      [-1, 1].forEach((side) => {
+        const foot = new THREE.Group();
+        foot.position.set(side * 0.14, 0.03, 0.08);
+
+        for (let toe = -1; toe <= 1; toe++) {
+          const claw = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 8), footMat);
+          claw.rotation.x = Math.PI / 2;
+          claw.rotation.y = toe * 0.25;
+          claw.position.set(toe * 0.03, 0, 0.04);
+          claw.castShadow = true;
+          foot.add(claw);
+        }
+        root.add(foot);
+      });
+
+      scene.add(root);
+
+      sparrowRig = {
+        root: root,
+        bodyGroup: bodyGroup,
+        headGroup: headGroup,
+        wingLeftGroup: wingLeftGroup,
+        wingRightGroup: wingRightGroup,
+        sprout: sproutGroup
+      };
+
+      setAnimation('idle');
+    }
+
+    // --- Load Raw Scanned Mesh (With Rock) for Side-by-Side Comparison ---
+    function loadRawScannedModel() {
+      const loader = new THREE.GLTFLoader();
+      const onLoad = (gltf) => {
+        rawMeshRoot = new THREE.Group();
+        const mesh = gltf.scene;
+
+        const box = new THREE.Box3().setFromObject(mesh);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.0 / maxDim;
+        mesh.scale.set(scale, scale, scale);
+
+        box.setFromObject(mesh);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        mesh.position.x = -center.x;
+        mesh.position.z = -center.z;
+        mesh.position.y = -box.min.y;
+
+        // Apply clean clay material to raw mesh
+        mesh.traverse((c) => {
+          if (c.isMesh) {
+            c.material = new THREE.MeshStandardMaterial({ color: 0x945228, roughness: 0.7 });
+            c.castShadow = true;
+          }
+        });
+
+        rawMeshRoot.add(mesh);
+        rawMeshRoot.visible = false;
+        scene.add(rawMeshRoot);
+      };
+
+      if (window.SPARROW_GLB_DATA) {
+        loader.load(window.SPARROW_GLB_DATA, onLoad);
+      } else {
+        loader.load('assets/sparrow.glb', onLoad);
+      }
+    }
+
+    // --- Switch Active Model View ---
+    function switchModel(mode) {
+      activeModelMode = mode;
+      document.getElementById('tabClean').classList.toggle('active', mode === 'clean');
+      document.getElementById('tabRaw').classList.toggle('active', mode === 'raw');
+
+      if (mode === 'clean') {
+        if (sparrowRig.root) sparrowRig.root.visible = true;
+        if (rawMeshRoot) rawMeshRoot.visible = false;
+        document.getElementById('statSource').textContent = 'Articulated Chibi Rig';
+        document.getElementById('statRock').textContent = 'REMOVED (Clean Standalone)';
+        document.getElementById('statRock').style.color = '#34d399';
+        document.getElementById('statFlap').textContent = 'YES (Independent Rotations)';
+        document.getElementById('modelStatusBadge').textContent = 'CLEAN PROCEDURAL MASCOT';
+        document.getElementById('infoNotice').innerHTML = '💡 <strong>Clean Mascot:</strong> Modeled with individual pivot points for head, body, wings, and feet. Wings flap dynamically with <strong>zero rock</strong>!';
+      } else {
+        if (sparrowRig.root) sparrowRig.root.visible = false;
+        if (rawMeshRoot) rawMeshRoot.visible = true;
+        document.getElementById('statSource').textContent = 'Scanned AI Mesh';
+        document.getElementById('statRock').textContent = 'FUSED (Solid Lump Geometry)';
+        document.getElementById('statRock').style.color = '#f87171';
+        document.getElementById('statFlap').textContent = 'NO (Monolithic Mesh)';
+        document.getElementById('modelStatusBadge').textContent = 'RAW SCANNED MESH (WITH ROCK)';
+        document.getElementById('infoNotice').innerHTML = '⚠️ <strong>Notice:</strong> In this raw AI scan, the sparrow and the rock are fused together into a single geometry. Moving the bird lifts the whole rock.';
+      }
+      setAnimation('idle');
+    }
+
+    // --- Dynamic Character Animations (GSAP Articulation) ---
+    function setAnimation(animName) {
+      currentAnim = animName;
+
+      document.querySelectorAll('.btn-anim').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('btn' + animName.charAt(0).toUpperCase() + animName.slice(1));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (baseTimeline) baseTimeline.kill();
+
+      if (activeModelMode === 'clean' && sparrowRig.root) {
+        gsap.killTweensOf(sparrowRig.root.position);
+        gsap.killTweensOf(sparrowRig.headGroup.rotation);
+        gsap.killTweensOf(sparrowRig.headGroup.position);
+        gsap.killTweensOf(sparrowRig.wingLeftGroup.rotation);
+        gsap.killTweensOf(sparrowRig.wingRightGroup.rotation);
+        gsap.killTweensOf(sparrowRig.bodyGroup.scale);
+        gsap.killTweensOf(sparrowRig.sprout.rotation);
+
+        // Reset
+        gsap.to(sparrowRig.root.position, { x: 0, y: 0, z: 0, duration: 0.2 });
+        gsap.to(sparrowRig.headGroup.rotation, { x: 0, y: 0, z: 0, duration: 0.2 });
+        gsap.to(sparrowRig.headGroup.position, { y: 0.68, duration: 0.2 });
+        gsap.to(sparrowRig.wingLeftGroup.rotation, { x: 0, y: 0, z: 0, duration: 0.2 });
+        gsap.to(sparrowRig.wingRightGroup.rotation, { x: 0, y: 0, z: 0, duration: 0.2 });
+
+        if (animName === 'idle') playCleanIdle();
+        else if (animName === 'happy') playCleanHappyHop();
+        else if (animName === 'curious') playCleanCuriousTilt();
+        else if (animName === 'cheer') playCleanVictoryCheer();
+        else if (animName === 'sleep') playCleanSleeping();
+      } else if (rawMeshRoot) {
+        // Raw mesh fallback animation
+        gsap.killTweensOf(rawMeshRoot.position);
+        gsap.killTweensOf(rawMeshRoot.rotation);
+        if (animName === 'happy') {
+          gsap.timeline({ onComplete: () => setTimeout(() => setAnimation('idle'), 500) })
+              .to(rawMeshRoot.position, { y: 0.4, duration: 0.25, ease: "power2.out" })
+              .to(rawMeshRoot.position, { y: 0, duration: 0.3, ease: "bounce.out" });
+        }
+      }
+    }
+
+    // 1. Clean Idle Breathing & Sprout Sway
+    function playCleanIdle() {
+      baseTimeline = gsap.timeline({ repeat: -1, yoyo: true });
+      // Gentle body breathing
+      baseTimeline.to(sparrowRig.bodyGroup.scale, { x: 1.04, y: 0.96, z: 1.04, duration: 1.2, ease: "sine.inOut" });
+      // Subtle head bob
+      baseTimeline.to(sparrowRig.headGroup.position, { y: 0.66, duration: 1.2, ease: "sine.inOut" }, 0);
+      // Head sprout sways in breeze
+      baseTimeline.to(sparrowRig.sprout.rotation, { z: -0.4, duration: 1.2, ease: "sine.inOut" }, 0);
+    }
+
+    // 2. Clean Happy Hop with REAL FLAPPING WINGS!
+    function playCleanHappyHop() {
+      baseTimeline = gsap.timeline({
+        onComplete: () => setTimeout(() => setAnimation('idle'), 400)
+      });
+
+      // Hop 1: Body leaps up, wings flap open wide!
+      baseTimeline.to(sparrowRig.root.position, { y: 0.45, duration: 0.22, ease: "power2.out" })
+                  .to(sparrowRig.wingLeftGroup.rotation, { z: -0.75, duration: 0.12, yoyo: true, repeat: 1 }, 0)
+                  .to(sparrowRig.wingRightGroup.rotation, { z: 0.75, duration: 0.12, yoyo: true, repeat: 1 }, 0)
+                  .to(sparrowRig.headGroup.rotation, { x: -0.2, duration: 0.2 }, 0)
+                  .to(sparrowRig.root.position, { y: 0, duration: 0.25, ease: "bounce.out" });
+
+      // Hop 2: Higher celebratory bounce with double wing flutter
+      baseTimeline.to(sparrowRig.root.position, { y: 0.55, duration: 0.25, ease: "power2.out" }, "+=0.05")
+                  .to(sparrowRig.wingLeftGroup.rotation, { z: -0.9, duration: 0.12, yoyo: true, repeat: 2 }, "-=0.25")
+                  .to(sparrowRig.wingRightGroup.rotation, { z: 0.9, duration: 0.12, yoyo: true, repeat: 2 }, "-=0.25")
+                  .to(sparrowRig.root.position, { y: 0, duration: 0.3, ease: "bounce.out" });
+
+      if (shadowMesh) {
+        baseTimeline.to(shadowMesh.scale, { x: 0.65, y: 0.65, duration: 0.22, yoyo: true, repeat: 1 }, 0)
+                    .to(shadowMesh.scale, { x: 0.5, y: 0.5, duration: 0.25, yoyo: true, repeat: 1 }, "+=0.05");
+      }
+    }
+
+    // 3. Clean Curious Head Tilt (HEAD ALONE TILTS while feet stay firmly planted!)
+    function playCleanCuriousTilt() {
+      baseTimeline = gsap.timeline();
+      baseTimeline.to(sparrowRig.headGroup.rotation, {
+        z: 0.45,  // 25 degree sideways tilt
+        y: 0.35,  // glance toward viewer
+        x: -0.15, // tilt up inquisitively
+        duration: 0.45,
+        ease: "back.out(2)"
+      });
+      // One wing tucks, other tilts slightly
+      baseTimeline.to(sparrowRig.wingLeftGroup.rotation, { z: 0.2, duration: 0.4 }, 0);
+    }
+
+    // 4. Clean Victory Leap & 360 Spin
+    function playCleanVictoryCheer() {
+      baseTimeline = gsap.timeline({
+        onComplete: () => setTimeout(() => setAnimation('idle'), 600)
+      });
+
+      // High leap into air
+      baseTimeline.to(sparrowRig.root.position, { y: 0.85, duration: 0.38, ease: "power2.out" })
+                  .to(sparrowRig.root.rotation, { y: Math.PI * 2, duration: 0.6, ease: "power1.inOut" }, 0)
+                  .to(sparrowRig.wingLeftGroup.rotation, { z: -1.1, duration: 0.1, yoyo: true, repeat: 4 }, 0)
+                  .to(sparrowRig.wingRightGroup.rotation, { z: 1.1, duration: 0.1, yoyo: true, repeat: 4 }, 0)
+                  .to(sparrowRig.root.position, { y: 0, duration: 0.4, ease: "bounce.out" });
+
+      if (shadowMesh) {
+        baseTimeline.to(shadowMesh.scale, { x: 0.35, y: 0.35, duration: 0.38, yoyo: true, repeat: 1 }, 0);
+      }
+    }
+
+    // 5. Clean Sleeping Nest
+    function playCleanSleeping() {
+      baseTimeline = gsap.timeline();
+      // Lower body onto belly
+      baseTimeline.to(sparrowRig.bodyGroup.position, { y: 0.34, duration: 0.8, ease: "power2.inOut" })
+                  .to(sparrowRig.headGroup.position, { y: 0.54, duration: 0.8, ease: "power2.inOut" }, 0)
+                  .to(sparrowRig.headGroup.rotation, { x: 0.3, z: 0, y: 0, duration: 0.8 }, 0)
+                  .to(sparrowRig.wingLeftGroup.rotation, { z: 0.15, x: 0.1, duration: 0.8 }, 0)
+                  .to(sparrowRig.wingRightGroup.rotation, { z: -0.15, x: 0.1, duration: 0.8 }, 0);
+
+      // Slow deep breathing
+      baseTimeline.to(sparrowRig.bodyGroup.scale, {
+        x: 1.08, y: 0.88, z: 1.08,
+        duration: 2.2, repeat: -1, yoyo: true, ease: "sine.inOut"
+      }, "+=0.1");
+    }
+
+    function toggleTurntable() {
+      isTurntable = !isTurntable;
+      controls.autoRotate = isTurntable;
+      controls.autoRotateSpeed = 2.5;
+      document.getElementById('spinLabel').textContent = isTurntable ? 'Turntable: On' : 'Turntable: Off';
+      document.getElementById('btnSpin').classList.toggle('active', isTurntable);
+    }
+
+    // --- Export Clean Colored .GLB File ---
+    function exportCleanGlb() {
+      if (!sparrowRig.root) return;
+
+      const exporter = new THREE.GLTFExporter();
+      const options = { binary: true };
+
+      exporter.parse(
+        sparrowRig.root,
+        (glbArrayBuffer) => {
+          const blob = new Blob([glbArrayBuffer], { type: 'application/octet-stream' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'EcoNest_Sparrow_Colored.glb';
+          link.click();
+          URL.revokeObjectURL(link.href);
+          alert('Success! Clean colored EcoNest_Sparrow_Colored.glb downloaded to your computer!');
+        },
+        options
+      );
+    }
+
+    // --- Nudge Simulator ---
+    function triggerNudge(type) {
+      const bubble = document.getElementById('speechBubble');
+      const text = document.getElementById('speechText');
+      const xp = document.getElementById('speechXP');
+
+      if (type === 'water') {
+        text.textContent = 'Chirp! Water tap switched off! +30 Liters saved.';
+        xp.textContent = '+30 EXP';
+        setAnimation('happy');
+      } else if (type === 'ac') {
+        text.textContent = 'Fantastic! AC at 24°C saves Gujarat 2.4 kWh today!';
+        xp.textContent = '+197 EXP';
+        setAnimation('cheer');
+      } else if (type === 'geofence') {
+        text.textContent = 'Leaving home? Checked: Fans & geyser are turned OFF!';
+        xp.textContent = '+50 EXP';
+        setAnimation('curious');
+      } else if (type === 'sleep') {
+        text.textContent = '10:30 PM: Sleep mode engaged. Switch off screens!';
+        xp.textContent = '+20 EXP';
+        setAnimation('sleep');
+      }
+
+      bubble.classList.add('active');
+      setTimeout(() => bubble.classList.remove('active'), 4500);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('dropZone');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      if (particleSystem) particleSystem.rotation.y += 0.0008;
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

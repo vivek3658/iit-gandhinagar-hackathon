@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UrjaVatika - High-Scale Lean Onboarding (ID-Reference Architecture)</title>
+  <style>
+    :root {
+      --primary: #1B6B44;
+      --primary-light: #E8F5E9;
+      --accent: #F59E0B;
+      --accent-light: #FEF3C7;
+      --blue: #0284C7;
+      --blue-light: #E0F2FE;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --border: #E2E8F0;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px 16px;
+    }
+
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 470px;
+      gap: 24px;
+    }
+
+    @media (max-width: 980px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: var(--card-bg);
+      padding: 20px 24px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .tag {
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .tag-blue {
+      background: var(--blue-light);
+      color: var(--blue);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .tag-accent {
+      background: var(--accent-light);
+      color: #92400E;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    /* Scalability Callout */
+    .scale-banner {
+      grid-column: 1 / -1;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-left: 4px solid var(--primary);
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #166534;
+    }
+
+    .form-column {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .block-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .block-header {
+      padding: 16px 20px;
+      background: #F8FAFC;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .block-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .block-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: #FFF;
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .block-body {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .help-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: -2px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #FFF;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+    }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip-btn {
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #F8FAFC;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip-btn.active {
+      background: var(--primary);
+      color: #FFF;
+      border-color: var(--primary);
+    }
+
+    .btn-auto-detect {
+      background: #E0F2FE;
+      color: #0284C7;
+      border: 1px solid #BAE6FD;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      margin-bottom: 8px;
+    }
+
+    .btn-auto-detect:hover {
+      background: #BAE6FD;
+    }
+
+    /* Catalog Search Box */
+    .catalog-search-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    .catalog-search-box input {
+      flex: 1;
+    }
+
+    .catalog-results {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #FFF;
+      margin-top: 6px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      display: none;
+    }
+
+    .catalog-item {
+      padding: 9px 14px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      border-bottom: 1px solid #F1F5F9;
+      transition: background 0.15s;
+    }
+
+    .catalog-item:hover {
+      background: #F8FAFC;
+    }
+
+    .id-tag {
+      font-family: monospace;
+      font-size: 10px;
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #475569;
+    }
+
+    .device-pills-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .device-card-row {
+      background: #FFF;
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .remove-btn {
+      color: #EF4444;
+      cursor: pointer;
+      font-weight: bold;
+      padding: 2px 6px;
+    }
+
+    /* Output Column */
+    .preview-column {
+      position: sticky;
+      top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: fit-content;
+    }
+
+    .summary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+
+    .summary-card h3 {
+      font-size: 15px;
+      margin-bottom: 12px;
+      color: var(--primary);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-val {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .json-card {
+      background: #0F172A;
+      color: #38BDF8;
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: monospace;
+      font-size: 11px;
+      overflow-x: auto;
+      max-height: 520px;
+      border: 1px solid #1E293B;
+    }
+
+    .scale-metric-box {
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div>
+        <h1>🌱 UrjaVatika: High-Scale Lean Onboarding</h1>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+          Optimized for <strong>100k writes/sec & 1M reads/sec</strong> using <strong>Compact Foreign Key Pointer references</strong>.
+        </p>
+      </div>
+      <div class="badge-bar">
+        <span class="tag">Ward Select Dropdown</span>
+        <span class="tag-blue">Lean ID References</span>
+        <span class="tag-accent">Zero Bloat (&lt;320 bytes)</span>
+      </div>
+    </header>
+
+    <!-- Scalability Banner -->
+    <div class="scale-banner">
+      🚀 <strong>High-Throughput Scalability Engine:</strong> Instead of stuffing heavy nested objects inside the citizen document (which exhausts memory and network I/O), we store <strong>only compact catalog IDs</strong> (`deviceIds: ["ac_voltas_15", "kent_ro"]`). The master catalog is cached in <strong>Redis RAM (< 0.2ms)</strong>!
+    </div>
+
+    <!-- Main Form Column -->
+    <div class="form-column">
+
+      <!-- Entity 1: Citizen Profile -->
+      <div class="block-card">
+        <div class="block-header">
+          <div class="block-title">👤 Entity 1: Citizen Profile</div>
+          <div class="block-status">OAuth Identity</div>
+        </div>
+        <div class="block-body">
+          <div class="field">
+            <label>Full Name</label>
+            <input type="text" id="inp-name" value="Vivek Patel" oninput="updateData()">
+          </div>
+          <div class="field">
+            <label>Date of Birth</label>
+            <input type="date" id="inp-dob" value="2002-05-14" onchange="updateData()">
+          </div>
+          <div class="field">
+            <label>Language</label>
+            <select id="inp-lang" onchange="updateData()">
+              <option value="gu">ગુજરાતી (Gujarati)</option>
+              <option value="en" selected>English</option>
+              <option value="hi">हिंदी (Hindi)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entity 2: Location with Dynamic Ward Select Dropdown -->
+      <div class="block-card">
+        <div class="block-header">
+          <div class="block-title">🏡 Entity 2: Gujarat District & Municipal Ward</div>
+          <div class="block-status">Select Dropdown Support</div>
+        </div>
+        <div class="block-body">
+          <div class="full-width">
+            <button class="btn-auto-detect" onclick="autoDetectLocation()">
+              📍 Auto-Detect Location (GPS)
+            </button>
+            <span id="loc-status" style="font-size: 11px; color: var(--text-muted); margin-left: 8px;"></span>
+          </div>
+
+          <div class="field">
+            <label>Gujarat District</label>
+            <select id="inp-district" onchange="onDistrictChange(); updateData()">
+              <option value="Ahmedabad" selected>Ahmedabad (અમદાવાદ)</option>
+              <option value="Surat">Surat (સૂરત)</option>
+              <option value="Vadodara">Vadodara (વડોદરા)</option>
+              <option value="Rajkot">Rajkot (રાજકોટ)</option>
+              <option value="Gandhinagar">Gandhinagar (ગાંધીનગર)</option>
+              <option value="Bhavnagar">Bhavnagar (ભાવનગર)</option>
+              <option value="Jamnagar">Jamnagar (જામનગર)</option>
+              <option value="Junagadh">Junagadh (જૂનાગઢ)</option>
+            </select>
+          </div>
+
+          <!-- Ward as Select Dropdown! -->
+          <div class="field">
+            <label>Municipal Ward (Select Option)</label>
+            <select id="inp-ward" onchange="updateData()">
+              <!-- Dynamically populated based on District -->
+            </select>
+            <span class="help-text">Automatically populated based on selected district</span>
+          </div>
+
+          <div class="field">
+            <label>Dwelling Type</label>
+            <select id="inp-house" onchange="updateData()">
+              <option value="apartment" selected>Apartment / High-Rise Flat</option>
+              <option value="row_house">Row House / Tenement</option>
+              <option value="bungalow">Independent Bungalow</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Household Members (Max 20)</label>
+            <input type="number" id="inp-members" min="1" max="20" value="4" oninput="updateData()">
+          </div>
+
+          <div class="field">
+            <label>Monthly Electric Bill (₹)</label>
+            <input type="number" id="inp-bill-amt" min="200" max="100000" step="100" value="2800" oninput="updateData()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Entity 3: Utility Provider Subscriptions -->
+      <div class="block-card">
+        <div class="block-header">
+          <div class="block-title">🔌 Entity 3: Utility Subscriptions</div>
+          <div class="block-status">DISCOM / Gas / Water</div>
+        </div>
+        <div class="block-body">
+          <div class="field">
+            <label>DISCOM Provider</label>
+            <select id="inp-discom" onchange="updateData()">
+              <option value="torrent" selected>Torrent Power</option>
+              <option value="ugvcl">UGVCL (Uttar Gujarat)</option>
+              <option value="dgvcl">DGVCL (Dakshin Gujarat)</option>
+              <option value="mgvcl">MGVCL (Madhya Gujarat)</option>
+              <option value="pgvcl">PGVCL (Paschim Gujarat)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Cooking Gas Provider</label>
+            <select id="inp-gas-provider" onchange="updateData()">
+              <option value="adani_png" selected>Adani Total Gas (Piped PNG)</option>
+              <option value="gujarat_gas">Gujarat Gas (GGL PNG)</option>
+              <option value="indane">Indane (IOCL 14.2kg Cylinder)</option>
+              <option value="bharat_gas">Bharat Gas (BPCL 14.2kg)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Water Supply Window</label>
+            <select id="inp-water-type" onchange="updateData()">
+              <option value="timed" selected>Timed Municipal Supply (e.g. 6–8 AM)</option>
+              <option value="24x7">24/7 Pressurized Society Pipeline</option>
+              <option value="borewell">Borewell / Ground Tanker</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Water Storage System</label>
+            <select id="inp-water-storage" onchange="updateData()">
+              <option value="sump_and_overhead" selected>Ground Sump + Overhead Tank</option>
+              <option value="overhead_only">Overhead Tank Only</option>
+              <option value="sump_only">Underground Sump Only</option>
+              <option value="tubs">Plastic Tubs & Drums</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entity 4: Lean Household Devices (Stores ID References Only!) -->
+      <div class="block-card">
+        <div class="block-header">
+          <div class="block-title">⚡ Entity 4: Household Devices (`deviceIds[]`)</div>
+          <div class="block-status">Foreign Key Pointers (< 20 bytes/device)</div>
+        </div>
+        <div class="block-body">
+          <div class="full-width" style="font-size:12px; color:var(--text-muted);">
+            User profile stores only the device <strong>Catalog ID</strong>. Complete specs, wattage, and PEP carbon footprint are looked up in Redis at runtime.
+          </div>
+
+          <div class="field full-width">
+            <label>Search & Add From Catalog</label>
+            <div class="catalog-search-box">
+              <input type="text" id="device-search" placeholder="Search: Voltas AC, Kent RO, IFB Washing Machine, Wiser Smart Plug, Geyser..." oninput="filterDeviceCatalog(this.value)">
+            </div>
+            
+            <div class="catalog-results" id="device-catalog-dropdown"></div>
+
+            <div style="font-size: 12px; font-weight: 700; margin-top: 12px; color: var(--text);">
+              Selected Device IDs (Stored as Lean Array of Strings):
+            </div>
+            <div class="device-pills-list" id="registered-devices-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entity 5: Lean Household Vehicles (Stores ID References Only!) -->
+      <div class="block-card">
+        <div class="block-header">
+          <div class="block-title">🛵 Entity 5: Personal Vehicles (`vehicleIds[]`)</div>
+          <div class="block-status">Compact Prototype Catalog</div>
+        </div>
+        <div class="block-body">
+          <div class="field full-width">
+            <label>Default Green Modes</label>
+            <div class="chip-group" id="grp-transit-modes">
+              <button class="chip-btn active" onclick="toggleMultiChip(this)">🚶 walk</button>
+              <button class="chip-btn" onclick="toggleMultiChip(this)">🚲 bicycle</button>
+              <button class="chip-btn active" onclick="toggleMultiChip(this)">🚇 metro</button>
+              <button class="chip-btn active" onclick="toggleMultiChip(this)">🚌 bus</button>
+            </div>
+          </div>
+
+          <div class="field full-width">
+            <label>Search & Add Vehicle (ID Pointer)</label>
+            <div class="catalog-search-box">
+              <input type="text" id="vehicle-search" placeholder="Search: Activa 6G, Splendor, Ather 450X, Ola S1, Nexon EV, Swift CNG..." oninput="filterVehicleCatalog(this.value)">
+            </div>
+            
+            <div class="catalog-results" id="vehicle-catalog-dropdown"></div>
+
+            <div style="font-size: 12px; font-weight: 700; margin-top: 12px; color: var(--text);">
+              Selected Vehicle IDs:
+            </div>
+            <div class="device-pills-list" id="registered-vehicles-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entity 6: Companion -->
+      <div class="block-card">
+        <div class="block-header">
+          <div class="block-title">🐦 Entity 6: Mascot Guardian</div>
+          <div class="block-status">Sparrow Only</div>
+        </div>
+        <div class="block-body">
+          <div class="field">
+            <label>Companion Nickname</label>
+            <input type="text" id="inp-mascot-name" value="Chakali" oninput="updateData()">
+          </div>
+          <div class="field">
+            <label>Welcome Bonus</label>
+            <input type="text" value="+100 Urja Mudra Coins (Auto-credited)" readonly style="background:#FEF3C7; color:#92400E; font-weight:700;">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Lean Fastify JSON -->
+    <div class="preview-column">
+
+      <!-- Scalability Metric Ledger -->
+      <div class="summary-card">
+        <h3>⚡ Scalability Metrics</h3>
+        <div class="stat-row">
+          <span>Payload Size</span>
+          <span class="stat-val" style="color:var(--primary);" id="stat-payload-size">~310 bytes</span>
+        </div>
+        <div class="stat-row">
+          <span>Cluster Capacity</span>
+          <span class="stat-val" style="color:var(--primary);">100,000 writes/sec</span>
+        </div>
+        <div class="stat-row">
+          <span>Network I/O at Peak</span>
+          <span class="stat-val">~31 MB/sec (Ultra-lean)</span>
+        </div>
+        <div class="stat-row">
+          <span>Redis Resolution</span>
+          <span class="stat-val">&lt; 0.2 ms</span>
+        </div>
+      </div>
+
+      <!-- Live Lean JSON Schema Output -->
+      <div class="summary-card" style="padding: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">FASTIFY LEAN PAYLOAD (/api/v1/auth/complete-profile)</span>
+          <button style="font-size: 11px; padding: 3px 8px; cursor: pointer; border-radius: 4px; border: 1px solid var(--border);" onclick="copyJson()">Copy</button>
+        </div>
+        <div class="json-card" id="json-output">
+          // Generating Lean JSON...
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // Official Municipal Wards by District (Select Dropdown data)
+    const WARDS_BY_DISTRICT = {
+      Ahmedabad: [
+        "Navrangpura", "Bodakdev", "Paldi", "Maninagar", "Satellite", "Vastrapur", 
+        "Ghatlodia", "Chandkheda", "Naranpura", "Sabarmati", "Thaltej", "Danilimda"
+      ],
+      Surat: [
+        "Adajan", "Athwa", "Vesu", "Rander", "Katargam", "Varachha", "Udhna", "Majura"
+      ],
+      Vadodara: [
+        "Alkapuri", "Akota", "Manjalpur", "Sayajigunj", "Fatehgunj", "Karelibaug", "Gotri"
+      ],
+      Rajkot: [
+        "Kalawad Road", "University Road", "Yagnik Road", "Raiya", "Kothariya", "Bhaktinagar"
+      ],
+      Gandhinagar: [
+        "Sector 1-10", "Sector 11-20", "Sector 21-30", "Infocity", "Kudasan", "Sargasan"
+      ],
+      Bhavnagar: [
+        "Kalanala", "Ghogha Circle", "Subhashnagar", "Chitra", "Takhteshwar"
+      ],
+      Jamnagar: [
+        "Digjam", "Patel Colony", "Gulabnagar", "Bedeshwar", "Ranjitnagar"
+      ],
+      Junagadh: [
+        "Zanzarda Road", "Moti Baugh", "Joshipura", "Timbawadi"
+      ]
+    };
+
+    // Master Catalog in Redis/Database (Immutable)
+    const MASTER_DEVICES = [
+      { id: "ac_voltas_185v", name: "Voltas 1.5T 5-Star AC", watts: 1420 },
+      { id: "ro_kent_grand", name: "Kent Grand Plus RO", watts: 60 },
+      { id: "wiser_plug_16a", name: "Schneider Wiser 16A Smart Plug", watts: 3680 },
+      { id: "wm_ifb_senator", name: "IFB 8kg Front Load Washing Machine", watts: 1950 },
+      { id: "fridge_lg_260l", name: "LG 260L Inverter Refrigerator", watts: 180 },
+      { id: "geyser_havells_25l", name: "Havells 25L Electric Geyser", watts: 2000 },
+      { id: "cooktop_prestige_3b", name: "Prestige 3-Burner Gas Stove", watts: 0 }
+    ];
+
+    const MASTER_VEHICLES = [
+      { id: "veh_activa_6g", name: "Honda Activa 6G (Petrol)", co2: 58.0 },
+      { id: "veh_ather_450x", name: "Ather 450X (Electric)", co2: 18.0 },
+      { id: "veh_splendor_plus", name: "Hero Splendor+ (Petrol)", co2: 44.0 },
+      { id: "veh_ola_s1_pro", name: "Ola S1 Pro (Electric)", co2: 17.5 },
+      { id: "veh_nexon_ev", name: "Tata Nexon EV (Electric)", co2: 52.0 },
+      { id: "veh_swift_cng", name: "Maruti Swift S-CNG", co2: 96.0 },
+      { id: "veh_creta_petrol", name: "Hyundai Creta Petrol", co2: 135.0 }
+    ];
+
+    // User's lean ID references
+    let selectedDeviceIds = ["ac_voltas_185v", "ro_kent_grand", "wiser_plug_16a"];
+    let selectedVehicleIds = ["veh_activa_6g"];
+
+    function populateWards(district) {
+      const wardSelect = document.getElementById('inp-ward');
+      const wards = WARDS_BY_DISTRICT[district] || ["Ward 1", "Ward 2"];
+      wardSelect.innerHTML = wards.map(w => `<option value="${w}">${w}</option>`).join('');
+    }
+
+    function onDistrictChange() {
+      const dist = document.getElementById('inp-district').value;
+      populateWards(dist);
+    }
+
+    function autoDetectLocation() {
+      document.getElementById('loc-status').innerText = 'Accessing GPS location...';
+      setTimeout(() => {
+        document.getElementById('inp-district').value = 'Ahmedabad';
+        populateWards('Ahmedabad');
+        document.getElementById('inp-ward').value = 'Navrangpura';
+        document.getElementById('loc-status').innerText = '✓ Auto-selected: Ahmedabad - Navrangpura Ward';
+        updateData();
+      }, 350);
+    }
+
+    // Catalog Search (Returns clean ID pointer)
+    function filterDeviceCatalog(query) {
+      const box = document.getElementById('device-catalog-dropdown');
+      if (!query || query.trim() === '') {
+        box.style.display = 'none';
+        return;
+      }
+      const q = query.toLowerCase();
+      const matches = MASTER_DEVICES.filter(d => d.name.toLowerCase().includes(q) || d.id.includes(q));
+
+      if (matches.length === 0) {
+        box.innerHTML = '<div style="padding:8px 12px; font-size:12px; color:var(--text-muted);">No match.</div>';
+      } else {
+        box.innerHTML = matches.map(d => `
+          <div class="catalog-item" onclick="selectDevice('${d.id}')">
+            <span><strong>${d.name}</strong></span>
+            <span class="id-tag">${d.id}</span>
+          </div>
+        `).join('');
+      }
+      box.style.display = 'block';
+    }
+
+    function selectDevice(id) {
+      if (!selectedDeviceIds.includes(id)) {
+        selectedDeviceIds.push(id);
+        renderDeviceList();
+      }
+      document.getElementById('device-catalog-dropdown').style.display = 'none';
+      document.getElementById('device-search').value = '';
+      updateData();
+    }
+
+    function removeDevice(id) {
+      selectedDeviceIds = selectedDeviceIds.filter(d => d !== id);
+      renderDeviceList();
+      updateData();
+    }
+
+    function renderDeviceList() {
+      const container = document.getElementById('registered-devices-list');
+      container.innerHTML = selectedDeviceIds.map(id => {
+        const item = MASTER_DEVICES.find(d => d.id === id) || { name: id };
+        return `
+          <div class="device-card-row">
+            <span>📦 ${item.name}</span>
+            <span class="id-tag">${id}</span>
+            <span class="remove-btn" onclick="removeDevice('${id}')">✕</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Vehicle Search
+    function filterVehicleCatalog(query) {
+      const box = document.getElementById('vehicle-catalog-dropdown');
+      if (!query || query.trim() === '') {
+        box.style.display = 'none';
+        return;
+      }
+      const q = query.toLowerCase();
+      const matches = MASTER_VEHICLES.filter(v => v.name.toLowerCase().includes(q) || v.id.includes(q));
+
+      if (matches.length === 0) {
+        box.innerHTML = '<div style="padding:8px 12px; font-size:12px; color:var(--text-muted);">No match.</div>';
+      } else {
+        box.innerHTML = matches.map(v => `
+          <div class="catalog-item" onclick="selectVehicle('${v.id}')">
+            <span><strong>${v.name}</strong></span>
+            <span class="id-tag">${v.id}</span>
+          </div>
+        `).join('');
+      }
+      box.style.display = 'block';
+    }
+
+    function selectVehicle(id) {
+      if (!selectedVehicleIds.includes(id)) {
+        selectedVehicleIds.push(id);
+        renderVehicleList();
+      }
+      document.getElementById('vehicle-catalog-dropdown').style.display = 'none';
+      document.getElementById('vehicle-search').value = '';
+      updateData();
+    }
+
+    function removeVehicle(id) {
+      selectedVehicleIds = selectedVehicleIds.filter(v => v !== id);
+      renderVehicleList();
+      updateData();
+    }
+
+    function renderVehicleList() {
+      const container = document.getElementById('registered-vehicles-list');
+      container.innerHTML = selectedVehicleIds.map(id => {
+        const item = MASTER_VEHICLES.find(v => v.id === id) || { name: id };
+        return `
+          <div class="device-card-row">
+            <span>🛵 ${item.name}</span>
+            <span class="id-tag">${id}</span>
+            <span class="remove-btn" onclick="removeVehicle('${id}')">✕</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleMultiChip(btn) {
+      btn.classList.toggle('active');
+      updateData();
+    }
+
+    function updateData() {
+      const activeTransits = Array.from(document.querySelectorAll('#grp-transit-modes .chip-btn.active')).map(b => b.innerText.split(' ')[1] || b.innerText.trim());
+
+      // Highly Scalable Lean Payload: Only stores compact IDs, no object duplication!
+      const leanPayload = {
+        name: document.getElementById('inp-name').value,
+        dob: document.getElementById('inp-dob').value,
+        language: document.getElementById('inp-lang').value,
+        district: document.getElementById('inp-district').value,
+        ward: document.getElementById('inp-ward').value,
+        houseType: document.getElementById('inp-house').value,
+        householdMembers: parseInt(document.getElementById('inp-members').value) || 4,
+        monthlyBillRupees: parseFloat(document.getElementById('inp-bill-amt').value) || 2800,
+        electricityProviderId: document.getElementById('inp-discom').value,
+        gasProviderId: document.getElementById('inp-gas-provider').value,
+        waterSupplyType: document.getElementById('inp-water-type').value,
+        waterStorageType: document.getElementById('inp-water-storage').value,
+        defaultTransitModes: activeTransits,
+        deviceCatalogIds: selectedDeviceIds,
+        vehicleCatalogIds: selectedVehicleIds,
+        mascotName: document.getElementById('inp-mascot-name').value || "Chakali"
+      };
+
+      const jsonStr = JSON.stringify(leanPayload, null, 2);
+      document.getElementById('json-output').innerText = jsonStr;
+
+      // Estimate byte size
+      const bytes = new Blob([jsonStr]).size;
+      document.getElementById('stat-payload-size').innerText = `~${bytes} bytes (Lean)`;
+    }
+
+    function copyJson() {
+      const text = document.getElementById('json-output').innerText;
+      navigator.clipboard.writeText(text);
+      alert('Lean Fastify payload copied to clipboard!');
+    }
+
+    window.onload = function() {
+      populateWards('Ahmedabad');
+      renderDeviceList();
+      renderVehicleList();
+      updateData();
+    };
+  </script>
+</body>
+</html>

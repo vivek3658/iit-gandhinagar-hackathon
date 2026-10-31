@@ -1,5 +1,47 @@
-node_modules
-.next
-.env*
-!.env.example
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.next/
+
+# Production build
+dist/
+build/
 *.tsbuildinfo
+
+# Environment files & Secrets
+.env
+.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
+*.jks
+*.keystore
+key.properties
+client_secret*.json
+
+# Mobile & Flutter secrets
+**/google-services.json
+**/GoogleService-Info.plist
+**/auth_config.local.dart
+**/*.local.dart
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
