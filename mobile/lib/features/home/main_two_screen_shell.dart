@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/game_state_service.dart';
 import '../activity/activity_feed_notifications_screen.dart';
 import '../game/mascot_sanctuary_screen.dart';
 import '../game/garden_island_screen.dart';
@@ -92,21 +93,32 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
               ),
 
               // Screen 1: Center Hub: Mascot Sanctuary <-> 3D Garden Island
-              PageView(
-                controller: _verticalController,
-                scrollDirection: Axis.vertical,
-                physics: const BouncingScrollPhysics(),
-                onPageChanged: (page) => setState(() => _verticalPage = page),
-                children: [
-                  MascotSanctuaryScreen(
-                    onScrollToGarden: _scrollToGarden,
-                    onSlideToWardrobe: _slideToWardrobe,
-                    onSlideToActivity: _slideToActivity,
-                  ),
-                  GardenIslandScreen(
-                    onScrollToSanctuary: _scrollToSanctuary,
-                  ),
-                ],
+              ListenableBuilder(
+                listenable: GameStateService.instance,
+                builder: (context, _) {
+                  final isGardenPage = _verticalPage == 1;
+                  final isScrollLocked = GameStateService.instance.gardenScrollLocked;
+                  return PageView(
+                    controller: _verticalController,
+                    scrollDirection: Axis.vertical,
+                    // When on Garden and scroll lock is active, harden the gesture physics
+                    // to prevent accidental page switching during 3D garden manipulation!
+                    physics: (isGardenPage && isScrollLocked)
+                        ? const NeverScrollableScrollPhysics()
+                        : const BouncingScrollPhysics(),
+                    onPageChanged: (page) => setState(() => _verticalPage = page),
+                    children: [
+                      MascotSanctuaryScreen(
+                        onScrollToGarden: _scrollToGarden,
+                        onSlideToWardrobe: _slideToWardrobe,
+                        onSlideToActivity: _slideToActivity,
+                      ),
+                      GardenIslandScreen(
+                        onScrollToSanctuary: _scrollToSanctuary,
+                      ),
+                    ],
+                  );
+                },
               ),
 
               // Screen 2: Dedicated Wardrobe Fitting Room Screen (Slide Right)

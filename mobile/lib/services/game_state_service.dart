@@ -71,6 +71,10 @@ class GameStateService extends ChangeNotifier {
     {'x': 1, 'z': 1, 'id': null, 'r': 0},
   ];
 
+  // --- Garden Stored Inventory (Items stored without selling) ---
+  final List<String> _gardenInventory = [];
+  bool _gardenScrollLocked = true; // Prevents accidental page scrolling when in garden
+
   // --- Monthly Electricity Consumption Ledger (Units / kWh) ---
   final Map<String, double> _monthlyUnitsLedger = {
     '2026-07': 315.0,
@@ -130,6 +134,8 @@ class GameStateService extends ChangeNotifier {
 
   List<Map<String, dynamic>> get gardenGridSlots =>
       List.unmodifiable(_gardenGridSlots);
+  List<String> get gardenInventory => List.unmodifiable(_gardenInventory);
+  bool get gardenScrollLocked => _gardenScrollLocked;
   Map<String, double> get monthlyUnitsLedger =>
       Map.unmodifiable(_monthlyUnitsLedger);
   double get targetReductionPercent => _targetReductionPercent;
@@ -416,6 +422,47 @@ class GameStateService extends ChangeNotifier {
     _gardenGridSlots[toIdx]['r'] = _gardenGridSlots[fromIdx]['r'];
     _gardenGridSlots[fromIdx]['id'] = null;
     _gardenGridSlots[fromIdx]['r'] = 0;
+    notifyListeners();
+    return true;
+  }
+
+  void setGardenScrollLocked(bool locked) {
+    _gardenScrollLocked = locked;
+    notifyListeners();
+  }
+
+  void toggleGardenScrollLock() {
+    _gardenScrollLocked = !_gardenScrollLocked;
+    notifyListeners();
+  }
+
+  bool storeGardenTileInInventory(int x, int z) {
+    final idx = _gardenGridSlots.indexWhere((s) => s['x'] == x && s['z'] == z);
+    if (idx == -1 || _gardenGridSlots[idx]['id'] == null) return false;
+    // SPARROW_HOME cannot be removed or stored
+    if (_gardenGridSlots[idx]['id'] == 'SPARROW_HOME') return false;
+
+    final tileId = _gardenGridSlots[idx]['id'] as String;
+    _gardenInventory.add(tileId);
+    _gardenGridSlots[idx]['id'] = null;
+    _gardenGridSlots[idx]['r'] = 0;
+    notifyListeners();
+    return true;
+  }
+
+  bool deployInventoryGardenTile({
+    required int x,
+    required int z,
+    required String tileId,
+    int rotation = 0,
+  }) {
+    if (!_gardenInventory.contains(tileId)) return false;
+    final idx = _gardenGridSlots.indexWhere((s) => s['x'] == x && s['z'] == z);
+    if (idx == -1 || _gardenGridSlots[idx]['id'] != null) return false; // Must be empty
+
+    _gardenInventory.remove(tileId);
+    _gardenGridSlots[idx]['id'] = tileId;
+    _gardenGridSlots[idx]['r'] = rotation;
     notifyListeners();
     return true;
   }

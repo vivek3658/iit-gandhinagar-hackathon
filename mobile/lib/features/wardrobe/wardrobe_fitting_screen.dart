@@ -478,21 +478,22 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: const Color(0xFF0F2B1A).withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x180F2B1A),
+            color: Colors.black45,
             blurRadius: 16,
             offset: Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0x221B6B44)),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
       ),
       child: Row(
         children: [
+          // 3D Return Button
           InkWell(
             onTap: () {
               HapticFeedback.selectionClick();
@@ -502,60 +503,100 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B6B44),
+                color: const Color(0xFF22C55E),
                 borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(color: Color(0xFF14532D), offset: Offset(0, 3)),
+                ],
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.arrow_back, color: Colors.white, size: 14),
+                  Icon(Icons.arrow_back_rounded, color: Colors.black, size: 15),
                   SizedBox(width: 4),
                   Text(
                     'Sanctuary',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          const SizedBox(width: 8),
+
+          // Star Crest Level Badge (Coin Master / Clash of Clans)
+          Expanded(
+            child: Row(
               children: [
-                Text(
-                  'Urja Wardrobe Studio',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Color(0xFF0F2B1A),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0xFF78350F), offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: const Text(
+                    '★ Lv 1',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
-                Text(
-                  'Tap to Preview • Confirm to Buy',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF16A34A),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Urja Wardrobe Studio',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'Tap to Preview • Confirm to Buy',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF86EFAC),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+
+          // Chunky 3D Coin Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: const Color(0xFFFEF3C7),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFFDE68A)),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 2)),
+              ],
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('🪙', style: TextStyle(fontSize: 13)),
+                const Text('🪙', style: TextStyle(fontSize: 12)),
                 const SizedBox(width: 4),
                 Text(
                   '${_state.coins}',
@@ -575,29 +616,43 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
 
   Widget _buildCategoryTabs() {
     return SizedBox(
-      height: 38,
+      height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (ctx, i) {
           final isSelected = _selectedCategoryIndex == i;
-          return ChoiceChip(
-            label: Text(_categories[i]),
-            selected: isSelected,
-            selectedColor: const Color(0xFF22C55E),
-            backgroundColor: const Color(0xFF163825),
-            labelStyle: TextStyle(
-              color: isSelected ? Colors.black : Colors.white70,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-            onSelected: (val) {
-              if (val) {
-                HapticFeedback.selectionClick();
-                setState(() => _selectedCategoryIndex = i);
-              }
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedCategoryIndex = i);
             },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFF143522),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFFDE68A) : Colors.white12,
+                  width: 1.2,
+                ),
+                boxShadow: isSelected
+                    ? const [BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 3))]
+                    : const [BoxShadow(color: Colors.black26, offset: Offset(0, 2))],
+              ),
+              child: Center(
+                child: Text(
+                  _categories[i],
+                  style: TextStyle(
+                    color: isSelected ? Colors.black : Colors.white70,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
           );
         },
       ),

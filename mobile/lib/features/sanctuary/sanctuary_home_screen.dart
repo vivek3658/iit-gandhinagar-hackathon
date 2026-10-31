@@ -161,7 +161,39 @@ class _SanctuaryHomeScreenState extends State<SanctuaryHomeScreen> {
     );
   }
 
+  GardenTileModel? _movingTile;
+
   void _onTileTap(GardenTileModel tile) {
+    // If in the middle of relocating a tile
+    if (_movingTile != null) {
+      if (tile.id != 'EMPTY_LAND') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ That plot is already occupied. Tap an empty green lawn plot to move!')),
+        );
+        return;
+      }
+      setState(() {
+        final moving = _movingTile!;
+        _tiles.removeWhere((t) => t.x == moving.x && t.y == moving.y);
+        _tiles.add(moving.copyWith(x: tile.x, y: tile.y));
+        _movingTile = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✨ Successfully relocated structure to new plot!'),
+          backgroundColor: Color(0xFF1B6B44),
+        ),
+      );
+      return;
+    }
+
+    if (tile.id == 'EMPTY_LAND') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🌱 Empty Green Lawn Block: Ready for building!')),
+      );
+      return;
+    }
+
     TileDetailSheet.show(
       context,
       tile: tile,
@@ -176,17 +208,12 @@ class _SanctuaryHomeScreenState extends State<SanctuaryHomeScreen> {
           ),
         );
       },
-      onSellTile: () {
-        final resale = (tile.cost * 0.8).round();
-        setState(() {
-          _tiles.removeWhere((t) => t.x == tile.x && t.y == tile.y);
-          _coins += resale;
-        });
-        widget.onCoinsChanged?.call(_coins);
+      onMoveTile: () {
+        setState(() => _movingTile = tile);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sold ${tile.name}! Recovered $resale coins 🪙'),
-            backgroundColor: const Color(0xFFF59E0B),
+          const SnackBar(
+            content: Text('📍 Tap any empty green lawn plot to relocate this structure.'),
+            backgroundColor: Color(0xFF1B6B44),
           ),
         );
       },

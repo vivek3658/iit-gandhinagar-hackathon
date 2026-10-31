@@ -26,13 +26,13 @@ class GardenTileModel {
     this.rotation = 0,
   });
 
-  GardenTileModel copyWith({int? rotation}) {
+  GardenTileModel copyWith({int? rotation, int? x, int? y}) {
     return GardenTileModel(
       id: id,
       name: name,
       category: category,
-      x: x,
-      y: y,
+      x: x ?? this.x,
+      y: y ?? this.y,
       iconEmoji: iconEmoji,
       level: level,
       cost: cost,
@@ -326,9 +326,9 @@ class _IsometricGridPainter extends CustomPainter {
         topGradEnd = const Color(0xFFB45309);
       }
     } else {
-      // Empty plot
-      topGradStart = const Color(0xFF86A76E);
-      topGradEnd = const Color(0xFF6F8F56);
+      // Empty tactile green lawn block (Clash of Clans / Coin Master style)
+      topGradStart = const Color(0xFF58C03E);
+      topGradEnd = const Color(0xFF389E28);
     }
 
     final topFacePaint = Paint()
@@ -353,10 +353,26 @@ class _IsometricGridPainter extends CustomPainter {
       ..strokeWidth = 1.0;
     canvas.drawPath(topFace, borderPaint);
 
-    // 5. Render Structure on Top of Block
+    // 5. Render Structure or Empty Plot Accents on Top of Block
     if (tile != null) {
       _drawTileStructure(canvas, cx, cy - 4, tile);
+    } else {
+      _drawEmptyPlotAccents(canvas, cx, cy);
     }
+  }
+
+  void _drawEmptyPlotAccents(Canvas canvas, double cx, double cy) {
+    // 4 Corner boundary pegs (Wooden/Stone boundary markers)
+    final pegPaint = Paint()..color = const Color(0xFFB45309);
+    canvas.drawCircle(Offset(cx - 30, cy), 2.2, pegPaint);
+    canvas.drawCircle(Offset(cx + 30, cy), 2.2, pegPaint);
+    canvas.drawCircle(Offset(cx, cy - 15), 2.2, pegPaint);
+    canvas.drawCircle(Offset(cx, cy + 15), 2.2, pegPaint);
+
+    // Subtle grass tufts in center of empty green block
+    final tuftPaint = Paint()..color = const Color(0xFF22C55E);
+    canvas.drawCircle(Offset(cx - 4, cy - 2), 2.0, tuftPaint);
+    canvas.drawCircle(Offset(cx + 5, cy + 1), 2.5, tuftPaint);
   }
 
   void _drawTileStructure(Canvas canvas, double cx, double cy, GardenTileModel tile) {

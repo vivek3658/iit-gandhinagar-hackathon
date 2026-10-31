@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/game_state_service.dart';
 
-/// Left Scroll Screen: Activity Feed & System Notification Center.
+/// Left Scroll Screen: Gamified Activity Feed & 3D Tactile Notification Center.
 ///
 /// Features:
-/// - Connected with Gujarat Mission LiFE live events and system alerts.
-/// - Unread badge tracking for Charger Unplug & Bedtime Sweep reminders.
-/// - Filterable feed categories: All Alerts, Nudges, Community LiFE, Achievements.
+/// - Replaced dark kelp green with premium Midnight Slate & Electric Gold styling.
+/// - 3D tactile notification cards with beveled edges, deep shadows, and category color-coding.
+/// - Evidence Tier Badges from IMPLEMENTATION_SPEC.md: Tier A (Verified), Tier B (Command Sent), Tier C (Estimated).
+/// - Interactive 1-tap 3D action buttons inside cards that award Urja Mudra coins and log habits.
+/// - Community LiFE feed with instant cheer/applause interactions.
 class ActivityFeedNotificationsScreen extends StatefulWidget {
   final VoidCallback onBackToSanctuary;
 
@@ -33,40 +35,114 @@ class _ActivityFeedNotificationsScreenState
     'Achievements'
   ];
 
+  final Set<String> _cheeredEvents = {};
+
   final List<Map<String, dynamic>> _communityEvents = [
     {
       'id': 'comm_1',
       'title': 'Surat Solar Rooftop Initiative',
-      'desc': 'Surat citizen households installed 1.2 MW rooftop solar today, avoiding 42 tonnes CO2e.',
+      'desc': 'Surat citizen households installed 1.2 MW rooftop solar today, avoiding 42 tonnes CO₂e.',
       'tag': 'Community LiFE',
+      'city': 'Surat',
       'time': '12m ago',
       'icon': '☀️',
+      'cheers': 142,
     },
     {
       'id': 'comm_2',
       'title': 'Ahmedabad Green BRTS Commute',
       'desc': '14,200 electric bus rides recorded today, cutting peak diesel emissions.',
       'tag': 'Community LiFE',
+      'city': 'Ahmedabad',
       'time': '1h ago',
       'icon': '🚌',
+      'cheers': 98,
     },
     {
       'id': 'comm_3',
       'title': 'Vadodara Canal Solar Microgrid',
       'desc': 'Over-canal solar panels generated 45,000 kWh of clean water-conserving power.',
       'tag': 'Community LiFE',
+      'city': 'Vadodara',
       'time': '3h ago',
       'icon': '🌊',
+      'cheers': 230,
     },
     {
       'id': 'comm_4',
       'title': 'Gandhinagar Zero Phantom Drain',
-      'desc': 'Government offices joined the 9:00 PM wall socket sweep.',
+      'desc': 'Government offices and citizen homes completed the 9:00 PM wall socket sweep.',
       'tag': 'Nudges',
+      'city': 'Gandhinagar',
       'time': '5h ago',
       'icon': '🔌',
+      'cheers': 77,
     },
   ];
+
+  void _onCheerCommunity(String eventId) {
+    if (_cheeredEvents.contains(eventId)) return;
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _cheeredEvents.add(eventId);
+      final evt = _communityEvents.firstWhere((e) => e['id'] == eventId);
+      evt['cheers'] = (evt['cheers'] as int) + 1;
+    });
+    _state.addCoins(2);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('❤️ Cheered Gujarat Eco Community! +2 Urja Mudra 🪙'),
+        backgroundColor: Color(0xFFD97706),
+        duration: Duration(milliseconds: 1400),
+      ),
+    );
+  }
+
+  void _executeNotificationAction(Map<String, dynamic> item) {
+    HapticFeedback.heavyImpact();
+    final type = item['type'] as String? ?? 'nudge';
+
+    int awardCoins = 5;
+    double co2Saved = 0.05;
+    String feedback = 'Habit recorded!';
+
+    if (type.contains('charger')) {
+      awardCoins = 5;
+      co2Saved = 0.01;
+      feedback = '🔌 Wall switch confirmed OFF! Avoided phantom vampire load (+5 🪙)';
+    } else if (type.contains('ac') || type.contains('temperature')) {
+      awardCoins = 15;
+      co2Saved = 1.97;
+      feedback = '📡 IR Command: AC set to 24°C! Saved 2.4 kWh overnight (+15 🪙)';
+    } else if (type.contains('water')) {
+      awardCoins = 10;
+      co2Saved = 0.12;
+      feedback = '💧 Water conservation logged (+10 🪙, +0.12 kg CO₂e)';
+    } else if (type.contains('system') || type.contains('welcome')) {
+      awardCoins = 10;
+      co2Saved = 0.02;
+      feedback = '🕊️ Companion affection received! (+10 🪙)';
+    }
+
+    _state.recordEcoAction(
+      actionName: item['title'] as String,
+      co2Saved: co2Saved,
+      coinsAwarded: awardCoins,
+    );
+
+    setState(() {
+      item['read'] = true;
+      item['actionTaken'] = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(feedback),
+        backgroundColor: const Color(0xFF10B981),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,21 +153,22 @@ class _ActivityFeedNotificationsScreenState
         final unreadCount = notifications.where((n) => n['read'] == false).length;
 
         return Scaffold(
-          backgroundColor: const Color(0xFF091F14),
+          backgroundColor: const Color(0xFF0B132B),
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // Atmospheric Background Gradient
+              // Atmospheric Deep Slate & Cosmic Gradient (Zero ugly kelp green)
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF062314),
-                      Color(0xFF0F3822),
-                      Color(0xFF091F14),
+                      Color(0xFF0B132B),
+                      Color(0xFF1C2541),
+                      Color(0xFF0F172A),
                     ],
+                    stops: [0.0, 0.45, 1.0],
                   ),
                 ),
               ),
@@ -99,103 +176,107 @@ class _ActivityFeedNotificationsScreenState
               SafeArea(
                 child: Column(
                   children: [
-                    // Top Navigation Header
+                    // Top Coin Master / Clash of Clans HUD Header
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        'Eco-Feed & Alerts',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 17,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text('📢', style: TextStyle(fontSize: 16)),
-                                  ],
-                                ),
-                                Text(
-                                  'Mission LiFE Stream & Alerts',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Color(0xFF86EFAC),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Unread Notifications Pill
-                          if (unreadCount > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFDC2626),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$unreadCount New',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-
-                          // Back to Sanctuary Button
-                          InkWell(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              widget.onBackToSanctuary();
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1B6B44),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFF4ADE80)),
-                              ),
-                              child: const Row(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B).withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 4)),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // 3D Feed Title
+                            const Expanded(
+                              child: Row(
                                 children: [
-                                  Text(
-                                    'Sanctuary',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                  Flexible(
+                                    child: Text(
+                                      'Eco-Feed & Alerts',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 14,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
                                   SizedBox(width: 4),
-                                  Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 14),
+                                  Text('⚡', style: TextStyle(fontSize: 14)),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
+
+                            // Unread Notifications Pill
+                            if (unreadCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0xFF991B1B), offset: Offset(0, 2)),
+                                  ],
+                                ),
+                                child: Text(
+                                  '$unreadCount New',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+
+                            // Return to Sanctuary 3D Button
+                            InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                widget.onBackToSanctuary();
+                              },
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0xFF047857), offset: Offset(0, 3)),
+                                  ],
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Text(
+                                      'Sanctuary',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 14),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
-                    // Filter Chips Bar
+                    // Filter Chips Bar (Tactile 3D Buttons)
                     SizedBox(
-                      height: 38,
+                      height: 42,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -203,19 +284,36 @@ class _ActivityFeedNotificationsScreenState
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (ctx, i) {
                           final isSelected = _selectedFilterIndex == i;
-                          return ChoiceChip(
-                            label: Text(_filters[i]),
-                            selected: isSelected,
-                            selectedColor: const Color(0xFF22C55E),
-                            backgroundColor: const Color(0xFF153823),
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.black : Colors.white70,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                            onSelected: (val) {
-                              if (val) setState(() => _selectedFilterIndex = i);
+                          return GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedFilterIndex = i);
                             },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFFFDE68A) : Colors.white12,
+                                  width: 1.2,
+                                ),
+                                boxShadow: isSelected
+                                    ? const [BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 3))]
+                                    : const [BoxShadow(color: Colors.black26, offset: Offset(0, 2))],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _filters[i],
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : Colors.white70,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -223,7 +321,7 @@ class _ActivityFeedNotificationsScreenState
 
                     const SizedBox(height: 10),
 
-                    // Combined Feed List
+                    // Combined Feed List (3D Cards)
                     Expanded(
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -233,14 +331,20 @@ class _ActivityFeedNotificationsScreenState
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'NOTIFICATION CENTER',
-                                  style: TextStyle(
-                                    color: Color(0xFF86EFAC),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 11,
-                                    letterSpacing: 1.1,
-                                  ),
+                                const Row(
+                                  children: [
+                                    Text(
+                                      'NOTIFICATION CENTER',
+                                      style: TextStyle(
+                                        color: Color(0xFFFBBF24),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text('🔔', style: TextStyle(fontSize: 13)),
+                                  ],
                                 ),
                                 if (unreadCount > 0)
                                   GestureDetector(
@@ -248,12 +352,19 @@ class _ActivityFeedNotificationsScreenState
                                       HapticFeedback.lightImpact();
                                       _state.markAllNotificationsRead();
                                     },
-                                    child: const Text(
-                                      'Mark all read',
-                                      style: TextStyle(
-                                        color: Colors.white60,
-                                        fontSize: 11,
-                                        decoration: TextDecoration.underline,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white10,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Text(
+                                        'Mark all read',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -265,34 +376,77 @@ class _ActivityFeedNotificationsScreenState
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(14),
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white12),
                                 ),
                                 child: const Center(
                                   child: Text(
-                                    'No unread alerts. Your home energy is optimal! 🌿',
-                                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                                    'No unread alerts. Your home energy is running optimal! ✨',
+                                    style: TextStyle(color: Colors.white70, fontSize: 12),
                                   ),
                                 ),
                               )
                             else
-                              ...notifications.map((n) => _buildNotificationCard(n)),
-                            const SizedBox(height: 16),
+                              ...notifications.map((n) => _build3DNotificationCard(n)),
+                            const SizedBox(height: 18),
                           ],
 
                           // Gujarat Community LiFE Feed Section
                           if (_selectedFilterIndex == 0 || _selectedFilterIndex == 2) ...[
-                            const Text(
-                              'GUJARAT MISSION LiFE COMMUNITY',
-                              style: TextStyle(
-                                color: Color(0xFF86EFAC),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                                letterSpacing: 1.1,
-                              ),
+                            const Row(
+                              children: [
+                                Text(
+                                  'GUJARAT MISSION LiFE COMMUNITY',
+                                  style: TextStyle(
+                                    color: Color(0xFF38BDF8),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Text('🏛️', style: TextStyle(fontSize: 13)),
+                              ],
                             ),
                             const SizedBox(height: 8),
-                            ..._communityEvents.map((evt) => _buildCommunityCard(evt)),
+                            ..._communityEvents.map((evt) => _build3DCommunityCard(evt)),
+                          ],
+
+                          // Achievements Section
+                          if (_selectedFilterIndex == 0 || _selectedFilterIndex == 3) ...[
+                            const SizedBox(height: 10),
+                            const Row(
+                              children: [
+                                Text(
+                                  'SANCTUARY ACHIEVEMENTS',
+                                  style: TextStyle(
+                                    color: Color(0xFFA78BFA),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Text('🏆', style: TextStyle(fontSize: 13)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            _buildAchievementCard(
+                              title: 'Sanctuary Pioneer (Level 1)',
+                              desc: 'Adopted Chibi Sparrow and established your 3×3 starter garden island.',
+                              progress: 1.0,
+                              icon: '🌱',
+                              coins: 100,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildAchievementCard(
+                              title: 'Zero Vampire Power (Standby Slayer)',
+                              desc: 'Cut wall plug switch 5 times to prevent continuous inductive drain.',
+                              progress: 0.6,
+                              icon: '🔌',
+                              coins: 50,
+                            ),
                           ],
                         ],
                       ),
@@ -307,39 +461,385 @@ class _ActivityFeedNotificationsScreenState
     );
   }
 
-  Widget _buildNotificationCard(Map<String, dynamic> item) {
+  Widget _build3DNotificationCard(Map<String, dynamic> item) {
     final title = item['title'] as String;
     final message = item['message'] as String;
     final isUnread = item['read'] == false;
+    final type = item['type'] as String? ?? 'nudge';
+    final actionTaken = item['actionTaken'] == true;
+
+    // Palette determination based on type and evidence tier
+    Color themeColor = const Color(0xFFF59E0B); // Amber default
+    Color bottomShadowColor = const Color(0xFFB45309);
+    String evidenceTier = 'Tier C: Estimated';
+    String actionLabel = 'Log Habit (+5 🪙)';
+    IconData iconData = Icons.notifications_active_rounded;
+
+    if (type.contains('charger')) {
+      themeColor = const Color(0xFFEF4444); // Coral
+      bottomShadowColor = const Color(0xFF991B1B);
+      evidenceTier = 'Tier A: Verified (Phone Hardware)';
+      actionLabel = 'Wall Switch OFF (+5 🪙)';
+      iconData = Icons.power_off_rounded;
+    } else if (type.contains('ac') || type.contains('temperature')) {
+      themeColor = const Color(0xFFF59E0B); // Amber / Gold
+      bottomShadowColor = const Color(0xFFB45309);
+      evidenceTier = 'Tier B: Command Sent (IR Blaster)';
+      actionLabel = 'Send IR: Set 24°C (+15 🪙)';
+      iconData = Icons.ac_unit_rounded;
+    } else if (type.contains('water')) {
+      themeColor = const Color(0xFF06B6D4); // Cyan
+      bottomShadowColor = const Color(0xFF0E7490);
+      evidenceTier = 'Tier C: Timed Supply';
+      actionLabel = 'Log Water Conserved (+10 🪙)';
+      iconData = Icons.water_drop_rounded;
+    } else if (type.contains('commute')) {
+      themeColor = const Color(0xFF10B981); // Emerald
+      bottomShadowColor = const Color(0xFF047857);
+      evidenceTier = 'Tier A: Displacement Trip';
+      actionLabel = 'Log Green Ride (+30 🪙)';
+      iconData = Icons.directions_bike_rounded;
+    } else {
+      themeColor = const Color(0xFF8B5CF6); // Violet
+      bottomShadowColor = const Color(0xFF5B21B6);
+      evidenceTier = 'System Event';
+      actionLabel = 'Acknowledge (+5 🪙)';
+      iconData = Icons.eco_rounded;
+    }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isUnread ? const Color(0xFF1B4D31) : const Color(0xFF122E1F),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isUnread ? const Color(0xFF34D399) : Colors.white10,
+          color: isUnread ? themeColor : Colors.white12,
+          width: isUnread ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: bottomShadowColor.withValues(alpha: isUnread ? 0.45 : 0.2),
+            offset: const Offset(0, 5),
+            blurRadius: 0,
+          ),
+          const BoxShadow(
+            color: Colors.black38,
+            offset: Offset(0, 8),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 3D Beveled Icon Container
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: themeColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.5)),
+                    boxShadow: [
+                      BoxShadow(color: bottomShadowColor, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(iconData, color: themeColor, size: 20),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Title + Evidence Tag + Unread Dot
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          if (isUnread)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: themeColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: themeColor.withValues(alpha: 0.8),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: themeColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          evidenceTier,
+                          style: TextStyle(
+                            color: themeColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // Message Body
+            Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Interactive 1-Tap 3D Action Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (!actionTaken)
+                  ElevatedButton(
+                    onPressed: () => _executeNotificationAction(item),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                    child: Text(
+                      actionLabel,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF10B981)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'Credited to Ledger',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _build3DCommunityCard(Map<String, dynamic> evt) {
+    final id = evt['id'] as String;
+    final isCheered = _cheeredEvents.contains(id);
+    final cheers = evt['cheers'] as int;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xFF0369A1),
+            offset: Offset(0, 4),
+            blurRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black38,
+            offset: Offset(0, 6),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(evt['icon'] as String, style: const TextStyle(fontSize: 24)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              evt['title'] as String,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            evt['time'] as String,
+                            style: const TextStyle(color: Colors.white38, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${evt['city']} • Gujarat Mission LiFE',
+                          style: const TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              evt['desc'] as String,
+              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12, height: 1.35),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '❤️ $cheers Citizens Cheered',
+                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _onCheerCommunity(id),
+                  icon: Icon(
+                    isCheered ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    size: 14,
+                    color: isCheered ? Colors.redAccent : Colors.black,
+                  ),
+                  label: Text(isCheered ? 'Cheered!' : 'Cheer (+2 🪙)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isCheered ? const Color(0xFF334155) : const Color(0xFF38BDF8),
+                    foregroundColor: isCheered ? Colors.white70 : Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAchievementCard({
+    required String title,
+    required String desc,
+    required double progress,
+    required String icon,
+    required int coins,
+  }) {
+    final isComplete = progress >= 1.0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xFF6D28D9),
+            offset: Offset(0, 4),
+            blurRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black38,
+            offset: Offset(0, 6),
+            blurRadius: 12,
+          ),
+        ],
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: isUnread ? const Color(0xFF22C55E) : Colors.white12,
-              shape: BoxShape.circle,
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFA78BFA)),
             ),
-            child: Icon(
-              item['type'] == 'nudge'
-                  ? Icons.notifications_active_rounded
-                  : Icons.eco_rounded,
-              color: isUnread ? Colors.black : Colors.white70,
-              size: 16,
+            child: Center(
+              child: Text(icon, style: const TextStyle(fontSize: 22)),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,76 +852,37 @@ class _ActivityFeedNotificationsScreenState
                         title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    if (isUnread)
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF34D399),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  message,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommunityCard(Map<String, dynamic> evt) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF112A1D),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(evt['icon'] as String, style: const TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        evt['title'] as String,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w900,
                           fontSize: 13,
                         ),
                       ),
                     ),
                     Text(
-                      evt['time'] as String,
-                      style: const TextStyle(color: Colors.white38, fontSize: 10),
+                      '+$coins 🪙',
+                      style: const TextStyle(
+                        color: Color(0xFFFBBF24),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  evt['desc'] as String,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                  desc,
+                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.white12,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isComplete ? const Color(0xFF10B981) : const Color(0xFFA78BFA),
+                    ),
+                    minHeight: 5,
+                  ),
                 ),
               ],
             ),

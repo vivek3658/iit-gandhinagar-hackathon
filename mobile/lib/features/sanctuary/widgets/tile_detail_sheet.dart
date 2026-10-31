@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
 import 'floating_isometric_grid.dart';
 
+/// 3D Bottom Sheet for inspecting and managing sanctuary garden tiles.
+///
+/// Features:
+/// - Centerpiece Sparrow Home is moveable to any free space, but cannot be removed/stored.
+/// - Other structures offer "Save to Inventory" (no forced selling).
+/// - Coin Master / Clash of Clans tactile styling.
 class TileDetailSheet extends StatelessWidget {
   final GardenTileModel tile;
   final VoidCallback onStoreInInventory;
-  final VoidCallback onSellTile;
+  final VoidCallback? onMoveTile;
 
   const TileDetailSheet({
     super.key,
     required this.tile,
     required this.onStoreInInventory,
-    required this.onSellTile,
+    this.onMoveTile,
   });
 
   static void show(
     BuildContext context, {
     required GardenTileModel tile,
     required VoidCallback onStoreInInventory,
-    required VoidCallback onSellTile,
+    VoidCallback? onMoveTile,
   }) {
     showModalBottomSheet(
       context: context,
@@ -28,15 +34,13 @@ class TileDetailSheet extends StatelessWidget {
       builder: (ctx) => TileDetailSheet(
         tile: tile,
         onStoreInInventory: onStoreInInventory,
-        onSellTile: onSellTile,
+        onMoveTile: onMoveTile,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final resaleCoins = (tile.cost * 0.8).round();
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       child: Column(
@@ -46,11 +50,11 @@ class TileDetailSheet extends StatelessWidget {
           // Drag handle
           Center(
             child: Container(
-              width: 40,
-              height: 4,
+              width: 44,
+              height: 5,
               decoration: BoxDecoration(
                 color: const Color(0xFFCBD5E1),
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
           ),
@@ -59,12 +63,15 @@ class TileDetailSheet extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 54,
-                height: 54,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
+                  color: const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFC8E6C9)),
+                  border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0xFFB45309), offset: Offset(0, 3)),
+                  ],
                 ),
                 child: Center(
                   child: Text(tile.iconEmoji, style: const TextStyle(fontSize: 28)),
@@ -85,7 +92,7 @@ class TileDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${tile.category} · Coordinates (${tile.x}, ${tile.y}) · Lv ${tile.level}',
+                      '${tile.category} · Plot (${tile.x}, ${tile.y}) · Level ${tile.level}',
                       style: const TextStyle(
                         color: Color(0xFF718096),
                         fontSize: 12,
@@ -106,17 +113,20 @@ class TileDetailSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFFDE68A)),
+                border: Border.all(color: const Color(0xFFF59E0B)),
+                boxShadow: const [
+                  BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 2)),
+                ],
               ),
               child: const Row(
                 children: [
-                  Text('🛡️', style: TextStyle(fontSize: 20)),
+                  Text('🛡️', style: TextStyle(fontSize: 22)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Protected Sanctuary Centerpiece: The Sparrow Manor is your companion\'s permanent nest backdrop. It cannot be sold or moved.',
+                      'Sanctuary Centerpiece House: Cannot be removed or sold! However, you can freely move it to any other space on your 3×3 grid.',
                       style: TextStyle(
-                        color: Color(0xFFB45309),
+                        color: Color(0xFF92400E),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         height: 1.4,
@@ -129,15 +139,20 @@ class TileDetailSheet extends StatelessWidget {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onMoveTile?.call();
+                },
+                icon: const Icon(Icons.open_with_rounded, size: 16),
+                label: const Text('Move to Another Space', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1B6B44),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
                 ),
-                child: const Text('Understood', style: TextStyle(fontWeight: FontWeight.w800)),
               ),
             ),
           ] else ...[
@@ -148,14 +163,14 @@ class TileDetailSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFE2EBE5)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Text('♻️', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
+                  Text('📦', style: TextStyle(fontSize: 22)),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '80% Resale Guarantee: Selling this tile recovers $resaleCoins Urja Mudra coins directly into your wallet.',
-                      style: const TextStyle(
+                      'Store in Inventory: Removes this structure from the garden grid and keeps it safely in your backpack. You can place it again anytime at 0 🪙 cost.',
+                      style: TextStyle(
                         color: Color(0xFF2F4A2A),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -166,52 +181,42 @@ class TileDetailSheet extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             Row(
               children: [
+                if (onMoveTile != null) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        onMoveTile?.call();
+                      },
+                      icon: const Icon(Icons.open_with_rounded, size: 16),
+                      label: const Text('Move'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF1B6B44)),
+                        foregroundColor: const Color(0xFF1B6B44),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
                 Expanded(
-                  child: OutlinedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(context).pop();
                       onStoreInInventory();
                     },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFE2EBE5)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    ),
-                    child: const Text(
-                      'To Inventory',
-                      style: TextStyle(
-                        color: Color(0xFF0F291E),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      onSellTile();
-                    },
+                    icon: const Icon(Icons.inventory_2_rounded, size: 16),
+                    label: const Text('Save in Inventory 📦'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
+                      backgroundColor: const Color(0xFFD97706),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('🪙 ', style: TextStyle(fontSize: 14)),
-                        Text(
-                          'Sell (+$resaleCoins)',
-                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                        ),
-                      ],
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
                     ),
                   ),
                 ),

@@ -148,6 +148,20 @@ class Garden3DStageState extends State<Garden3DStage> {
     );
   }
 
+  /// Zooms camera in towards the island.
+  void zoomIn() {
+    _controller?.runJavaScript(
+      "if (window.Garden && window.Garden.zoomIn) window.Garden.zoomIn();",
+    );
+  }
+
+  /// Zooms camera out from the island.
+  void zoomOut() {
+    _controller?.runJavaScript(
+      "if (window.Garden && window.Garden.zoomOut) window.Garden.zoomOut();",
+    );
+  }
+
   /// Rotates the floating island camera by 90 degrees.
   void rotate90() {
     _controller?.runJavaScript(

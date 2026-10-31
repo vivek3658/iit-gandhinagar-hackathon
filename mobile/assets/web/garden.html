@@ -139,40 +139,74 @@ function notifyFlutter(obj){
 function createEmptyPlotMesh(gx, gz){
   const g=new THREE.Group();
   g.position.set(gx*1.06,0,gz*1.06);
-  // Base soil / lawn pad
-  const pad=new THREE.Mesh(
-    BX(1,.04,1),
-    new THREE.MeshStandardMaterial({color:isBuildMode?0x1d4ed8:0x2d6a30,roughness:.85,transparent:true,opacity:.75})
-  );
-  pad.position.y=.02;
-  pad.receiveShadow=true;
-  g.add(pad);
 
-  // Border outline: glowing emerald/cyan in build mode, subtle green in normal mode
-  const edges=new THREE.EdgesGeometry(BX(1.02,.06,1.02));
-  const line=new THREE.LineSegments(
-    edges,
-    new THREE.LineBasicMaterial({
-      color:isBuildMode?0x22c55e:0x4ade80,
-      transparent:true,
-      opacity:isBuildMode?.9:.4
-    })
+  // 1. Earthy soil foundation block
+  const soilBase=new THREE.Mesh(
+    BX(1,.12,1),
+    new THREE.MeshStandardMaterial({color:0x6b4423,roughness:.92})
   );
-  line.position.y=.03;
-  g.add(line);
+  soilBase.position.y=.06;
+  soilBase.receiveShadow=true;
+  g.add(soilBase);
 
-  // Plus icon in center of empty plot in build mode
+  // 2. Lush green grass top slab (Clash of Clans / Coin Master style)
+  const grassColor = isBuildMode ? 0x48bb78 : 0x58c03e;
+  const grassTop=new THREE.Mesh(
+    BX(1.02,.08,1.02),
+    new THREE.MeshStandardMaterial({color:grassColor,roughness:.72})
+  );
+  grassTop.position.y=.14;
+  grassTop.receiveShadow=true;
+  grassTop.castShadow=true;
+  g.add(grassTop);
+
+  // 3. Tactile Corner Boundary Pegs (Wooden/Stone boundary markers)
+  const pegGeo = BX(.06, .12, .06);
+  const pegMat = new THREE.MeshStandardMaterial({color:0xb45309,roughness:.8});
+  [[-.46,-.46],[.46,-.46],[-.46,.46],[.46,.46]].forEach(([px, pz])=>{
+    const peg = new THREE.Mesh(pegGeo, pegMat);
+    peg.position.set(px, .16, pz);
+    peg.castShadow = true;
+    g.add(peg);
+  });
+
+  // 4. Subtle Grass Tufts
+  const tuftMat = new THREE.MeshStandardMaterial({color:0x34a833,roughness:.6});
+  [[.22,.15],[-.24,-.18],[.12,-.28]].forEach(([tx, tz])=>{
+    const tuft = new THREE.Mesh(SP(.035, 6), tuftMat);
+    tuft.scale.set(.8, 1.4, .8);
+    tuft.position.set(tx, .19, tz);
+    g.add(tuft);
+  });
+
+  // 5. Build Mode Highlight & Tactile Plus Marker
   if(isBuildMode){
-    const hBar=new THREE.Mesh(BX(.24,.03,.05),new THREE.MeshBasicMaterial({color:0x34d399}));
-    hBar.position.y=.04;g.add(hBar);
-    const vBar=new THREE.Mesh(BX(.05,.03,.24),new THREE.MeshBasicMaterial({color:0x34d399}));
-    vBar.position.y=.04;g.add(vBar);
+    // Golden-cyan tactical perimeter ring
+    const edges=new THREE.EdgesGeometry(BX(1.04,.09,1.04));
+    const line=new THREE.LineSegments(
+      edges,
+      new THREE.LineBasicMaterial({color:0xf59e0b,transparent:true,opacity:.85,linewidth:2})
+    );
+    line.position.y=.14;
+    g.add(line);
+
+    // Glowing 3D '+' builder peg
+    const plusMat=new THREE.MeshStandardMaterial({
+      color:0xfffbeb,
+      emissive:0xf59e0b,
+      emissiveIntensity:.9,
+      roughness:.3
+    });
+    const hBar=new THREE.Mesh(BX(.26,.04,.06), plusMat);
+    hBar.position.y=.20; g.add(hBar);
+    const vBar=new THREE.Mesh(BX(.06,.04,.26), plusMat);
+    vBar.position.y=.20; g.add(vBar);
   }
 
   const uData={isEmpty:true,x:gx,z:gz};
   g.userData=uData;
-  pad.userData=uData;
-  line.userData=uData;
+  soilBase.userData=uData;
+  grassTop.userData=uData;
   return g;
 }
 
@@ -219,7 +253,8 @@ function layout(){
     world.add(previewGhost);
   }
 
-  fs=2.45;
+  // Preserve camera zoom across updates
+  if(!fs) fs=2.45;
   const s=tiles.find(x=>x.t.id===sel);
   if(s){
     selBox.position.x=s.g.position.x;
@@ -334,9 +369,9 @@ window.Garden={
   rotate90:()=>{yaw+=Math.PI/2;place();notifyFlutter({type:'rotate',yaw})},
   toggleSpin:()=>{spin=!spin;notifyFlutter({type:'spin',spin});return spin},
   setSpin:(val)=>{spin=!!val},
-  zoomIn:()=>{fs=Math.max(1.0,fs*.82);place();notifyFlutter({type:'zoom',fs})},
-  zoomOut:()=>{fs=Math.min(6.0,fs*1.22);place();notifyFlutter({type:'zoom',fs})},
-  setZoom:(val)=>{fs=Math.max(1.0,Math.min(6.0,val));place()},
+  zoomIn:()=>{fs=Math.max(0.75,fs*.82);place();notifyFlutter({type:'zoom',fs})},
+  zoomOut:()=>{fs=Math.min(5.5,fs*1.22);place();notifyFlutter({type:'zoom',fs})},
+  setZoom:(val)=>{fs=Math.max(0.75,Math.min(5.5,val));place()},
   selectTile:selectTileById,
   setMode:(m)=>{mode=m;layout()},
   resetView:()=>{yaw=Math.PI/4;fs=2.45;place()}

@@ -194,177 +194,367 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     }
   }
 
+  void _storeSelectedTileInInventory() {
+    if (_selectedTile == null) return;
+    final x = _selectedTile!['x'] as int;
+    final z = _selectedTile!['z'] as int;
+    final isHome = _selectedTile!['isHome'] == true;
+    final name = _selectedTile!['name'] as String? ?? 'Sanctuary Object';
+
+    if (isHome) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🛡️ Sparrow Eco Home cannot be removed or stored! It is the permanent sanctuary centerpiece (can only be moved).'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    HapticFeedback.mediumImpact();
+    final stored = _state.storeGardenTileInInventory(x, z);
+    if (stored) {
+      _gardenKey.currentState?.removeTile(x, z);
+      setState(() => _selectedTile = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('📦 Stored "$name" in your Sanctuary Inventory! (Deploy it anytime for free)'),
+          backgroundColor: const Color(0xFF1B6B44),
+        ),
+      );
+    }
+  }
+
+  void _deployInventoryItem(int x, int z, Map<String, dynamic> item) {
+    HapticFeedback.heavyImpact();
+    final tileId = item['id'] as String;
+    final name = item['name'] as String;
+    final deployed = _state.deployInventoryGardenTile(
+      x: x,
+      z: z,
+      tileId: tileId,
+      rotation: 0,
+    );
+
+    if (deployed) {
+      _gardenKey.currentState?.confirmPlacement(x, z, tileId, 0);
+      setState(() {
+        _selectedEmptyPlot = null;
+        _activePlacement = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('🏡 Deployed "$name" from your inventory at 0 🪙 cost!'),
+          backgroundColor: const Color(0xFF1B6B44),
+        ),
+      );
+    }
+  }
+
   void _openBuildCatalogSheet(int x, int z) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.70,
-        ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF0C2417),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black54,
-              blurRadius: 20,
-              offset: Offset(0, -6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
+      builder: (ctx) {
+        final inventoryIds = _state.gardenInventory;
+        // Group inventory items
+        final storedItems = <Map<String, dynamic>>[];
+        for (final invId in inventoryIds) {
+          final found = _buildCatalog.firstWhere(
+            (c) => c['id'] == invId,
+            orElse: () => {
+              'id': invId,
+              'name': 'Stored Sanctuary Asset',
+              'cat': 'Sanctuary',
+              'price': 0,
+              'icon': '🌿',
+              'desc': 'Ready to place from your personal inventory.',
+            },
+          );
+          storedItems.add(found);
+        }
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0C2417),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 20,
+                offset: Offset(0, -6),
               ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Garden Sanctuary Catalog',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        'Select an item to place on this free plot',
-                        style: TextStyle(color: Color(0xFF86EFAC), fontSize: 11),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
+            ],
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('🪙', style: TextStyle(fontSize: 11)),
-                        const SizedBox(width: 4),
                         Text(
-                          '${_state.coins}',
-                          style: const TextStyle(
-                            color: Color(0xFF92400E),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                          'Sanctuary Builder',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            letterSpacing: 0.5,
                           ),
+                        ),
+                        Text(
+                          'Place on 3×3 lawn plot • Centerpiece house remains fixed',
+                          style: TextStyle(color: Color(0xFF86EFAC), fontSize: 11),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                itemCount: _buildCatalog.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final item = _buildCatalog[i];
-                  final price = item['price'] as int;
-                  final canAfford = _state.coins >= price;
-
-                  return InkWell(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _startPlacementPreview(x, z, item);
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF143522),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white12),
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x33B45309), blurRadius: 4, offset: Offset(0, 2)),
+                        ],
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                item['icon'] as String,
-                                style: const TextStyle(fontSize: 22),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item['name'] as String,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  item['desc'] as String,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: Colors.white60, fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: canAfford
-                                  ? const Color(0xFF22C55E)
-                                  : Colors.white12,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '$price 🪙',
-                              style: TextStyle(
-                                color: canAfford ? Colors.black : Colors.white38,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
+                          const Text('🪙', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_state.coins}',
+                            style: const TextStyle(
+                              color: Color(0xFF92400E),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    // Section 1: MY STORED INVENTORY (Free Deploy)
+                    if (storedItems.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Text('📦', style: TextStyle(fontSize: 15)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'MY STORED INVENTORY (${storedItems.length})',
+                            style: const TextStyle(
+                              color: Color(0xFFFBBF24),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Stored structures can be re-placed freely without paying coins.',
+                        style: TextStyle(color: Colors.white60, fontSize: 11),
+                      ),
+                      const SizedBox(height: 8),
+                      ...storedItems.map((item) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E3A2B),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFFBBF24), width: 1.2),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(item['icon'] as String, style: const TextStyle(fontSize: 22)),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['name'] as String,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'In Inventory • 0 🪙 cost to deploy',
+                                      style: TextStyle(color: Color(0xFF86EFAC), fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _deployInventoryItem(x, z, item);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF22C55E),
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                                child: const Text('Deploy (Free)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.white12),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Section 2: SANCTUARY SHOP CATALOG
+                    Row(
+                      children: [
+                        const Text('🏛️', style: TextStyle(fontSize: 15)),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'SANCTUARY STORE (COIN MASTER CATALOG)',
+                          style: TextStyle(
+                            color: Color(0xFF86EFAC),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ..._buildCatalog.map((item) {
+                      final price = item['price'] as int;
+                      final canAfford = _state.coins >= price;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _startPlacementPreview(x, z, item);
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF143522),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      item['icon'] as String,
+                                      style: const TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name'] as String,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item['desc'] as String,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Colors.white60, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: canAfford
+                                        ? const Color(0xFF22C55E)
+                                        : Colors.white12,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '$price 🪙',
+                                    style: TextStyle(
+                                      color: canAfford ? Colors.black : Colors.white38,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -494,35 +684,6 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     );
   }
 
-  void _demolishSelectedTile() {
-    if (_selectedTile == null) return;
-    final x = _selectedTile!['x'] as int;
-    final z = _selectedTile!['z'] as int;
-    final isHome = _selectedTile!['isHome'] == true;
-
-    if (isHome) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🛡️ Sparrow Eco Home cannot be removed! It is the eternal sanctuary centerpiece.'),
-          backgroundColor: Color(0xFFDC2626),
-        ),
-      );
-      return;
-    }
-
-    HapticFeedback.mediumImpact();
-    _state.demolishGardenTile(x, z);
-    _gardenKey.currentState?.removeTile(x, z);
-    setState(() => _selectedTile = null);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🧹 Cleared structure. Plot returned to natural green lawn.'),
-        backgroundColor: Color(0xFF374151),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -579,6 +740,48 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                 child: _buildBuildModeTogglePill(),
               ),
 
+              // Dedicated Floating Button to Scroll Out of Hardened Garden (Bottom Right)
+              Positioned(
+                bottom: 24,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () {
+                    if (_state.soundEnabled) HapticFeedback.selectionClick();
+                    widget.onScrollToSanctuary();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0xFF78350F),
+                          offset: Offset(0, 4),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.arrow_upward_rounded, color: Colors.black, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Sanctuary ⬆️',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
               // Placement Preview Confirmation Bar
               if (_activePlacement != null)
                 Positioned(
@@ -623,21 +826,22 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: const Color(0xFF0F2B1A).withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x180F2B1A),
+            color: Colors.black45,
             blurRadius: 16,
             offset: Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0x221B6B44)),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
       ),
       child: Row(
         children: [
+          // 1. Chunky 3D Return to Mascot Button
           InkWell(
             onTap: () {
               if (_state.soundEnabled) HapticFeedback.selectionClick();
@@ -647,64 +851,158 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B6B44),
+                color: const Color(0xFF22C55E),
                 borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(color: Color(0xFF14532D), offset: Offset(0, 3)),
+                ],
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.arrow_upward, color: Colors.white, size: 14),
+                  Icon(Icons.arrow_upward_rounded, color: Colors.black, size: 15),
                   SizedBox(width: 4),
                   Text(
                     'Mascot',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+
+          // 2. Star Crest Level Badge (Coin Master / Clash of Clans)
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Text(
-                  _isBuildMode ? 'Sanctuary Architect 🔨' : 'Floating Island 🏝️',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Color(0xFF0F2B1A),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0xFF78350F), offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: const Text(
+                    '★ Lv 1',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
-                Text(
-                  _isBuildMode ? 'Tap free plots to build' : 'Pinch with 2 fingers to zoom',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF16A34A),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isBuildMode ? 'Sanctuary Architect 🔨' : 'Floating Island 🏝️',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Text(
+                        '3×3 Plot • House Moveable',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF86EFAC),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+
+          // 3. Gesture Scroll Hardening Lock Toggle
+          InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              _state.toggleGardenScrollLock();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_state.gardenScrollLocked
+                      ? '🔒 Garden Touch Isolated: Swipes pan & zoom 3D scene without page scrolling.'
+                      : '🔓 Screen Scroll Unlocked: Swiping vertically switches screens.'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: const Color(0xFF1B6B44),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: _state.gardenScrollLocked
+                    ? const Color(0xFF1E3A8A)
+                    : Colors.white12,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _state.gardenScrollLocked
+                      ? const Color(0xFF60A5FA)
+                      : Colors.white24,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _state.gardenScrollLocked
+                        ? Icons.lock_rounded
+                        : Icons.lock_open_rounded,
+                    color: _state.gardenScrollLocked
+                        ? Colors.white
+                        : Colors.white60,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    _state.gardenScrollLocked ? 'Locked' : 'Scroll',
+                    style: TextStyle(
+                      color: _state.gardenScrollLocked
+                          ? Colors.white
+                          : Colors.white70,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 4. Chunky 3D Coin Badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
             decoration: BoxDecoration(
               color: const Color(0xFFFEF3C7),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFFDE68A)),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 2)),
+              ],
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('🪙', style: TextStyle(fontSize: 13)),
+                const Text('🪙', style: TextStyle(fontSize: 12)),
                 const SizedBox(width: 4),
                 Text(
                   '${_state.coins}',
@@ -726,20 +1024,40 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B2416).withValues(alpha: 0.92),
+        color: const Color(0xFF0F2B1A).withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black26,
+            color: Colors.black45,
             blurRadius: 14,
             offset: Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0x3334D399)),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Zoom In (+)
+          _buildDockIconButton(
+            icon: Icons.add_rounded,
+            tooltip: 'Zoom In (+)',
+            onTap: () {
+              if (_state.soundEnabled) HapticFeedback.lightImpact();
+              _gardenKey.currentState?.zoomIn();
+            },
+          ),
+          const SizedBox(height: 6),
+          // Zoom Out (-)
+          _buildDockIconButton(
+            icon: Icons.remove_rounded,
+            tooltip: 'Zoom Out (-)',
+            onTap: () {
+              if (_state.soundEnabled) HapticFeedback.lightImpact();
+              _gardenKey.currentState?.zoomOut();
+            },
+          ),
+          const SizedBox(height: 6),
           // Rotate 90°
           _buildDockIconButton(
             icon: Icons.rotate_right_rounded,
@@ -1037,13 +1355,38 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                 ),
               ),
 
-              // Demolish (only for non-home)
+              // Save to Inventory (Only for non-home objects)
               if (!isHome) ...[
                 const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _demolishSelectedTile,
-                  tooltip: 'Remove',
-                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFF87171)),
+                ElevatedButton.icon(
+                  onPressed: _storeSelectedTileInInventory,
+                  icon: const Icon(Icons.inventory_2_rounded, size: 16),
+                  label: const Text('Store 📦'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+
+              // For permanent home: show status pill (Moveable only, cannot be stored)
+              if (isHome) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFBBF24)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.shield_rounded, size: 14, color: Color(0xFFFBBF24)),
+                      SizedBox(width: 4),
+                      Text('Fixed Centerpiece', style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               ],
             ],

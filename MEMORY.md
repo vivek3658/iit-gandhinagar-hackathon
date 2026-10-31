@@ -4,7 +4,7 @@
 > **Host Agency:** Gujarat Energy Development Agency (GEDA)  
 > **Architecture:** Fastify v5 Modular Monolith + Redis 7 + PostgreSQL 16 (Primary + Read Replica) + MongoDB 7 (rs0) + RabbitMQ 3 + NGINX Gateway  
 > **Target Capacity:** 100,000 concurrent writes / sec, 1,000,000 reads / sec on 4–6 app containers  
-> **Last Updated:** October 30, 2026
+> **Last Updated:** October 31, 2026
 
 ---
 
@@ -197,6 +197,13 @@ Zero-hardware ambient nudges utilizing smartphone sensors:
   8. **Mascot Sanctuary Enhancements:**
      - Added quick floating domain pills (`💧 Water`, `📱 Devices`, `🚴 Commute`, `⚡ Solar`) for fast access.
      - 2-minute idle sleep timer, tap-to-wake, night ambiance dimming (past 21:00 or bedtime).
+  9. **Coin Master & Clash of Clans Gamified UI/UX Overhaul (Garden, Wardrobe, Activity Feed):**
+     - **3×3 Level 1 Starter Island:** Permanent centerpiece Sparrow Eco Home is moveable to any free space on the grid, but permanently protected from deletion/storage.
+     - **Empty Tactile Green Blocks:** Empty plots always render as raised, tangible 3D green lawn blocks with rich soil foundation, boundary pegs, and grass tufts (never invisible voids, never disappearing).
+     - **Save to Inventory (No Selling):** Replaced demolition/reselling with a dedicated `Save to Inventory 📦` action. Stored assets appear in the "My Inventory" section of the builder catalog and can be redeployed anywhere for 0 🪙 coins.
+     - **Game Zoom & Touch Hardening:** Added dedicated floating 3D wooden/gold `[+]` Zoom In and `[-]` Zoom Out buttons. Implemented dynamic gesture isolation (`gardenScrollLocked`) so user swipes orbit and zoom the garden freely without accidental vertical page scroll. Added quick floating `⬆️ Sanctuary` navigation buttons.
+     - **3D Activity Feed & Notification Center:** Eliminated ugly dark kelp green in favor of Midnight Slate (`#0B132B`, `#1E293B`) & Electric Gold (`#F59E0B`). Upgraded to raised 3D tactile notification cards with category-coded borders, Evidence Tier Badges (`Tier A: Verified`, `Tier B: Command Sent`, `Tier C: Estimated`), and 1-tap interactive claim buttons (`[Wall Switch OFF +5 🪙]`, `[Send IR: AC 24°C +15 🪙]`).
+     - **Gamified Wardrobe HUD:** Chunky 3D wooden/gold navigation headers, `★ Lv 1` star crest badges, and tactile category tabs.
 
 ---
 
@@ -210,5 +217,5 @@ Zero-hardware ambient nudges utilizing smartphone sensors:
 * **Mobile (Flutter):**
   - `flutter analyze`: **No issues found! (0 errors, 0 warnings)**.
   - `flutter test`: **100% passing tests (2/2)**.
-  - Debug APK built and installed on connected **Vivo V2338** (`10BE571ZJ5000CE`). Verified running with zero crashes.
+  - Debug APK verified with gesture isolation, 3D tactile notifications, and inventory stowing.
 
