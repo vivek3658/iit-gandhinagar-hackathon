@@ -5,6 +5,30 @@
 
 ---
 
+## Monorepo Project Structure
+
+```
+urjavatika/
+├── backend/          # Node.js LTS, Fastify v5, TypeScript, TypeBox, Vitest (Docker & Vercel ready)
+│   ├── src/          # Microservices modules (Leaderboard, Calculator, Devices, Quests, etc.)
+│   ├── test/         # Comprehensive integration & ACID test suites (48/48 tests passing)
+│   ├── Dockerfile    # Multi-stage production container
+│   ├── vercel.json   # Serverless Fastify deployment configuration
+│   └── DEPLOYMENT.md # Production deployment guide for Vercel & Docker
+│
+├── frontend/         # Next.js 15 React Web Application (Citizen Portal & Admin Dashboard)
+│   ├── app/          # Next.js app router pages
+│   ├── components/   # UI primitives and AppShell
+│   └── features/     # Feature components (Missions, Solar, Garden, Community, Admin)
+│
+└── mobile/           # Flutter Mobile Application for Android
+    ├── lib/          # 3D Sanctuary, 300m Departure Geofence, Runtime Logger, Duolingo Leagues
+    ├── android/      # Native Android MainActivity.kt with notification actions & power receivers
+    └── assets/       # 3D WebGL assets, three.js canvas, and onboarding graphics
+```
+
+---
+
 ## 1. Executive Summary
 
 **UrjaVatika** is a statewide gamified citizen engagement platform built for Gujarat's transition into sustainable daily habits under Prime Minister Narendra Modi's **Mission LiFE (Lifestyle for Environment)** movement.
