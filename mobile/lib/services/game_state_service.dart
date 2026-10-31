@@ -25,6 +25,20 @@ class GameStateService extends ChangeNotifier {
         );
       }
     });
+
+    NotificationService.instance.onDepartureRewardClaimed.listen((coins) {
+      addCoins(coins);
+      recordEcoAction(
+        actionName: '300m Departure: All Wall Switches OFF',
+        co2Saved: 1.20,
+        coinsAwarded: coins,
+      );
+      addNotification(
+        title: '⚡ 300m Departure Verified! (+$coins 🪙)',
+        message: 'Wall switches confirmed off upon leaving home. Saved ~1.20 kg CO₂e from idle phantom load!',
+        type: 'departure_verified',
+      );
+    });
   }
 
   // --- Mascot State ---

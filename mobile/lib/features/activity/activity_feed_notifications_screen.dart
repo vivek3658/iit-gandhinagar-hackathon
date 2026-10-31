@@ -121,6 +121,8 @@ class _ActivityFeedNotificationsScreenState
     HapticFeedback.heavyImpact();
     if (type == 'charger') {
       await NotificationService.instance.triggerChargerUnplugNudge();
+    } else if (type == 'departure') {
+      await NotificationService.instance.triggerDepartureNotification(distance: 300.0);
     } else if (type == 'solar') {
       await NotificationService.instance.triggerLearningNotification('solar');
     } else if (type == 'phantom') {
@@ -664,6 +666,26 @@ class _ActivityFeedNotificationsScreenState
                     title: '💡 Phantom Vampire Load Alert',
                     body: 'Turn off TV and microwave wall switches before bed to save ~₹155/mo.',
                     id: 3001,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSystemTriggerButton(
+                  icon: '📍',
+                  title: '300m Left Home Alert',
+                  subtitle: 'Includes "Claim +10 🪙" Action Button',
+                  color: const Color(0xFF38BDF8),
+                  shadowColor: const Color(0xFF0284C7),
+                  onTap: () => _triggerNativeNotification(
+                    type: 'departure',
+                    title: '⚡ Left Home (300m)? Turn Off Wall Switches',
+                    body: 'Did you turn off the AC & geyser? Confirm to prevent phantom vampire drain (~1.2 kg CO₂e).',
+                    id: 5001,
                   ),
                 ),
               ),

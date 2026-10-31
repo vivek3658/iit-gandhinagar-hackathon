@@ -583,44 +583,50 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
   Widget _buildTopGameHud() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(22),
+        color: const Color(0xFF0D2818).withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.6), width: 1.5),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x180F2B1A),
-            blurRadius: 16,
+            color: Color(0xFF051B0E),
             offset: Offset(0, 4),
+            blurRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 16,
+            offset: Offset(0, 6),
           ),
         ],
-        border: Border.all(color: const Color(0x221B6B44)),
       ),
       child: Row(
         children: [
-          // Left Slide to Activity Feed Button
+          // Activity Feed Capsule
           InkWell(
             onTap: () {
               HapticFeedback.selectionClick();
               widget.onSlideToActivity();
             },
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B6B44),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF143B23),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF1F5435)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.feed_outlined, color: Colors.white, size: 13),
+                  Icon(Icons.bolt_rounded, color: Color(0xFFFBBF24), size: 14),
                   SizedBox(width: 4),
                   Text(
-                    'Activity',
+                    'Feed',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -629,140 +635,142 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           ),
           const SizedBox(width: 8),
 
-          // Player Level Badge (Starts strictly at Level 1)
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1B6B44), Color(0xFF34D399)],
-              ),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: Center(
-              child: Text(
-                'L${_state.mascotLevel}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Level Progress (Real CO2e Saved)
+          // Player Level & Progress
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Lv ${_state.mascotLevel}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        color: Color(0xFF0F2B1A),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Lv ${_state.mascotLevel} Companion',
+                        style: const TextStyle(
+                          color: Color(0xFF86EFAC),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 10,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text('🌱', style: TextStyle(fontSize: 10)),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: SizedBox(
-                    height: 5,
-                    child: LinearProgressIndicator(
-                      value: _state.levelProgress,
-                      backgroundColor: const Color(0xFFE2E8F0),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF10B981),
+                      Text(
+                        '${_state.co2eSavedKg.toStringAsFixed(1)} kg',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: SizedBox(
+                      height: 4,
+                      child: LinearProgressIndicator(
+                        value: _state.levelProgress,
+                        backgroundColor: Colors.white12,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF22C55E)),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
 
-          // Coins Pill
+          // Coins Capsule
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFDE68A)),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 2)),
+              ],
             ),
             child: Row(
               children: [
-                const Text('🪙', style: TextStyle(fontSize: 11)),
-                const SizedBox(width: 3),
+                const Text('🪙', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 4),
                 Text(
                   '${_state.coins}',
                   style: const TextStyle(
+                    color: Color(0xFF92400E),
                     fontWeight: FontWeight.w900,
                     fontSize: 11,
-                    color: Color(0xFF92400E),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
 
-          // Leaderboard Trophy Quick Button
-          GestureDetector(
+          // Leaderboard Trophy Button
+          InkWell(
             onTap: _openLeaderboard,
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.all(6),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: const Color(0xFF143B23),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFDE68A)),
+                border: Border.all(color: const Color(0xFFF59E0B)),
               ),
-              child: const Text('🏆', style: TextStyle(fontSize: 14)),
+              child: const Center(
+                child: Text('🏆', style: TextStyle(fontSize: 14)),
+              ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
 
-          // Daily Quests Quick Button
-          GestureDetector(
+          // Daily Quests Button
+          InkWell(
             onTap: _openDailyQuests,
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.all(6),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
+                color: const Color(0xFF143B23),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF86EFAC)),
+                border: Border.all(color: const Color(0xFF22C55E)),
               ),
-              child: const Text('🎯', style: TextStyle(fontSize: 14)),
+              child: const Center(
+                child: Text('🎯', style: TextStyle(fontSize: 14)),
+              ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
 
-          // Dedicated Full-Screen Menu Button (No Drop Down!)
-          GestureDetector(
+          // Command Hub / Menu Button
+          InkWell(
             onTap: _openFullMenuScreen,
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.all(7),
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F8F5),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF22C55E), Color(0xFF15803D)],
+                ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x331B6B44)),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                  BoxShadow(color: Color(0xFF0A3612), offset: Offset(0, 2)),
                 ],
               ),
               child: const Icon(
                 Icons.menu_rounded,
-                color: Color(0xFF1B6B44),
+                color: Color(0xFF05200E),
                 size: 20,
               ),
             ),

@@ -1,21 +1,44 @@
 // URJA ONE - Client Authentication & OAuth Configuration
-// Paste your Google OAuth credentials here.
+//
+// ZERO hardcoded secrets in version control!
+// Values can be supplied at build/run time via:
+// flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=your_id --dart-define=API_BASE_URL=http://...
+//
+// On Android, GoogleSignIn automatically resolves client credentials via the Android package
+// name (com.geda.urjavatika.urja) and SHA-1 certificate in Google Cloud Console.
 
 class AuthConfig {
   /// Web / Backend Server Client ID (from Google Cloud Console)
-  /// Used by GoogleSignIn on Android/iOS to get the server `idToken` to send to Fastify backend.
-  static const String googleServerClientId = '382767216032-3744ggt0eifce7jcq0v4ff34fub5ml7s.apps.googleusercontent.com';
+  /// Provided at build time via --dart-define=GOOGLE_SERVER_CLIENT_ID=...
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: '',
+  );
 
-  /// Android Client ID (Optional if google-services.json is configured, but recommended)
-  static const String googleAndroidClientId = '382767216032-d8jk3j1psfdb6qomicevbev1d43vj5ob.apps.googleusercontent.com';
+  /// Android Client ID (Optional, resolved natively via package name + SHA-1)
+  static const String googleAndroidClientId = String.fromEnvironment(
+    'GOOGLE_ANDROID_CLIENT_ID',
+    defaultValue: '',
+  );
 
   /// Fastify Backend API Base URL
-  /// Over USB with `adb reverse tcp:3000 tcp:3000`, use `http://127.0.0.1:3000/api/v1`
-  /// Over Wi-Fi on physical device use: `http://10.17.14.80:3000/api/v1`
-  /// For Android Emulator use: `http://10.0.2.2:3000/api/v1`
-  static const String apiBaseUrl = 'http://127.0.0.1:3000/api/v1';
+  /// - Physical device via Wi-Fi: http://10.17.14.80:3000/api/v1
+  /// - USB with `adb reverse tcp:3000 tcp:3000`: http://127.0.0.1:3000/api/v1
+  /// - Android Emulator: http://10.0.2.2:3000/api/v1
+  /// - Production deployment (Vercel / Cloud): https://urjavatika-api.vercel.app/api/v1
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.17.14.80:3000/api/v1',
+  );
 
   /// ImageKit Public Key for client-side uploads (avatar photo)
-  static const String imageKitPublicKey = 'public_mock_imagekit_key';
-  static const String imageKitUrlEndpoint = 'https://ik.imagekit.io/urjavatika';
+  static const String imageKitPublicKey = String.fromEnvironment(
+    'IMAGEKIT_PUBLIC_KEY',
+    defaultValue: 'public_mock_imagekit_key',
+  );
+
+  static const String imageKitUrlEndpoint = String.fromEnvironment(
+    'IMAGEKIT_URL_ENDPOINT',
+    defaultValue: 'https://ik.imagekit.io/urjavatika',
+  );
 }

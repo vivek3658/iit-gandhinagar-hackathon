@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
+import '../../services/geofence_departure_service.dart';
 import '../appliances/appliance_registry_sheet.dart';
 import '../appliances/device_time_log_sheet.dart';
 import '../auth/google_login_screen.dart';
@@ -15,7 +16,7 @@ import '../onboarding/energy_setup_sheet.dart';
 import '../settings/user_settings_screen.dart';
 import '../water/water_conservation_sheet.dart';
 
-class SanctuaryMenuScreen extends StatelessWidget {
+class SanctuaryMenuScreen extends StatefulWidget {
   final VoidCallback onSlideToActivity;
   final VoidCallback onSlideToWardrobe;
 
@@ -41,11 +42,18 @@ class SanctuaryMenuScreen extends StatelessWidget {
     );
   }
 
+  @override
+  State<SanctuaryMenuScreen> createState() => _SanctuaryMenuScreenState();
+}
+
+class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
+  final GeofenceDepartureService _geofence = GeofenceDepartureService.instance;
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF143522),
+        backgroundColor: const Color(0xFF102B1D),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Row(
           children: [
@@ -55,8 +63,8 @@ class SanctuaryMenuScreen extends StatelessWidget {
           ],
         ),
         content: const Text(
-          'Are you sure you want to sign out from UrjaVatika? Your garden island and mascot vitality are safely stored.',
-          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+          'Are you sure you want to sign out from UrjaVatika? Your garden island and companion vitality are safely preserved.',
+          style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 13, height: 1.4),
         ),
         actions: [
           TextButton(
@@ -84,6 +92,35 @@ class SanctuaryMenuScreen extends StatelessWidget {
     );
   }
 
+  void _triggerDepartureGeofenceTest() async {
+    HapticFeedback.heavyImpact();
+    await _geofence.simulateDeparture(350.0);
+    setState(() {});
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF15803D),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: const Row(
+            children: [
+              Text('📍', style: TextStyle(fontSize: 20)),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Simulated 350m Departure! Check your phone notification shade for the "Claim +10 🪙" action button.',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = GameStateService.instance;
@@ -93,9 +130,9 @@ class SanctuaryMenuScreen extends StatelessWidget {
     final userDistrict = user?.district ?? 'Ahmedabad';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1D13), // Deep 3D Forest Green
+      backgroundColor: const Color(0xFF06140D),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A1D13),
+        backgroundColor: const Color(0xFF06140D),
         elevation: 0,
         centerTitle: true,
         title: const Text(
@@ -104,6 +141,7 @@ class SanctuaryMenuScreen extends StatelessWidget {
             color: Colors.white,
             fontWeight: FontWeight.w900,
             fontSize: 18,
+            letterSpacing: 0.5,
           ),
         ),
         leading: IconButton(
@@ -114,83 +152,318 @@ class SanctuaryMenuScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
         children: [
-          // Top Citizen Profile Header Card
+          // 1. Digital Citizen Passport Card (Modern Glassmorphic Card)
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF143B23), Color(0xFF0D2818)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: const Color(0xFF4ADE80).withValues(alpha: 0.8), width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: Color(0xFF051B0E), offset: Offset(0, 4), blurRadius: 0),
+                BoxShadow(color: Colors.black45, blurRadius: 16, offset: Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF22C55E), Color(0xFF15803D)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white24, width: 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text('🕊️', style: TextStyle(fontSize: 30)),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  userName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF22C55E)),
+                                ),
+                                child: const Text(
+                                  'CITIZEN VERIFIED',
+                                  style: TextStyle(
+                                    color: Color(0xFF86EFAC),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '$userWard Ward • $userDistrict (Gujarat)',
+                            style: const TextStyle(
+                              color: Color(0xFFA7F3D0),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 1.5)),
+                                  ],
+                                ),
+                                child: Text(
+                                  '🪙 ${state.coins} Mudra',
+                                  style: const TextStyle(
+                                    color: Color(0xFF92400E),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0xFF15803D), offset: Offset(0, 1.5)),
+                                  ],
+                                ),
+                                child: Text(
+                                  '🌱 ${state.co2eSavedKg.toStringAsFixed(1)} kg Cut',
+                                  style: const TextStyle(
+                                    color: Color(0xFF05200E),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 2. HERO FEATURE: 300m Home Departure Geofence Guardian
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF10361F)],
+                colors: [Color(0xFF0F3220), Color(0xFF0A2216)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFF4ADE80), width: 1.5),
+              border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
               boxShadow: const [
-                BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
+                BoxShadow(color: Color(0xFF0284C7), offset: Offset(0, 4), blurRadius: 0),
+                BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4)),
               ],
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white24, width: 2),
-                  ),
-                  child: const Center(
-                    child: Text('🕊️', style: TextStyle(fontSize: 28)),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                        ),
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF38BDF8)),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$userWard Ward • $userDistrict',
-                        style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 11, fontWeight: FontWeight.w700),
+                      child: const Center(
+                        child: Text('📍', style: TextStyle(fontSize: 22)),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '🪙 ${state.coins} Mudra',
-                              style: const TextStyle(color: Color(0xFF92400E), fontSize: 10, fontWeight: FontWeight.w900),
+                          Text(
+                            '300m HOME DEPARTURE GUARDIAN',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                              letterSpacing: 0.8,
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF22C55E),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '🌱 ${state.co2eSavedKg.toStringAsFixed(1)} kg Cut',
-                              style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900),
-                            ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Reminds you to switch off AC, geysers & unplug wall sockets when leaving.',
+                            style: TextStyle(color: Color(0xFFBAE6FD), fontSize: 11),
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Distance indicator bar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: _geofence.isOutsideGeofence ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (_geofence.isOutsideGeofence ? const Color(0xFFEF4444) : const Color(0xFF22C55E)).withValues(alpha: 0.8),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _geofence.isOutsideGeofence
+                                ? 'Status: Departed (> 300m)'
+                                : 'Status: Inside Home (${_geofence.currentDistanceMeters.toInt()}m)',
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'Threshold: 300m',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
+                      ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+
+                // Action buttons: Test Alert & Request Permission
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: GestureDetector(
+                        onTap: _triggerDepartureGeofenceTest,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF38BDF8),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: const [
+                              BoxShadow(color: Color(0xFF0369A1), offset: Offset(0, 3)),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('📲', style: TextStyle(fontSize: 14)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Test 300m Notification',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 4,
+                      child: GestureDetector(
+                        onTap: () async {
+                          HapticFeedback.selectionClick();
+                          await _geofence.requestPermission();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Location Permission requested!'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF143B23),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF22C55E)),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Permission',
+                              style: TextStyle(
+                                color: Color(0xFF86EFAC),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -220,7 +493,7 @@ class SanctuaryMenuScreen extends StatelessWidget {
             accentColor: const Color(0xFF38BDF8),
             onTap: () {
               Navigator.pop(context);
-              onSlideToWardrobe();
+              widget.onSlideToWardrobe();
             },
           ),
           const SizedBox(height: 8),
@@ -299,34 +572,10 @@ class SanctuaryMenuScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _buildMenuTile(
             context,
-            icon: '⚡',
-            title: 'Activity Feed & System Alerts',
-            subtitle: 'Real-time environmental event stream, notifications & audit records',
-            accentColor: const Color(0xFFF59E0B),
-            onTap: () {
-              Navigator.pop(context);
-              onSlideToActivity();
-            },
-          ),
-          const SizedBox(height: 8),
-          _buildMenuTile(
-            context,
-            icon: '📱',
-            title: 'Electronic Appliance Registry',
-            subtitle: 'Catalog split ACs, refrigerators, water heaters & smart IoT devices',
-            accentColor: const Color(0xFF60A5FA),
-            onTap: () {
-              Navigator.pop(context);
-              ApplianceRegistrySheet.show(context);
-            },
-          ),
-          const SizedBox(height: 8),
-          _buildMenuTile(
-            context,
             icon: '💧',
-            title: 'Water Conservation & Sump Pump',
-            subtitle: 'Municipal piped schedule, rainwater recharge wells & overflow alerts',
-            accentColor: const Color(0xFF38BDF8),
+            title: 'Water Conservation & Timed Supply',
+            subtitle: 'Municipal water schedules, overhead tank flow & RO wastewater reuse',
+            accentColor: const Color(0xFF0284C7),
             onTap: () {
               Navigator.pop(context);
               WaterConservationSheet.show(context);
@@ -335,10 +584,22 @@ class SanctuaryMenuScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _buildMenuTile(
             context,
+            icon: '📱',
+            title: 'Household Appliance Registry',
+            subtitle: 'Manage normalized appliances (AC, refrigerator, geyser, induction)',
+            accentColor: const Color(0xFF10B981),
+            onTap: () {
+              Navigator.pop(context);
+              ApplianceRegistrySheet.show(context);
+            },
+          ),
+          const SizedBox(height: 8),
+          _buildMenuTile(
+            context,
             icon: '🚴',
-            title: 'Daily Green Commute Garage',
-            subtitle: 'Log EV 2-Wheeler rides, BRTS / Metro commutes, and bicycle trips',
-            accentColor: const Color(0xFF34D399),
+            title: 'Green Commute & Electric BRTS',
+            subtitle: 'Log bicycle trips, Metro rides & EV 2-wheeler charging habits',
+            accentColor: const Color(0xFFD97706),
             onTap: () {
               Navigator.pop(context);
               CommuteTravelSheet.show(context);
@@ -349,8 +610,8 @@ class SanctuaryMenuScreen extends StatelessWidget {
             context,
             icon: '☀️',
             title: 'PM Surya Ghar Rooftop Solar',
-            subtitle: 'Configure grid-tied solar net metering, inverter capacity & DISCOM export',
-            accentColor: const Color(0xFFFCD34D),
+            subtitle: 'Configure your 3.2 kW solar setup, battery storage & net metering savings',
+            accentColor: const Color(0xFFEAB308),
             onTap: () {
               Navigator.pop(context);
               EnergySetupSheet.show(context);
@@ -358,41 +619,28 @@ class SanctuaryMenuScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // Section 4: Citizen Preferences & Identity
-          _buildSectionHeader('CITIZEN SETTINGS & ACCOUNT'),
+          // Section 4: System Settings & Sign Out
+          _buildSectionHeader('SYSTEM PREFERENCES & ACCOUNT'),
           const SizedBox(height: 10),
           _buildMenuTile(
             context,
             icon: '⚙️',
-            title: 'Citizen Settings Hub',
-            subtitle: 'Ward selection, mascot bedtime schedule, touch sensitivity, audio & haptics',
-            accentColor: const Color(0xFF94A3B8),
+            title: 'Sanctuary Settings & Behavior',
+            subtitle: 'Sound effects, night dimming, idle timeouts & behavioral coach tone',
+            accentColor: const Color(0xFF8B5CF6),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const UserSettingsScreen()));
             },
           ),
-          const SizedBox(height: 14),
-
-          // Sign out button
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ElevatedButton.icon(
-              onPressed: () => _showLogoutDialog(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF261010),
-                foregroundColor: const Color(0xFFEF4444),
-                side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              ),
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text(
-                'Sign Out from Citizen Account',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-              ),
-            ),
+          const SizedBox(height: 8),
+          _buildMenuTile(
+            context,
+            icon: '🚪',
+            title: 'Sign Out Account',
+            subtitle: 'Safely disconnect from UrjaVatika cloud session',
+            accentColor: const Color(0xFFEF4444),
+            onTap: () => _showLogoutDialog(context),
           ),
         ],
       ),
@@ -400,13 +648,16 @@ class SanctuaryMenuScreen extends StatelessWidget {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Color(0xFF86EFAC),
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 1.2,
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFF86EFAC),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }
@@ -419,20 +670,19 @@ class SanctuaryMenuScreen extends StatelessWidget {
     required Color accentColor,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
       },
-      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF143522),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white12),
+          color: const Color(0xFF10361F),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFF1F5435), width: 1.2),
           boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+            BoxShadow(color: Color(0xFF062312), offset: Offset(0, 3)),
           ],
         ),
         child: Row(
@@ -441,9 +691,9 @@ class SanctuaryMenuScreen extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.16),
+                color: accentColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: accentColor.withValues(alpha: 0.35)),
+                border: Border.all(color: accentColor.withValues(alpha: 0.5)),
               ),
               child: Center(
                 child: Text(icon, style: const TextStyle(fontSize: 22)),
@@ -458,24 +708,24 @@ class SanctuaryMenuScreen extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Colors.white60,
+                      color: Color(0xFFA7F3D0),
                       fontSize: 11,
-                      height: 1.25,
+                      height: 1.3,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 14),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, color: accentColor.withValues(alpha: 0.8), size: 20),
           ],
         ),
       ),

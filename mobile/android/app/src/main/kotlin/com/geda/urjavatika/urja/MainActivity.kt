@@ -16,6 +16,8 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.geda.urjavatika.urja/notifications"
     private val NOTIF_CHANNEL_ID = "urja_nudges"
+    private val ACTION_CLAIM_DEPARTURE = "com.geda.urjavatika.urja.ACTION_CLAIM_DEPARTURE"
+    private val ACTION_DISMISS = "com.geda.urjavatika.urja.ACTION_DISMISS"
     private var methodChannel: MethodChannel? = null
     private var isChargerNudgeEnabled = true
     private var wasCharging = false
@@ -28,7 +30,8 @@ class MainActivity : FlutterActivity() {
                         showNotification(
                             "🔌 Charger Unplugged! Save Standby Power",
                             "Don't forget to turn off the switch at the wall socket! Idle chargers drain phantom vampire power 24/7.",
-                            2001
+                            2001,
+                            "Turned Switch OFF (+5 🪙)"
                         )
                     }
                     methodChannel?.invokeMethod("onChargerDisconnected", mapOf("timestamp" to System.currentTimeMillis()))
@@ -42,6 +45,26 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private val notificationActionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                ACTION_CLAIM_DEPARTURE -> {
+                    val notifId = intent.getIntExtra("notif_id", 5001)
+                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    nm.cancel(notifId)
+                    methodChannel?.invokeMethod("onDepartureRewardClaimed", mapOf("coins" to 10, "timestamp" to System.currentTimeMillis()))
+                }
+                ACTION_DISMISS -> {
+                    val notifId = intent.getIntExtra("notif_id", 0)
+                    if (notifId > 0) {
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        nm.cancel(notifId)
+                    }
+                }
+            }
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         createNotificationChannel()
@@ -49,12 +72,23 @@ class MainActivity : FlutterActivity() {
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel = channel
 
-        // Dynamically register power connected/disconnected broadcast receiver
+        // Register power connected/disconnected broadcast receiver
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(Intent.ACTION_POWER_CONNECTED)
         }
         registerReceiver(powerReceiver, filter)
+
+        // Register action button receiver for modern notification actions
+        val actionFilter = IntentFilter().apply {
+            addAction(ACTION_CLAIM_DEPARTURE)
+            addAction(ACTION_DISMISS)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(notificationActionReceiver, actionFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(notificationActionReceiver, actionFilter)
+        }
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -62,7 +96,13 @@ class MainActivity : FlutterActivity() {
                     val title = call.argument<String>("title") ?: "Urja Reminder"
                     val message = call.argument<String>("message") ?: ""
                     val id = call.argument<Int>("id") ?: 1001
-                    showNotification(title, message, id)
+                    val actionButton = call.argument<String>("actionButton")
+                    showNotification(title, message, id, actionButton)
+                    result.success(true)
+                }
+                "triggerDepartureNotification" -> {
+                    val distance = call.argument<Double>("distance") ?: 300.0
+                    showDepartureNotification(distance.toInt())
                     result.success(true)
                 }
                 "setChargerNudgeEnabled" -> {
@@ -73,7 +113,8 @@ class MainActivity : FlutterActivity() {
                     showNotification(
                         "🔌 Charger Unplugged! Save Standby Power",
                         "Don't forget to turn off the switch at the wall socket! Idle chargers drain phantom vampire power 24/7.",
-                        2001
+                        2001,
+                        "Turned Switch OFF (+5 🪙)"
                     )
                     channel.invokeMethod("onChargerDisconnected", mapOf("timestamp" to System.currentTimeMillis()))
                     result.success(true)
@@ -84,13 +125,15 @@ class MainActivity : FlutterActivity() {
                         showNotification(
                             "☀️ Solar Peak Window (11 AM - 3 PM)",
                             "Prime solar generation is active! Run washing machines and water pumps now to utilize 100% clean rooftop sun power.",
-                            3002
+                            3002,
+                            "Run Clean Energy (+15 🪙)"
                         )
                     } else {
                         showNotification(
                             "💡 Phantom Vampire Load Alert",
                             "Your TV setup and AC in standby drain ~35W continuous power. Turn off the wall switch to save ~25 units/month (~₹155)!",
-                            3001
+                            3001,
+                            "Sweep Sockets (+10 🪙)"
                         )
                     }
                     result.success(true)
@@ -101,6 +144,16 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(true)
                 }
+                "requestLocationPermission" -> {
+                    requestPermissions(
+                        arrayOf(
+                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                        ),
+                        102
+                    )
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -109,6 +162,9 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         try {
             unregisterReceiver(powerReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(notificationActionReceiver)
         } catch (_: Exception) {}
         super.onDestroy()
     }
@@ -128,7 +184,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun showNotification(title: String, message: String, id: Int) {
+    private fun showNotification(title: String, message: String, id: Int, actionButtonText: String? = null) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -147,6 +203,70 @@ class MainActivity : FlutterActivity() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+
+        if (!actionButtonText.isNullOrEmpty()) {
+            val claimIntent = Intent(ACTION_CLAIM_DEPARTURE).apply {
+                putExtra("notif_id", id)
+            }
+            val claimPendingIntent = PendingIntent.getBroadcast(
+                this,
+                id + 10,
+                claimIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(0, actionButtonText, claimPendingIntent)
+        }
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(id, builder.build())
+    }
+
+    private fun showDepartureNotification(distanceMeters: Int) {
+        val id = 5001
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val claimIntent = Intent(ACTION_CLAIM_DEPARTURE).apply {
+            putExtra("notif_id", id)
+        }
+        val claimPendingIntent = PendingIntent.getBroadcast(
+            this,
+            id + 1,
+            claimIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val dismissIntent = Intent(ACTION_DISMISS).apply {
+            putExtra("notif_id", id)
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            this,
+            id + 2,
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("⚡ Left Home (${distanceMeters}m)? Turn Off Wall Switches")
+            .setContentText("Did you turn off the AC, water geyser & unplug phone chargers? Confirm to prevent continuous vampire drain and earn rewards!")
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    "You are ${distanceMeters}m away from home. Did you turn off the AC, geyser & unplug phone chargers? Avoid phantom vampire drain (~1.2 kg CO₂e). Tap Claim below to confirm and credit Urja Mudra coins!"
+                )
+            )
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .addAction(0, "⚡ Claim +10 🪙 (All OFF)", claimPendingIntent)
+            .addAction(0, "Dismiss", dismissPendingIntent)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(id, builder.build())

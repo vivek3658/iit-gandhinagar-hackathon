@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 /// Service for posting native Android notifications to the System Notification Shade,
-/// listening for physical hardware charger unplug events, and providing creative learning notifications.
+/// listening for physical hardware charger unplug events, modern geofence departure reminders,
+/// and interactive action buttons embedded directly in the notification shade.
 class NotificationService {
   static const MethodChannel _channel =
       MethodChannel('com.geda.urjavatika.urja/notifications');
@@ -11,10 +12,13 @@ class NotificationService {
 
   final _chargerDisconnectedController = StreamController<void>.broadcast();
   final _chargerConnectedController = StreamController<void>.broadcast();
+  final _departureRewardClaimedController = StreamController<int>.broadcast();
 
   Stream<void> get onChargerDisconnected =>
       _chargerDisconnectedController.stream;
   Stream<void> get onChargerConnected => _chargerConnectedController.stream;
+  Stream<int> get onDepartureRewardClaimed =>
+      _departureRewardClaimedController.stream;
 
   NotificationService._internal() {
     _channel.setMethodCallHandler(_handleNativeCall);
@@ -28,6 +32,10 @@ class NotificationService {
       case 'onChargerConnected':
         _chargerConnectedController.add(null);
         break;
+      case 'onDepartureRewardClaimed':
+        final coins = (call.arguments as Map?)?['coins'] as int? ?? 10;
+        _departureRewardClaimedController.add(coins);
+        break;
     }
   }
 
@@ -35,6 +43,13 @@ class NotificationService {
   Future<void> requestPermission() async {
     try {
       await _channel.invokeMethod('requestPermission');
+    } catch (_) {}
+  }
+
+  /// Requests Location permissions for 300m departure geofencing
+  Future<void> requestLocationPermission() async {
+    try {
+      await _channel.invokeMethod('requestLocationPermission');
     } catch (_) {}
   }
 
@@ -50,17 +65,28 @@ class NotificationService {
     required String title,
     required String message,
     int id = 1001,
+    String? actionButton,
   }) async {
     try {
       final res = await _channel.invokeMethod<bool>('showNotification', {
         'title': title,
         'message': message,
         'id': id,
+        if (actionButton != null) 'actionButton': actionButton,
       });
       return res ?? true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Triggers a modern 300m departure notification with embedded "Claim +10 🪙" action button
+  Future<void> triggerDepartureNotification({double distance = 300.0}) async {
+    try {
+      await _channel.invokeMethod('triggerDepartureNotification', {
+        'distance': distance,
+      });
+    } catch (_) {}
   }
 
   /// Triggers the physical charger unplug reminder directly
