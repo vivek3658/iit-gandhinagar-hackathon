@@ -34,7 +34,7 @@ export type EnvConfig = Static<typeof EnvSchema>;
 export const envOptions = {
   confKey: 'config',
   schema: EnvSchema,
-  dotenv: true,
+  dotenv: process.env.NODE_ENV === 'production' ? false : true,
   data: process.env,
 };
 

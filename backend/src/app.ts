@@ -75,7 +75,11 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   });
 
   // 4. Root & Documentation Aliases
-  app.get('/', async (_, reply) => {
+  const handleRoot = async (request: any, reply: any) => {
+    const accept = (request.headers.accept as string) || '';
+    if (accept.includes('text/html')) {
+      return reply.redirect('/docs');
+    }
     return reply.send({
       name: 'UrjaVatika API | GEDA Mission LiFE',
       status: 'healthy',
@@ -83,8 +87,11 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
       documentation: '/docs',
       health: '/health',
     });
-  });
+  };
 
+  app.get('/', handleRoot);
+  app.get('/api', handleRoot);
+  app.get('/api/', handleRoot);
   app.get('/documentation', async (_, reply) => reply.redirect('/docs'));
   app.get('/swagger', async (_, reply) => reply.redirect('/docs'));
   app.get('/api/docs', async (_, reply) => reply.redirect('/docs'));
