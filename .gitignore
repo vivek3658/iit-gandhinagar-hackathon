@@ -2,10 +2,12 @@
 node_modules/
 .pnp
 .pnp.js
+.next/
 
 # Production build
 dist/
 build/
+*.tsbuildinfo
 
 # Environment files & Secrets
 .env

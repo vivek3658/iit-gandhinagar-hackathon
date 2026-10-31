@@ -1,7 +1,7 @@
 # UrjaVatika (ઉર્જાવટિકા)
 > **Gujarat Energy Development Agency (GEDA) — Mission LiFE Citizen Platform**  
 > **Problem Statement ID:** `HC26-GEDA01` · **Theme:** Green Energy & Sustainability  
-> **Tech Stack:** Node.js (Fastify v5 + TypeScript) · Redis 7 · PostgreSQL 16 · MongoDB 7 · RabbitMQ 3 · NGINX · Flutter Mobile  
+> **Tech Stack:** Node.js (Fastify v5 + TypeScript) · Redis 7 · PostgreSQL 16 · MongoDB 7 · Next.js 15 (Web) · Flutter (Mobile)  
 
 ---
 
@@ -17,9 +17,10 @@ urjavatika/
 │   └── DEPLOYMENT.md # Production deployment guide for Vercel & Docker
 │
 ├── frontend/         # Next.js 15 React Web Application (Citizen Portal & Admin Dashboard)
-│   ├── app/          # Next.js app router pages
+│   ├── app/          # Next.js app router pages (/story, /garden, /missions, /solar, /admin)
 │   ├── components/   # UI primitives and AppShell
-│   └── features/     # Feature components (Missions, Solar, Garden, Community, Admin)
+│   ├── features/     # Feature components (Missions, Solar, Garden, Community, Admin)
+│   └── public/       # Urja mascot cutouts & garden stage webp assets
 │
 └── mobile/           # Flutter Mobile Application for Android
     ├── lib/          # 3D Sanctuary, 300m Departure Geofence, Runtime Logger, Duolingo Leagues
@@ -36,7 +37,7 @@ urjavatika/
 Unlike static carbon calculators, UrjaVatika turns energy and water conservation into an interactive daily companion:
 1. **The Hero Mascot:** A 3D Chibi House Sparrow (ચકલી) that lives and levels up strictly via **real kg of $CO_2$ saved** (1 kg $CO_2$ = 100 EXP).
 2. **The Living Sanctuary:** An isometric garden land that expands dynamically from a beginner 3×3 nest up to a 10×10 net-zero botanical sanctuary.
-3. **Phone as a Zero-Cost Sensor:** Utilizes smartphone sensors (battery 100% unplug alert, municipal water timers, home departure geofencing, red-light idle counter) with zero hardware expense.
+3. **Phone as a Zero-Cost Sensor:** Utilizes smartphone sensors (battery 100% unplug alert, municipal water timers, 300m home departure geofencing, red-light idle counter) with zero hardware expense.
 4. **Extreme Scalability:** Engineered for **100,000 writes/second** and **1,000,000 reads/second** across **4 to 6 container instances** during statewide DISCOM peak grid alerts.
 
 ---
@@ -89,34 +90,37 @@ flowchart TB
 ## 3. Scalability Verification & Target Capacity
 
 | Target Metric | 4 Container Instances | 6 Container Instances (Recommended) | Verdict |
-| :--- | :--- | :--- | :--- |
-| **1,000,000 Reads/sec** | 180k req/s dynamic Fastify + 820k req/s NGINX Edge Micro-Cache | 270k req/s dynamic Fastify + 1.23M req/s Edge Micro-Cache = **1.5M reads/s** | **PASS (+50% Headroom on 6 Nodes)** |
-| **100,000 Writes/sec** | 25,000 writes/sec per node absorbed in Redis memory (< 0.4ms) | 16,667 writes/sec per node (< 60% CPU load, sub-15ms p99 latency) | **PASS (Zero Lock Contention)** |
-| **PostgreSQL TPS** | 100 bulk upsert transactions/sec (1000:1 write coalescing ratio) | 100 bulk upsert transactions/sec (1000:1 write coalescing ratio) | **PASS (Well within 250 TPS limit)** |
+|---|---|---|---|
+| **1,000,000 Reads/sec** | 180k req/s dynamic Fastify + 820k req/s NGINX Edge Micro-Cache | 270k req/s dynamic Fastify + 1.23M req/s Edge Micro-Cache = 1.5M reads/s | **PASS** (+50% Headroom on 6 Nodes) |
+| **100,000 Writes/sec** | 25,000 writes/sec per node absorbed in Redis memory (< 0.4ms) | 16,667 writes/sec per node (< 60% CPU load, sub-15ms p99 latency) | **PASS** (Zero Lock Contention) |
+| **PostgreSQL TPS** | 100 bulk upsert transactions/sec (1000:1 write coalescing ratio) | 100 bulk upsert transactions/sec (1000:1 write coalescing ratio) | **PASS** (Well within 250 TPS limit) |
 | **Failover Resilience** | Sustains load; 3 nodes at 100% capacity if 1 node restarts | Zero degradation; 4–5 nodes easily handle 1M reads/s | **N+2 Enterprise Fault Tolerance** |
 
 ---
 
 ## 4. Quick Start Commands
 
+### Backend (Fastify + TypeScript)
 ```bash
-# 1. Install dependencies
+cd backend
 npm install
-
-# 2. Run backend in development
-npm run dev
-
-# 3. Build TypeScript bundle
+npm run dev      # http://localhost:3000
+npm test         # 48/48 passing tests
 npm run build
+```
 
-# 4. Run automated test suite (32/32 passing tests)
-npm test
+### Frontend (Next.js 15 Web App)
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:3000
+npm run build
+```
 
-# 5. Run linter
-npm run lint
-
-# 6. Run Scalability Benchmarks (1, 2, 4, 6 Instances)
-npx vitest run test/scalability.test.ts
+### Mobile App (Flutter Android)
+```bash
+cd mobile
+flutter run
 ```
 
 ---
@@ -124,21 +128,11 @@ npx vitest run test/scalability.test.ts
 ## 5. Docker Production Cluster Commands
 
 ```bash
-# Start standard 4-container production baseline
-docker compose up -d --scale app=4
+cd backend
 
-# Scale to 6 containers for statewide DISCOM peak alert surge
-docker compose up -d --scale app=6
+# Start standard production baseline
+docker compose up -d
 
 # Inspect real-time CPU & memory consumption
 docker stats
 ```
-
----
-
-## 6. Visual Documentation Portals
-* **Interactive 3D Mascot Studio:** [docs/sparrow-animator.html](docs/sparrow-animator.html)
-* **3D Garden Sanctuary Studio:** [docs/garden-studio.html](docs/garden-studio.html)
-* **Architecture Blueprint:** [docs/architecture.html](docs/architecture.html)
-* **Scalability Report Dashboard:** [docs/scalability-report.html](docs/scalability-report.html)
-* **Sequence & Activity Diagrams:** [docs/sequence-diagrams.html](docs/sequence-diagrams.html)
