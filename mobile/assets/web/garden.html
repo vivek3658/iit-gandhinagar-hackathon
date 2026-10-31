@@ -207,6 +207,16 @@ function createEmptyPlotMesh(gx, gz){
   g.userData=uData;
   soilBase.userData=uData;
   grassTop.userData=uData;
+
+  // 6. Generous invisible raycast collider for 100% accurate finger tap detection
+  const hitCollider = new THREE.Mesh(
+    BX(1.06, 0.6, 1.06),
+    new THREE.MeshBasicMaterial({visible:false})
+  );
+  hitCollider.position.y = 0.28;
+  hitCollider.userData = uData;
+  g.add(hitCollider);
+
   return g;
 }
 
@@ -239,6 +249,16 @@ function layout(){
         };
         g.userData=uData;
         g.traverse(c=>{c.userData=uData});
+
+        // Add invisible hit collider over occupied tile to ensure direct tap works
+        const hitCollider = new THREE.Mesh(
+          BX(1.06, 0.7, 1.06),
+          new THREE.MeshBasicMaterial({visible:false})
+        );
+        hitCollider.position.y = 0.35;
+        hitCollider.userData = uData;
+        g.add(hitCollider);
+
         world.add(g);
         tiles.push({t,g,x:gx,z:gz,r:curR});
       }
@@ -372,6 +392,16 @@ window.Garden={
   zoomIn:()=>{fs=Math.max(0.75,fs*.82);place();notifyFlutter({type:'zoom',fs})},
   zoomOut:()=>{fs=Math.min(5.5,fs*1.22);place();notifyFlutter({type:'zoom',fs})},
   setZoom:(val)=>{fs=Math.max(0.75,Math.min(5.5,val));place()},
+  selectPlot:(x,z)=>{
+    const cfg=ISLAND_CONFIG.find(c=>c.x===x&&c.z===z);
+    if(cfg){
+      selectTileById(cfg.id);
+    }else{
+      selBox.position.set(x*1.06,0.01,z*1.06);
+      if(!selBox.parent)world.add(selBox);
+      notifyFlutter({type:'selectEmptyTile',x,z});
+    }
+  },
   selectTile:selectTileById,
   setMode:(m)=>{mode=m;layout()},
   resetView:()=>{yaw=Math.PI/4;fs=2.45;place()}

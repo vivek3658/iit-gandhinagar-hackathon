@@ -17,12 +17,14 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
 
-    // Call AuthService with simulated or real Google ID token
+    // Triggers real Google Sign-In with Google account picker sheet
     final auth = AuthService.instance;
-    await auth.signInWithGoogle('mock_test_token_citizen_mobile');
+    final success = await auth.signInWithGoogle();
 
     if (mounted) {
       setState(() => _isLoading = false);
+
+      if (!success) return;
 
       if (!auth.isProfileComplete) {
         Navigator.of(context).pushReplacement(

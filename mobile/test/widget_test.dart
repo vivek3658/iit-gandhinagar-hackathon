@@ -135,31 +135,32 @@ void main() {
     expect(find.text('Ahmedabad'), findsOneWidget);
     expect(find.text('Navrangpura'), findsOneWidget);
 
-    // Tap Next Step -> Step 2: Water Supply & Storage
+    // Tap Next Step -> Step 2: Owned Vehicles
+    await tester.tap(find.text('Next Step →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Owned Household Vehicles'), findsOneWidget);
+    expect(find.textContaining('Add Vehicle Owned'), findsOneWidget);
+
+    // Tap Next Step -> Step 3: Water Supply & Storage
     await tester.tap(find.text('Next Step →'));
     await tester.pumpAndSettle();
 
     expect(find.text('Water Supply & Storage'), findsOneWidget);
-    expect(find.text('Water Storage System'), findsOneWidget);
+    expect(find.text('Water Storage Configuration'), findsOneWidget);
 
-    // Tap Next Step -> Step 3: Electricity & Normalized Devices
+    // Tap Next Step -> Step 4: Electricity & Normalized Devices
     await tester.tap(find.text('Next Step →'));
     await tester.pumpAndSettle();
 
     expect(find.text('Electricity & High-Drain Appliances'), findsOneWidget);
     expect(find.textContaining('RO Water Purifier'), findsOneWidget);
 
-    // Tap Next Step -> Step 4: Cooking Gas
+    // Tap Next Step -> Step 5: Cooking Gas
     await tester.tap(find.text('Next Step →'));
     await tester.pumpAndSettle();
 
     expect(find.text('Kitchen Cooking Energy'), findsOneWidget);
-
-    // Tap Next Step -> Step 5: Daily Transit
-    await tester.tap(find.text('Next Step →'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Daily Mobility & Transit'), findsOneWidget);
 
     // Tap Next Step -> Step 6: Companion Sparrow
     await tester.tap(find.text('Next Step →'));

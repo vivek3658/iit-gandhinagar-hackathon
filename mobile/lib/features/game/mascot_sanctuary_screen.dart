@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/weather_service.dart';
+import '../auth/google_login_screen.dart';
 import '../dashboard/carbon_dashboard_sheet.dart';
 import '../dashboard/monthly_electricity_tracker_sheet.dart';
 import '../appliances/appliance_registry_sheet.dart';
@@ -70,6 +72,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     final now = DateTime.now();
     final hour = now.hour;
     return hour >= 21 || hour < 6 || (_state.enableSleepReminder && hour >= _state.sleepTime.hour);
+  }
+
+  bool get _isNightTimeNestSleep {
+    final hour = DateTime.now().hour;
+    return hour >= 23 || hour < 6;
   }
 
   @override
@@ -145,7 +152,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
     _sparrowKey.currentState?.setNight(_isNightTime);
 
-    if (_isNightTime) {
+    if (_isNightTimeNestSleep) {
+      _state.setSleeping(true);
+      _sparrowKey.currentState?.sleep();
+      _say("Zzz... 🌙 Cheechee is cozy asleep in the sanctuary nest (11 PM - 6 AM). Shhh, resting for tomorrow's green quests!", duration: const Duration(seconds: 10));
+    } else if (_isNightTime) {
       _say("Good evening! 🌙 Checking all idle appliances before bedtime keeps Gujarat green!");
     } else {
       final tip = _startupTips[_tipIndex % _startupTips.length];
@@ -173,6 +184,12 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
   void _onSparrowPetted(String expression) {
     _resetIdleTimer();
+    if (_isNightTimeNestSleep) {
+      if (_state.soundEnabled) HapticFeedback.lightImpact();
+      _say("Zzz... 💤 Cheechee is resting in the nest until 6:00 AM! Shhh... 🌙", duration: const Duration(seconds: 4));
+      return;
+    }
+
     if (_state.isSleeping) {
       _wakeUpSparrow();
       return;
@@ -180,6 +197,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
     if (_state.soundEnabled) HapticFeedback.selectionClick();
     _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
+    _sparrowKey.currentState?.pet();
 
     final tone = _state.mascotBehaviorTone;
     String petMsg = "Aww! 🥰 Purr-chirp! You petted me! Energy boosted!";
@@ -459,17 +477,48 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               ),
             ),
 
-            // Vitality Bar & Bottom Action Dock
+            // Cozy Nest Indicator (11 PM - 6 AM)
+            if (_isNightTimeNestSleep)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 68,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1B4B).withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF818CF8), width: 1.2),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('🌙', style: TextStyle(fontSize: 12)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Nest Sleep (11 PM - 6 AM)',
+                        style: TextStyle(
+                          color: Color(0xFFC7D2FE),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Vitality Bar & Clean Navigation to Garden
             Positioned(
-              bottom: 16,
+              bottom: 20,
               left: 16,
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildVitalityCard(),
-                  const SizedBox(height: 12),
-                  _buildActionDock(),
                   const SizedBox(height: 12),
                   _buildScrollToGardenButton(),
                 ],
@@ -661,11 +710,13 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           ),
           const SizedBox(width: 6),
 
-          // Settings Button
-          InkWell(
-            onTap: _openSettings,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
+          // Real App Action & Settings Menu
+          PopupMenuButton<String>(
+            tooltip: 'Sanctuary Menu',
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            color: Colors.white,
+            icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F8F5),
@@ -673,11 +724,118 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 border: Border.all(color: const Color(0x331B6B44)),
               ),
               child: const Icon(
-                Icons.settings_outlined,
+                Icons.menu_rounded,
                 color: Color(0xFF1B6B44),
-                size: 17,
+                size: 19,
               ),
             ),
+            onSelected: (val) {
+              if (_state.soundEnabled) HapticFeedback.selectionClick();
+              switch (val) {
+                case 'activity':
+                  widget.onSlideToActivity();
+                  break;
+                case 'wardrobe':
+                  widget.onSlideToWardrobe();
+                  break;
+                case 'ledger':
+                  _openDashboard();
+                  break;
+                case 'meter':
+                  _openElectricityTracker();
+                  break;
+                case 'devices':
+                  ApplianceRegistrySheet.show(context);
+                  break;
+                case 'water':
+                  WaterConservationSheet.show(context);
+                  break;
+                case 'commute':
+                  CommuteTravelSheet.show(context);
+                  break;
+                case 'solar':
+                  EnergySetupSheet.show(context);
+                  break;
+                case 'settings':
+                  _openSettings();
+                  break;
+                case 'logout':
+                  _showLogoutDialog();
+                  break;
+              }
+            },
+            itemBuilder: (ctx) => [
+              _buildMenuItem('activity', '⚡ Activity Feed & Alerts', 'Mission LiFE Log & Notifications'),
+              _buildMenuItem('wardrobe', '👗 Wardrobe Studio', 'Customize 3D Sparrow Outfits'),
+              _buildMenuItem('ledger', '📊 Carbon & Energy Impact', 'Real-world CO2e Ledger'),
+              _buildMenuItem('meter', '📈 Monthly Meter Plot', 'Electricity Consumption Tracker'),
+              const PopupMenuDivider(),
+              _buildMenuItem('devices', '📱 Household Appliances', 'Manage Registered Devices'),
+              _buildMenuItem('water', '💧 Water Conservation', 'Piped, Sump & Tanker Tracking'),
+              _buildMenuItem('commute', '🚴 Daily Green Commute', 'Zero-Emission Mobility Modes'),
+              _buildMenuItem('solar', '⚡ Rooftop Solar Setup', 'PM Surya Ghar Grid Settings'),
+              const PopupMenuDivider(),
+              _buildMenuItem('settings', '⚙️ Settings & Nudges', 'Notifications, Bedtime & Tone'),
+              _buildMenuItem('logout', '🚪 Sign Out', 'Return to Login Screen', isDestructive: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildMenuItem(String value, String title, String subtitle, {bool isDestructive = false}) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: isDestructive ? Colors.redAccent : const Color(0xFF1B6B44),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to sign out from URJA ONE?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              AuthService.instance.logout();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const GoogleLoginScreen()),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Sign Out'),
           ),
         ],
       ),

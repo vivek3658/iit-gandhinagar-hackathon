@@ -148,6 +148,20 @@ class Garden3DStageState extends State<Garden3DStage> {
     );
   }
 
+  /// Sets exact camera zoom level (smaller = closer, larger = wider).
+  void setZoom(double val) {
+    _controller?.runJavaScript(
+      "if (window.Garden && window.Garden.setZoom) window.Garden.setZoom($val);",
+    );
+  }
+
+  /// Selects a specific (x, z) plot on the 3D island matrix.
+  void selectPlot(int x, int z) {
+    _controller?.runJavaScript(
+      "if (window.Garden && window.Garden.selectPlot) window.Garden.selectPlot($x, $z);",
+    );
+  }
+
   /// Zooms camera in towards the island.
   void zoomIn() {
     _controller?.runJavaScript(
