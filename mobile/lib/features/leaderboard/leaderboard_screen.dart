@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../constants/colors.dart';
+import 'package:flutter/services.dart';
+import '../../services/leaderboard_service.dart';
+import 'garden_visitor_dialog.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -8,347 +10,538 @@ class LeaderboardScreen extends StatefulWidget {
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
-class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  String _selectedTab = 'Global';
+class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  Map<String, dynamic>? _leagueData;
+  Map<String, dynamic>? _globalData;
+  bool _isLoading = true;
 
-  final List<LeaderboardItem> _items = const [
-    LeaderboardItem(rank: 1, name: 'GreenWarrior', score: '12.5 kg CO₂e', avatar: '🌱', badgeType: 1),
-    LeaderboardItem(rank: 2, name: 'EcoSage', score: '11.8 kg CO₂e', avatar: '🐱', badgeType: 2),
-    LeaderboardItem(rank: 3, name: 'PlanetFriend', score: '11.2 kg CO₂e', avatar: '🏔️', badgeType: 3),
-    LeaderboardItem(rank: 11, name: 'SenseiGreen', score: '8.9 kg CO₂e', avatar: '🧑‍🌾'),
-    LeaderboardItem(rank: 12, name: 'You', score: '8.7 kg CO₂e', avatar: '🕊️', isCurrentUser: true, rankChange: '↑ 2'),
-    LeaderboardItem(rank: 13, name: 'EcoDreamer', score: '8.4 kg CO₂e', avatar: '🌸'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    final league = await LeaderboardClientService.instance.getLeague();
+    final global = await LeaderboardClientService.instance.getGlobal();
+    if (mounted) {
+      setState(() {
+        _leagueData = league;
+        _globalData = global;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F8F5), // Light clean nature background
+      backgroundColor: const Color(0xFF0F261A), // Clay nature dark backdrop
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF1F8F5),
+        backgroundColor: const Color(0xFF0F261A),
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Leaderboard',
-          style: TextStyle(
-            color: UrjaColors.textMain,
-            fontWeight: FontWeight.w800,
-            fontSize: 20,
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('🏆 ', style: TextStyle(fontSize: 20)),
+            Text(
+              'Leaderboard & Leagues',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF143522),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: const Color(0xFF22C55E),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(color: Color(0xFF14532D), offset: Offset(0, 2)),
+                ],
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+              tabs: const [
+                Tab(text: '🛡️ Weekly League'),
+                Tab(text: '🏛️ Gujarat Municipal'),
+              ],
+            ),
           ),
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: Text('🏆', style: TextStyle(fontSize: 24)),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ADE80)))
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildLeagueTab(),
+                _buildMunicipalTab(),
+              ],
+            ),
+    );
+  }
+
+  // ================= 1. DUOLINGO-STYLE WEEKLY LEAGUE TAB =================
+  Widget _buildLeagueTab() {
+    final leagueName = _leagueData?['league'] as String? ?? 'GOLD';
+    final seasonTimer = _leagueData?['seasonEndsAt'] as String? ?? 'Sunday 23:59 IST';
+    final rawMembers = (_leagueData?['members'] as List<dynamic>?) ?? [];
+    final members = rawMembers.map((m) => LeagueMemberData.fromJson(m as Map<String, dynamic>)).toList();
+
+    return RefreshIndicator(
+      color: const Color(0xFF4ADE80),
+      backgroundColor: const Color(0xFF143522),
+      onRefresh: _loadData,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          // Duolingo League Banner Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFB45309), Color(0xFF78350F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text('🥇', style: TextStyle(fontSize: 30)),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$leagueName LEAGUE',
+                        style: const TextStyle(
+                          color: Color(0xFFFDE68A),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Top 3 advance to Sapphire League! ⚡',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFFFCD34D)),
+                          const SizedBox(width: 4),
+                          Text(
+                            seasonTimer,
+                            style: const TextStyle(color: Color(0xFFFCD34D), fontSize: 11, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Promotion Zone Marker (Duolingo style)
+          _buildZoneHeader('🟢 PROMOTION ZONE (TOP 3 ADVANCE)', const Color(0xFF22C55E)),
+          const SizedBox(height: 6),
+
+          // Member List
+          for (int i = 0; i < members.length; i++) ...[
+            if (i == 3) ...[
+              const SizedBox(height: 6),
+              _buildZoneHeader('⚪ SAFE ZONE', Colors.white54),
+              const SizedBox(height: 6),
+            ],
+            if (i == 6) ...[
+              const SizedBox(height: 6),
+              _buildZoneHeader('🔻 DEMOTION ZONE (BOTTOM 3 DROP)', const Color(0xFFEF4444)),
+              const SizedBox(height: 6),
+            ],
+            _buildMemberRow(members[i]),
+            const SizedBox(height: 6),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildZoneHeader(String title, Color col) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: col),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: col,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Divider(color: col.withValues(alpha: 0.3), height: 1)),
+      ],
+    );
+  }
+
+  Widget _buildMemberRow(LeagueMemberData member) {
+    final isTop3 = member.rank <= 3;
+    final isYou = member.isCurrentUser;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isYou
+            ? const Color(0xFF1E4C33)
+            : (isTop3 ? const Color(0xFF153B25) : const Color(0xFF10281C)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isYou
+              ? const Color(0xFF4ADE80)
+              : (isTop3 ? const Color(0x6622C55E) : Colors.white12),
+          width: isYou ? 1.8 : 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Rank Badge
+          SizedBox(
+            width: 32,
+            child: Text(
+              '#${member.rank}',
+              style: TextStyle(
+                color: isTop3 ? const Color(0xFFFCD34D) : Colors.white60,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+
+          // Avatar / Mascot Preview
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A3D2A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Center(
+              child: Text(
+                member.gardenSnapshot['previewEmoji'] as String? ?? '🕊️',
+                style: const TextStyle(fontSize: 20),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Name & District & Streak
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        member.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isYou ? const Color(0xFF86EFAC) : Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (isYou) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'YOU',
+                          style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      member.district,
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '• 🔥 ${member.streakDays}d streak',
+                      style: const TextStyle(color: Color(0xFFF97316), fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Weekly EXP
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${member.weeklyExp} XP',
+                style: const TextStyle(
+                  color: Color(0xFFFDE68A),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 2),
+
+              // Visit Island Button
+              InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  GardenVisitorDialog.show(
+                    context,
+                    citizenId: member.citizenId,
+                    citizenName: member.name,
+                    district: member.district,
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0x334ADE80),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0x664ADE80)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Visit', style: TextStyle(color: Color(0xFF86EFAC), fontSize: 10, fontWeight: FontWeight.w800)),
+                      SizedBox(width: 2),
+                      Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF86EFAC), size: 9),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Hero Card with Crowned 3D Sparrow!
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Crowned 3D Sparrow graphic from mockup!
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/sparrow_crown.png'),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'You\'re in top',
-                          style: TextStyle(
-                            color: UrjaColors.textSub,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Text(
-                              '#12',
-                              style: TextStyle(
-                                color: UrjaColors.textMain,
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              '↑ 2',
-                              style: TextStyle(
-                                color: Color(0xFF1B6B44),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Keep going, champion! 💚',
-                          style: TextStyle(
-                            color: Color(0xFF1B6B44),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Segmented Pills: [Global] [Friends] [India]
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Row(
-                children: ['Global', 'Friends', '🇮🇳 India'].map((tab) {
-                  final isSelected = _selectedTab == tab;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedTab = tab),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF0F3E2E) : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              tab,
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : UrjaColors.textSub,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // Leaderboard List
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                children: _items.map((item) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: item.isCurrentUser ? const Color(0xFFE8F5E9) : Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: item.isCurrentUser ? const Color(0xFFA5D6A7) : const Color(0xFFE2EBE5),
-                        width: item.isCurrentUser ? 1.5 : 1,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        // Rank Badge (1, 2, 3 or number)
-                        _buildRankBadge(item),
-                        const SizedBox(width: 12),
-
-                        // Avatar
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF1F8F5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(child: Text(item.avatar, style: const TextStyle(fontSize: 18))),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Name & Score
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.name,
-                                style: TextStyle(
-                                  color: UrjaColors.textMain,
-                                  fontSize: 15,
-                                  fontWeight: item.isCurrentUser ? FontWeight.w800 : FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                item.score,
-                                style: const TextStyle(
-                                  color: UrjaColors.textSub,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Right indicator
-                        if (item.isCurrentUser && item.rankChange != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFC8E6C9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              item.rankChange!,
-                              style: const TextStyle(
-                                color: Color(0xFF1B6B44),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                              ),
-                            ),
-                          )
-                        else
-                          const Text('🍃', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Bottom Callout
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFA5D6A7)),
-              ),
-              child: const Row(
-                children: [
-                  Text('🌱', style: TextStyle(fontSize: 20)),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Top 1% of all URJA ONE users! You\'re making a real difference 🌱',
-                      style: TextStyle(
-                        color: Color(0xFF1B6B44),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildRankBadge(LeaderboardItem item) {
-    if (item.badgeType == 1) {
-      return Container(
-        width: 30,
-        height: 30,
-        decoration: const BoxDecoration(color: Color(0xFFF59E0B), shape: BoxShape.circle),
-        child: const Center(child: Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14))),
-      );
-    }
-    if (item.badgeType == 2) {
-      return Container(
-        width: 30,
-        height: 30,
-        decoration: const BoxDecoration(color: Color(0xFF94A3B8), shape: BoxShape.circle),
-        child: const Center(child: Text('2', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14))),
-      );
-    }
-    if (item.badgeType == 3) {
-      return Container(
-        width: 30,
-        height: 30,
-        decoration: const BoxDecoration(color: Color(0xFFD97706), shape: BoxShape.circle),
-        child: const Center(child: Text('3', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14))),
-      );
-    }
-    return SizedBox(
-      width: 30,
-      child: Center(
-        child: Text(
-          '${item.rank}',
-          style: const TextStyle(
-            color: UrjaColors.textSub,
+  // ================= 2. GUJARAT MUNICIPAL TAB =================
+  Widget _buildMunicipalTab() {
+    final rawDistricts = (_globalData?['municipalRankings'] as List<dynamic>?) ?? [];
+    final districts = rawDistricts.map((d) => MunicipalRankData.fromJson(d as Map<String, dynamic>)).toList();
+    final topCitizens = (_globalData?['topCitizens'] as List<dynamic>?) ?? [];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        // District Rankings Title
+        const Text(
+          'GUJARAT MUNICIPAL DISTRICTS',
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 11,
             fontWeight: FontWeight.w800,
-            fontSize: 14,
+            letterSpacing: 1.1,
           ),
         ),
+        const SizedBox(height: 10),
+
+        for (final dist in districts) ...[
+          _buildDistrictCard(dist),
+          const SizedBox(height: 8),
+        ],
+
+        const SizedBox(height: 20),
+        const Text(
+          'TOP 100 ALL-TIME CITIZENS',
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        for (final cit in topCitizens) ...[
+          _buildTopCitizenCard(cit as Map<String, dynamic>),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDistrictCard(MunicipalRankData dist) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF143522),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF22C55E), Color(0xFF15803D)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(
+                '#${dist.rank}',
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dist.district,
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${dist.activeCitizens} citizens • ${dist.primaryEnergyMode}',
+                  style: const TextStyle(color: Colors.white60, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${dist.totalCo2SavedTonnes} T',
+                style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+              const Text(
+                'CO₂e avoided',
+                style: TextStyle(color: Colors.white54, fontSize: 10),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
-}
 
-class LeaderboardItem {
-  final int rank;
-  final String name;
-  final String score;
-  final String avatar;
-  final int? badgeType;
-  final bool isCurrentUser;
-  final String? rankChange;
+  Widget _buildTopCitizenCard(Map<String, dynamic> cit) {
+    final rank = cit['rank'] as int? ?? 1;
+    final name = cit['name'] as String? ?? 'Citizen';
+    final district = cit['district'] as String? ?? 'Gujarat';
+    final co2 = (cit['totalCo2SavedKg'] as num?)?.toDouble() ?? 100.0;
+    final badge = cit['badgeTitle'] as String? ?? 'Eco Guardian';
 
-  const LeaderboardItem({
-    required this.rank,
-    required this.name,
-    required this.score,
-    required this.avatar,
-    this.badgeType,
-    this.isCurrentUser = false,
-    this.rankChange,
-  });
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10281C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          Text(
+            rank == 1 ? '🥇' : (rank == 2 ? '🥈' : '🥉'),
+            style: const TextStyle(fontSize: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                ),
+                Text(
+                  '$district • $badge',
+                  style: const TextStyle(color: Color(0xFFFCD34D), fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '$co2 kg CO₂e',
+            style: const TextStyle(color: Color(0xFF4ADE80), fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
 }

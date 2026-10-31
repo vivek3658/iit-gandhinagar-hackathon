@@ -16,6 +16,11 @@ import { gardenRoutes } from './modules/garden/garden.routes';
 import { activityRoutes } from './modules/activity/activity.routes';
 import { providersRoutes } from './modules/providers/providers.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
+import { leaderboardRoutes } from './modules/leaderboard/leaderboard.routes';
+import { calculatorRoutes } from './modules/calculator/calculator.routes';
+import { analyticsRoutes } from './modules/analytics/analytics.routes';
+import { questsRoutes } from './modules/quests/quests.routes';
+import { devicesRoutes } from './modules/devices/devices.routes';
 
 export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   const app = fastify({
@@ -88,6 +93,11 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.register(activityRoutes, { prefix: '/api/v1/activity' });
   app.register(providersRoutes, { prefix: '/api/v1/providers' });
   app.register(adminRoutes, { prefix: '/api/v1/admin' });
+  app.register(leaderboardRoutes, { prefix: '/api/v1/leaderboard' });
+  app.register(calculatorRoutes, { prefix: '/api/v1/calculator' });
+  app.register(analyticsRoutes, { prefix: '/api/v1/analytics' });
+  app.register(questsRoutes, { prefix: '/api/v1/quests' });
+  app.register(devicesRoutes, { prefix: '/api/v1/devices' });
 
   return app;
 }

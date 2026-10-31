@@ -12,7 +12,11 @@ import '../appliances/appliance_registry_sheet.dart';
 import '../commute/commute_travel_sheet.dart';
 import '../onboarding/energy_setup_sheet.dart';
 import '../water/water_conservation_sheet.dart';
-import '../settings/user_settings_sheet.dart';
+import '../settings/user_settings_screen.dart';
+import '../leaderboard/leaderboard_screen.dart';
+import '../calculator/carbon_calculator_screen.dart';
+import '../dashboard/daily_quests_sheet.dart';
+import '../appliances/device_time_log_sheet.dart';
 import 'sparrow_3d_stage.dart';
 
 /// Screen 1: 3D Mascot Sanctuary & Interactive Companion (WebGL Three.js Game UI)
@@ -210,7 +214,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _say(petMsg);
   }
 
-  void _triggerPet() {
+  void triggerPet() {
     _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
@@ -219,7 +223,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _sparrowKey.currentState?.pet();
   }
 
-  void _triggerFeed() {
+  void triggerFeed() {
     _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
@@ -231,7 +235,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _say("Nom nom! 🌾 Delicious organic seeds! Vitality restored to ${(_state.vitality * 100).toInt()}%!");
   }
 
-  void _triggerNextTip() {
+  void triggerNextTip() {
     _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
@@ -274,25 +278,44 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   void _openSettings() {
     _resetIdleTimer();
     if (_state.soundEnabled) HapticFeedback.selectionClick();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => UserSettingsSheet(
-        onTriggerNudge: (title, message, coins, co2) {
-          _displayAmbientNudgeBanner(
-            title: title,
-            message: message,
-            coinsAwarded: coins,
-            co2Saved: co2,
-          );
-        },
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const UserSettingsScreen()),
     );
   }
 
+  void _openLeaderboard() {
+    _resetIdleTimer();
+    if (_state.soundEnabled) HapticFeedback.selectionClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+    );
+  }
+
+  void _openCarbonCalculator() {
+    _resetIdleTimer();
+    if (_state.soundEnabled) HapticFeedback.selectionClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CarbonCalculatorScreen()),
+    );
+  }
+
+  void _openDailyQuests() {
+    _resetIdleTimer();
+    if (_state.soundEnabled) HapticFeedback.selectionClick();
+    DailyQuestsSheet.show(context);
+  }
+
+  void _openDeviceTimeLog() {
+    _resetIdleTimer();
+    if (_state.soundEnabled) HapticFeedback.selectionClick();
+    DeviceTimeLogSheet.show(context);
+  }
+
   /// Displays both an in-app banner AND a real Android System Notification in the notification center
-  void _displayAmbientNudgeBanner({
+  void displayAmbientNudgeBanner({
     required String title,
     required String message,
     required int coinsAwarded,
@@ -708,7 +731,37 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               ],
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
+
+          // Leaderboard Trophy Quick Button
+          GestureDetector(
+            onTap: _openLeaderboard,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: const Text('🏆', style: TextStyle(fontSize: 14)),
+            ),
+          ),
+          const SizedBox(width: 4),
+
+          // Daily Quests Quick Button
+          GestureDetector(
+            onTap: _openDailyQuests,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: const Text('🎯', style: TextStyle(fontSize: 14)),
+            ),
+          ),
+          const SizedBox(width: 4),
 
           // Real App Action & Settings Menu
           PopupMenuButton<String>(
@@ -732,6 +785,18 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             onSelected: (val) {
               if (_state.soundEnabled) HapticFeedback.selectionClick();
               switch (val) {
+                case 'leaderboard':
+                  _openLeaderboard();
+                  break;
+                case 'calculator':
+                  _openCarbonCalculator();
+                  break;
+                case 'quests':
+                  _openDailyQuests();
+                  break;
+                case 'timelog':
+                  _openDeviceTimeLog();
+                  break;
                 case 'activity':
                   widget.onSlideToActivity();
                   break;
@@ -765,9 +830,14 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               }
             },
             itemBuilder: (ctx) => [
+              _buildMenuItem('leaderboard', '🏆 Multiplayer Leaderboard', 'Duolingo Leagues & Visit Gardens'),
+              _buildMenuItem('calculator', '🌱 Carbon Calculator', 'Footprint vs Gujarat Benchmarks'),
+              _buildMenuItem('quests', '🎯 Daily Quests & Streaks', 'Mission LiFE Daily Tasks & Rewards'),
+              _buildMenuItem('timelog', '⏱️ Appliance Time Logger', 'High-Hour Warnings & Cutoff Timers'),
+              const PopupMenuDivider(),
               _buildMenuItem('activity', '⚡ Activity Feed & Alerts', 'Mission LiFE Log & Notifications'),
               _buildMenuItem('wardrobe', '👗 Wardrobe Studio', 'Customize 3D Sparrow Outfits'),
-              _buildMenuItem('ledger', '📊 Carbon & Energy Impact', 'Real-world CO2e Ledger'),
+              _buildMenuItem('ledger', '📊 Senior Engineer Dashboard', '24h Load Curve & Multi-Domain Ledger'),
               _buildMenuItem('meter', '📈 Monthly Meter Plot', 'Electricity Consumption Tracker'),
               const PopupMenuDivider(),
               _buildMenuItem('devices', '📱 Household Appliances', 'Manage Registered Devices'),
@@ -775,7 +845,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               _buildMenuItem('commute', '🚴 Daily Green Commute', 'Zero-Emission Mobility Modes'),
               _buildMenuItem('solar', '⚡ Rooftop Solar Setup', 'PM Surya Ghar Grid Settings'),
               const PopupMenuDivider(),
-              _buildMenuItem('settings', '⚙️ Settings & Nudges', 'Notifications, Bedtime & Tone'),
+              _buildMenuItem('settings', '⚙️ Citizen Settings & Hub', 'Full-Page Identity, Mascot, Solar, Sump'),
               _buildMenuItem('logout', '🚪 Sign Out', 'Return to Login Screen', isDestructive: true),
             ],
           ),
@@ -1131,95 +1201,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       ),
     );
   }
-
-  Widget _buildActionDock() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B2416).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionButton(
-            icon: '💖',
-            label: 'Pet',
-            color: const Color(0xFFEC4899),
-            onTap: _triggerPet,
-          ),
-          _buildActionButton(
-            icon: '🌾',
-            label: 'Feed',
-            color: const Color(0xFFEAB308),
-            onTap: _triggerFeed,
-          ),
-          _buildActionButton(
-            icon: '👗',
-            label: 'Wardrobe',
-            color: const Color(0xFF38BDF8),
-            onTap: widget.onSlideToWardrobe,
-          ),
-          _buildActionButton(
-            icon: '💡',
-            label: 'Eco Tip',
-            color: const Color(0xFF4ADE80),
-            onTap: _triggerNextTip,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required String icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.35)),
-              ),
-              child: Center(
-                child: Text(icon, style: const TextStyle(fontSize: 22)),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  
 
   Widget _buildScrollToGardenButton() {
     return GestureDetector(
