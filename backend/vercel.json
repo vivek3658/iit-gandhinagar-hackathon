@@ -1,12 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm ci",
-  "framework": null,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/dist/server.js"
+      "source": "/(.*)",
+      "destination": "/api"
     }
   ]
 }

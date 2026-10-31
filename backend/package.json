@@ -32,19 +32,19 @@
     "@fastify/swagger-ui": "^6.1.2",
     "@fastify/type-provider-typebox": "^5.1.0",
     "@sinclair/typebox": "^0.34.14",
+    "@types/node": "^22.13.4",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
-    "google-auth-library": "^11.3.2"
+    "google-auth-library": "^11.3.2",
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
-    "@types/node": "^22.13.4",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "autocannon": "^8.0.0",
     "eslint": "^9.20.1",
     "prettier": "^3.5.1",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3",
     "vitest": "^3.0.6"
   }
 }
