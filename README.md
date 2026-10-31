@@ -75,8 +75,8 @@ flowchart TB
         MONGO[("MongoDB 7 rs0<br/>• Activity Feeds (30-day TTL)")]
     end
 
-    CLIENTS -->|1M Reads & 100k Writes/sec| NGX
-    NGX -->|Dynamic Passes (15-18%)| CLUSTER
+    CLIENTS -->|"1M Reads & 100k Writes/sec"| NGX
+    NGX -->|"Dynamic Passes (15-18%)"| CLUSTER
     CLUSTER <--> REDIS
     CLUSTER --> RABBIT
     CLUSTER --> MONGO
