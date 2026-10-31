@@ -74,7 +74,22 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
     });
   });
 
-  // 4. Centralized 404 Handler
+  // 4. Root & Documentation Aliases
+  app.get('/', async (_, reply) => {
+    return reply.send({
+      name: 'UrjaVatika API | GEDA Mission LiFE',
+      status: 'healthy',
+      version: '1.0.0',
+      documentation: '/docs',
+      health: '/health',
+    });
+  });
+
+  app.get('/documentation', async (_, reply) => reply.redirect('/docs'));
+  app.get('/swagger', async (_, reply) => reply.redirect('/docs'));
+  app.get('/api/docs', async (_, reply) => reply.redirect('/docs'));
+
+  // 5. Centralized 404 Handler
   app.setNotFoundHandler((request, reply) => {
     reply.status(404).send({
       statusCode: 404,
@@ -83,7 +98,7 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
     });
   });
 
-  // 5. Feature & System Routes
+  // 6. Feature & System Routes
   app.register(healthRoutes);
   app.register(healthRoutes, { prefix: '/api/v1' });
   app.register(authRoutes, { prefix: '/api/v1/auth' });
@@ -101,3 +116,5 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
 
   return app;
 }
+
+export default buildApp;
