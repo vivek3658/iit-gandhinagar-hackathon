@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../constants/colors.dart';
 import '../../services/auth_service.dart';
 import '../home/main_two_screen_shell.dart';
@@ -15,6 +16,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
   bool _isLoading = false;
 
   Future<void> _handleGoogleSignIn() async {
+    HapticFeedback.mediumImpact();
     setState(() => _isLoading = true);
 
     // Triggers real Google Sign-In with Google account picker sheet
@@ -39,6 +41,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
   }
 
   void _skipAsGuest() {
+    HapticFeedback.lightImpact();
     AuthService.instance.signInAsGuest();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const MainTwoScreenShell()),
@@ -48,205 +51,327 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFDFF0FE), // Nature sky blue
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
+      backgroundColor: const Color(0xFFDFF0FE), // Atmospheric Sky to Forest Gradient
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFDFF0FE),
+              Color(0xFFE8F5E9),
+              Color(0xFFF1F8F5),
+            ],
+            stops: [0.0, 0.45, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
 
-            // Top Header: URJA ONE
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'URJA ONE',
-                  style: TextStyle(
-                    color: Color(0xFF1B6B44),
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                SizedBox(width: 4),
-                Text('🌿', style: TextStyle(fontSize: 22)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Small steps. A greener tomorrow.',
-              style: TextStyle(
-                color: UrjaColors.textSub,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 3D Smiling Sparrow Hero Image (from exact design mockup!)
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+              // Top 3D Claymorphic Brand Header: URJA ONE
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/sparrow_login_hero.png'),
-                    fit: BoxFit.contain,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0x331B6B44), width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x141B6B44), blurRadius: 10, offset: Offset(0, 3)),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1B6B44),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text('🌿', style: TextStyle(fontSize: 14)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'URJA ONE',
+                      style: TextStyle(
+                        color: Color(0xFF1B6B44),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'GUJARAT',
+                        style: TextStyle(
+                          color: Color(0xFF92400E),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 4),
+              const Text(
+                'Small steps. A greener tomorrow.',
+                style: TextStyle(
+                  color: UrjaColors.textSub,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // 3D Smiling Sparrow Hero Image (with soft claymorphic floating effect)
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/sparrow_login_hero.png'),
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // Bottom Login Sheet
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(28, 28, 28, 36),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      color: UrjaColors.textMain,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+              // Bottom 3D Claymorphic Login Sheet
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  border: Border.all(color: const Color(0xFFE2EBE5), width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1F1B6B44),
+                      blurRadius: 24,
+                      offset: Offset(0, -6),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Let\'s continue your green journey',
-                        style: TextStyle(
-                          color: UrjaColors.textSub,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Text('🌱', style: TextStyle(fontSize: 14)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 1-Click Google Sign In Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleGoogleSignIn,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: UrjaColors.textMain,
-                        elevation: 2,
-                        shadowColor: Colors.black12,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
-                          side: const BorderSide(color: Color(0xFFE2EBE5), width: 1.5),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Color(0xFF1B6B44),
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // Google G logo
-                                Container(
-                                  width: 26,
-                                  height: 26,
-                                  decoration: const BoxDecoration(shape: BoxShape.circle),
-                                  child: const Center(
-                                    child: Text(
-                                      'G',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF4285F4),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Continue with Google',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: UrjaColors.textMain,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Skip / Dev Guest Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton(
-                      onPressed: _skipAsGuest,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1B6B44),
-                        side: const BorderSide(color: Color(0xFFA5D6A7), width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Welcome Back!',
+                      style: TextStyle(
+                        color: UrjaColors.textMain,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bolt_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Skip Login · Guest / Dev Mode',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Let\'s continue your green journey',
+                          style: TextStyle(
+                            color: UrjaColors.textSub,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
+                        ),
+                        SizedBox(width: 4),
+                        Text('🌱', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Feature highlights pill chips
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildFeaturePill('🕊️ 3D Sanctuary'),
+                        const SizedBox(width: 6),
+                        _buildFeaturePill('⏱️ Real Logger'),
+                        const SizedBox(width: 6),
+                        _buildFeaturePill('🏆 Duolingo Leagues'),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // 1-Click 3D Google Sign In Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: GestureDetector(
+                        onTap: _isLoading ? null : _handleGoogleSignIn,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0xFF94A3B8),
+                                offset: Offset(0, 4),
+                                blurRadius: 0,
+                              ),
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Color(0xFF1B6B44),
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Google G logo badge
+                                      Container(
+                                        width: 26,
+                                        height: 26,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.08),
+                                              blurRadius: 4,
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            'G',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF4285F4),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        'Continue with Google',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: UrjaColors.textMain,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
-                  // Legal
-                  const Text(
-                    'By continuing, you agree to our\nTerms of Service and Privacy Policy',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 11,
-                      height: 1.4,
+                    // 3D Skip / Dev Guest Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: GestureDetector(
+                        onTap: _skipAsGuest,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1B6B44),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: const Color(0xFF4ADE80), width: 1.2),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0xFF0F3D24),
+                                offset: Offset(0, 3),
+                                blurRadius: 0,
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.bolt_rounded, size: 18, color: Color(0xFFFBBF24)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Skip Login · Guest / Dev Mode',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 14),
+
+                    // Legal Terms
+                    const Text(
+                      'By continuing, you agree to our\nTerms of Service and Privacy Policy',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 10,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturePill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F8F5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2EBE5)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF1B6B44),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

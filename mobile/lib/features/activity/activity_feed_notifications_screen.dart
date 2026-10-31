@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/game_state_service.dart';
+import '../../services/notification_service.dart';
 
 /// Left Scroll Screen: Gamified Activity Feed & 3D Tactile Notification Center.
 ///
 /// Features:
-/// - Replaced dark kelp green with premium Midnight Slate & Electric Gold styling.
+/// - Pure 3D Skeuomorphic Eco-Pop UI matching Sanctuary forest-green theme (#06140D, #0A1D13, #10361F).
+/// - Real Android System Notification Test Hub: Triggers genuine system shade notifications on device.
 /// - 3D tactile notification cards with beveled edges, deep shadows, and category color-coding.
-/// - Evidence Tier Badges from IMPLEMENTATION_SPEC.md: Tier A (Verified), Tier B (Command Sent), Tier C (Estimated).
+/// - Evidence Tier Badges: Tier A (Verified Hardware), Tier B (Command Sent), Tier C (Estimated).
 /// - Interactive 1-tap 3D action buttons inside cards that award Urja Mudra coins and log habits.
-/// - Community LiFE feed with instant cheer/applause interactions.
+/// - Community LiFE feed with instant cheer/applause interactions (+2 Urja Mudra).
 class ActivityFeedNotificationsScreen extends StatefulWidget {
   final VoidCallback onBackToSanctuary;
 
@@ -30,6 +32,7 @@ class _ActivityFeedNotificationsScreenState
 
   final List<String> _filters = [
     'All Alerts',
+    'System Shade',
     'Nudges',
     'Community LiFE',
     'Achievements'
@@ -41,7 +44,8 @@ class _ActivityFeedNotificationsScreenState
     {
       'id': 'comm_1',
       'title': 'Surat Solar Rooftop Initiative',
-      'desc': 'Surat citizen households installed 1.2 MW rooftop solar today, avoiding 42 tonnes CO₂e.',
+      'desc':
+          'Surat citizen households installed 1.2 MW rooftop solar today, avoiding 42 tonnes CO₂e.',
       'tag': 'Community LiFE',
       'city': 'Surat',
       'time': '12m ago',
@@ -51,7 +55,8 @@ class _ActivityFeedNotificationsScreenState
     {
       'id': 'comm_2',
       'title': 'Ahmedabad Green BRTS Commute',
-      'desc': '14,200 electric bus rides recorded today, cutting peak diesel emissions.',
+      'desc':
+          '14,200 electric bus rides recorded today, cutting peak diesel emissions.',
       'tag': 'Community LiFE',
       'city': 'Ahmedabad',
       'time': '1h ago',
@@ -61,7 +66,8 @@ class _ActivityFeedNotificationsScreenState
     {
       'id': 'comm_3',
       'title': 'Vadodara Canal Solar Microgrid',
-      'desc': 'Over-canal solar panels generated 45,000 kWh of clean water-conserving power.',
+      'desc':
+          'Over-canal solar panels generated 45,000 kWh of clean water-conserving power.',
       'tag': 'Community LiFE',
       'city': 'Vadodara',
       'time': '3h ago',
@@ -71,7 +77,8 @@ class _ActivityFeedNotificationsScreenState
     {
       'id': 'comm_4',
       'title': 'Gandhinagar Zero Phantom Drain',
-      'desc': 'Government offices and citizen homes completed the 9:00 PM wall socket sweep.',
+      'desc':
+          'Government offices and citizen homes completed the 9:00 PM wall socket sweep.',
       'tag': 'Nudges',
       'city': 'Gandhinagar',
       'time': '5h ago',
@@ -79,6 +86,13 @@ class _ActivityFeedNotificationsScreenState
       'cheers': 77,
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure native Android notification permission is active
+    NotificationService.instance.requestPermission();
+  }
 
   void _onCheerCommunity(String eventId) {
     if (_cheeredEvents.contains(eventId)) return;
@@ -96,6 +110,50 @@ class _ActivityFeedNotificationsScreenState
         duration: Duration(milliseconds: 1400),
       ),
     );
+  }
+
+  void _triggerNativeNotification({
+    required String type,
+    required String title,
+    required String body,
+    required int id,
+  }) async {
+    HapticFeedback.heavyImpact();
+    if (type == 'charger') {
+      await NotificationService.instance.triggerChargerUnplugNudge();
+    } else if (type == 'solar') {
+      await NotificationService.instance.triggerLearningNotification('solar');
+    } else if (type == 'phantom') {
+      await NotificationService.instance.triggerLearningNotification('phantom');
+    } else {
+      await NotificationService.instance.showSystemNotification(
+        title: title,
+        message: body,
+        id: id,
+      );
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF1B6B44),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Row(
+            children: [
+              const Text('🔔', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Delivered to Android System Shade: "$title"',
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   void _executeNotificationAction(Map<String, dynamic> item) {
@@ -137,8 +195,13 @@ class _ActivityFeedNotificationsScreenState
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(feedback),
-        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF15803D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Text(
+          feedback,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -153,20 +216,20 @@ class _ActivityFeedNotificationsScreenState
         final unreadCount = notifications.where((n) => n['read'] == false).length;
 
         return Scaffold(
-          backgroundColor: const Color(0xFF0B132B),
+          backgroundColor: const Color(0xFF06140D), // Deep Nature Forest
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // Atmospheric Deep Slate & Cosmic Gradient (Zero ugly kelp green)
+              // Atmospheric 3D Forest Nature Green Gradient (Harmonized with Sanctuary)
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF0B132B),
-                      Color(0xFF1C2541),
-                      Color(0xFF0F172A),
+                      Color(0xFF06140D),
+                      Color(0xFF0A1D13),
+                      Color(0xFF102B1D),
                     ],
                     stops: [0.0, 0.45, 1.0],
                   ),
@@ -176,17 +239,30 @@ class _ActivityFeedNotificationsScreenState
               SafeArea(
                 child: Column(
                   children: [
-                    // Top Coin Master / Clash of Clans HUD Header
+                    // Top 3D Claymorphic Header
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B).withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(20),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF143B23), Color(0xFF10361F)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(22),
                           border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 4)),
+                            BoxShadow(
+                              color: Color(0xFF062312),
+                              offset: Offset(0, 4),
+                              blurRadius: 0,
+                            ),
+                            BoxShadow(
+                              color: Colors.black45,
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
                           ],
                         ),
                         child: Row(
@@ -195,6 +271,8 @@ class _ActivityFeedNotificationsScreenState
                             const Expanded(
                               child: Row(
                                 children: [
+                                  Text('⚡', style: TextStyle(fontSize: 18)),
+                                  SizedBox(width: 8),
                                   Flexible(
                                     child: Text(
                                       'Eco-Feed & Alerts',
@@ -202,13 +280,11 @@ class _ActivityFeedNotificationsScreenState
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w900,
-                                        fontSize: 14,
+                                        fontSize: 16,
                                         letterSpacing: 0.5,
                                       ),
                                     ),
                                   ),
-                                  SizedBox(width: 4),
-                                  Text('⚡', style: TextStyle(fontSize: 14)),
                                 ],
                               ),
                             ),
@@ -216,7 +292,7 @@ class _ActivityFeedNotificationsScreenState
                             // Unread Notifications Pill
                             if (unreadCount > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                 margin: const EdgeInsets.only(right: 8),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEF4444),
@@ -243,12 +319,13 @@ class _ActivityFeedNotificationsScreenState
                               },
                               borderRadius: BorderRadius.circular(14),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
+                                  color: const Color(0xFF22C55E),
                                   borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFF86EFAC), width: 1),
                                   boxShadow: const [
-                                    BoxShadow(color: Color(0xFF047857), offset: Offset(0, 3)),
+                                    BoxShadow(color: Color(0xFF15803D), offset: Offset(0, 3)),
                                   ],
                                 ),
                                 child: const Row(
@@ -256,13 +333,13 @@ class _ActivityFeedNotificationsScreenState
                                     Text(
                                       'Sanctuary',
                                       style: TextStyle(
-                                        color: Colors.black,
+                                        color: Color(0xFF05200E),
                                         fontWeight: FontWeight.w900,
                                         fontSize: 12,
                                       ),
                                     ),
                                     SizedBox(width: 4),
-                                    Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 14),
+                                    Icon(Icons.arrow_forward_rounded, color: Color(0xFF05200E), size: 14),
                                   ],
                                 ),
                               ),
@@ -274,9 +351,9 @@ class _ActivityFeedNotificationsScreenState
 
                     const SizedBox(height: 4),
 
-                    // Filter Chips Bar (Tactile 3D Buttons)
+                    // Filter Chips Bar (Tactile 3D Nature Buttons)
                     SizedBox(
-                      height: 42,
+                      height: 44,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -291,23 +368,23 @@ class _ActivityFeedNotificationsScreenState
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(14),
+                                color: isSelected ? const Color(0xFF22C55E) : const Color(0xFF10361F),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: isSelected ? const Color(0xFFFDE68A) : Colors.white12,
+                                  color: isSelected ? const Color(0xFF86EFAC) : const Color(0xFF1F5435),
                                   width: 1.2,
                                 ),
                                 boxShadow: isSelected
-                                    ? const [BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 3))]
-                                    : const [BoxShadow(color: Colors.black26, offset: Offset(0, 2))],
+                                    ? const [BoxShadow(color: Color(0xFF15803D), offset: Offset(0, 3))]
+                                    : const [BoxShadow(color: Color(0xFF062312), offset: Offset(0, 2))],
                               ),
                               child: Center(
                                 child: Text(
                                   _filters[i],
                                   style: TextStyle(
-                                    color: isSelected ? Colors.black : Colors.white70,
+                                    color: isSelected ? const Color(0xFF05200E) : const Color(0xFFA7F3D0),
                                     fontWeight: FontWeight.w900,
                                     fontSize: 12,
                                   ),
@@ -321,20 +398,28 @@ class _ActivityFeedNotificationsScreenState
 
                     const SizedBox(height: 10),
 
-                    // Combined Feed List (3D Cards)
+                    // Combined Feed List (3D Claymorphic Forest Cards)
                     Expanded(
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
                         children: [
-                          // Notifications Center Section
+                          // SECTION: Real Android System Push Notifications Hub
                           if (_selectedFilterIndex == 0 || _selectedFilterIndex == 1) ...[
+                            _buildSystemShadeTestingSection(),
+                            const SizedBox(height: 18),
+                          ],
+
+                          // Notifications Center Section
+                          if (_selectedFilterIndex == 0 || _selectedFilterIndex == 2) ...[
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Row(
                                   children: [
+                                    Text('🔔', style: TextStyle(fontSize: 14)),
+                                    SizedBox(width: 6),
                                     Text(
-                                      'NOTIFICATION CENTER',
+                                      'ACTIVE NUDGES & ALERTS',
                                       style: TextStyle(
                                         color: Color(0xFFFBBF24),
                                         fontWeight: FontWeight.w900,
@@ -342,8 +427,6 @@ class _ActivityFeedNotificationsScreenState
                                         letterSpacing: 1.2,
                                       ),
                                     ),
-                                    SizedBox(width: 4),
-                                    Text('🔔', style: TextStyle(fontSize: 13)),
                                   ],
                                 ),
                                 if (unreadCount > 0)
@@ -353,15 +436,16 @@ class _ActivityFeedNotificationsScreenState
                                       _state.markAllNotificationsRead();
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.white10,
+                                        color: const Color(0xFF143B23),
                                         borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFF1F5435)),
                                       ),
                                       child: const Text(
                                         'Mark all read',
                                         style: TextStyle(
-                                          color: Colors.white70,
+                                          color: Color(0xFF86EFAC),
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -374,16 +458,19 @@ class _ActivityFeedNotificationsScreenState
 
                             if (notifications.isEmpty)
                               Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white12),
+                                  color: const Color(0xFF10361F),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFF1F5435)),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0xFF062312), offset: Offset(0, 4)),
+                                  ],
                                 ),
                                 child: const Center(
                                   child: Text(
                                     'No unread alerts. Your home energy is running optimal! ✨',
-                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                    style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                 ),
                               )
@@ -393,9 +480,11 @@ class _ActivityFeedNotificationsScreenState
                           ],
 
                           // Gujarat Community LiFE Feed Section
-                          if (_selectedFilterIndex == 0 || _selectedFilterIndex == 2) ...[
+                          if (_selectedFilterIndex == 0 || _selectedFilterIndex == 3) ...[
                             const Row(
                               children: [
+                                Text('🏛️', style: TextStyle(fontSize: 14)),
+                                SizedBox(width: 6),
                                 Text(
                                   'GUJARAT MISSION LiFE COMMUNITY',
                                   style: TextStyle(
@@ -405,19 +494,19 @@ class _ActivityFeedNotificationsScreenState
                                     letterSpacing: 1.2,
                                   ),
                                 ),
-                                SizedBox(width: 4),
-                                Text('🏛️', style: TextStyle(fontSize: 13)),
                               ],
                             ),
                             const SizedBox(height: 8),
                             ..._communityEvents.map((evt) => _build3DCommunityCard(evt)),
+                            const SizedBox(height: 18),
                           ],
 
                           // Achievements Section
-                          if (_selectedFilterIndex == 0 || _selectedFilterIndex == 3) ...[
-                            const SizedBox(height: 10),
+                          if (_selectedFilterIndex == 0 || _selectedFilterIndex == 4) ...[
                             const Row(
                               children: [
+                                Text('🏆', style: TextStyle(fontSize: 14)),
+                                SizedBox(width: 6),
                                 Text(
                                   'SANCTUARY ACHIEVEMENTS',
                                   style: TextStyle(
@@ -427,8 +516,6 @@ class _ActivityFeedNotificationsScreenState
                                     letterSpacing: 1.2,
                                   ),
                                 ),
-                                SizedBox(width: 4),
-                                Text('🏆', style: TextStyle(fontSize: 13)),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -439,7 +526,7 @@ class _ActivityFeedNotificationsScreenState
                               icon: '🌱',
                               coins: 100,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
                             _buildAchievementCard(
                               title: 'Zero Vampire Power (Standby Slayer)',
                               desc: 'Cut wall plug switch 5 times to prevent continuous inductive drain.',
@@ -458,6 +545,190 @@ class _ActivityFeedNotificationsScreenState
           ),
         );
       },
+    );
+  }
+
+  /// Interactive Real Android System Notifications Hub
+  Widget _buildSystemShadeTestingSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF143B23), Color(0xFF10361F)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Color(0xFF062312), offset: Offset(0, 4), blurRadius: 0),
+          BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 6)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text('📲', style: TextStyle(fontSize: 20)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'REAL ANDROID SYSTEM NOTIFICATIONS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Delivers genuine notifications to your physical Android shade with sound & vibration.',
+                      style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // 2x2 Grid of real system notification triggers
+          Row(
+            children: [
+              Expanded(
+                child: _buildSystemTriggerButton(
+                  icon: '🔌',
+                  title: 'Charger Unplug',
+                  subtitle: 'Wall Switch OFF',
+                  color: const Color(0xFFEF4444),
+                  shadowColor: const Color(0xFF991B1B),
+                  onTap: () => _triggerNativeNotification(
+                    type: 'charger',
+                    title: '🔌 Charger Unplugged! Save Standby Power',
+                    body: 'Turn off the wall socket switch to avoid continuous phantom drain.',
+                    id: 2001,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildSystemTriggerButton(
+                  icon: '🚨',
+                  title: 'High AC Runtime',
+                  subtitle: '8.5h Usage (>5h)',
+                  color: const Color(0xFFF59E0B),
+                  shadowColor: const Color(0xFFB45309),
+                  onTap: () => _triggerNativeNotification(
+                    type: 'ac_excess',
+                    title: '🚨 High AC Usage Alert (8.5 hrs today)',
+                    body: 'Inverter AC exceeded eco limit by 3.5 hrs. Potential excess: ₹585/mo. Set to 24°C eco mode!',
+                    id: 4001,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSystemTriggerButton(
+                  icon: '☀️',
+                  title: 'Solar Peak Window',
+                  subtitle: '11 AM - 3 PM Noon',
+                  color: const Color(0xFF22C55E),
+                  shadowColor: const Color(0xFF15803D),
+                  onTap: () => _triggerNativeNotification(
+                    type: 'solar',
+                    title: '☀️ Solar Peak Window (11 AM - 3 PM)',
+                    body: 'Prime rooftop solar active! Run water pumps & washing machines now.',
+                    id: 3002,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildSystemTriggerButton(
+                  icon: '🌙',
+                  title: '9 PM Standby Sweep',
+                  subtitle: 'Vampire Drain Kill',
+                  color: const Color(0xFF38BDF8),
+                  shadowColor: const Color(0xFF0284C7),
+                  onTap: () => _triggerNativeNotification(
+                    type: 'phantom',
+                    title: '💡 Phantom Vampire Load Alert',
+                    body: 'Turn off TV and microwave wall switches before bed to save ~₹155/mo.',
+                    id: 3001,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSystemTriggerButton({
+    required String icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required Color shadowColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D2818),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.6), width: 1.2),
+          boxShadow: [
+            BoxShadow(color: shadowColor.withValues(alpha: 0.5), offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -494,8 +765,8 @@ class _ActivityFeedNotificationsScreenState
       actionLabel = 'Log Water Conserved (+10 🪙)';
       iconData = Icons.water_drop_rounded;
     } else if (type.contains('commute')) {
-      themeColor = const Color(0xFF10B981); // Emerald
-      bottomShadowColor = const Color(0xFF047857);
+      themeColor = const Color(0xFF22C55E); // Emerald
+      bottomShadowColor = const Color(0xFF15803D);
       evidenceTier = 'Tier A: Displacement Trip';
       actionLabel = 'Log Green Ride (+30 🪙)';
       iconData = Icons.directions_bike_rounded;
@@ -510,22 +781,22 @@ class _ActivityFeedNotificationsScreenState
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFF10361F),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isUnread ? themeColor : Colors.white12,
-          width: isUnread ? 1.5 : 1.0,
+          color: isUnread ? themeColor : const Color(0xFF1F5435),
+          width: isUnread ? 1.6 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: bottomShadowColor.withValues(alpha: isUnread ? 0.45 : 0.2),
-            offset: const Offset(0, 5),
+            color: const Color(0xFF062312),
+            offset: const Offset(0, 4),
             blurRadius: 0,
           ),
           const BoxShadow(
             color: Colors.black38,
-            offset: Offset(0, 8),
-            blurRadius: 14,
+            offset: Offset(0, 6),
+            blurRadius: 12,
           ),
         ],
       ),
@@ -539,18 +810,18 @@ class _ActivityFeedNotificationsScreenState
               children: [
                 // 3D Beveled Icon Container
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: themeColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: themeColor.withValues(alpha: 0.5)),
+                    color: themeColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.6)),
                     boxShadow: [
                       BoxShadow(color: bottomShadowColor, offset: const Offset(0, 2)),
                     ],
                   ),
                   child: Center(
-                    child: Icon(iconData, color: themeColor, size: 20),
+                    child: Icon(iconData, color: themeColor, size: 22),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -592,7 +863,7 @@ class _ActivityFeedNotificationsScreenState
                       ),
                       const SizedBox(height: 3),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: themeColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -618,7 +889,7 @@ class _ActivityFeedNotificationsScreenState
             Text(
               message,
               style: const TextStyle(
-                color: Color(0xFFCBD5E1),
+                color: Color(0xFFD1FAE5),
                 fontSize: 12,
                 height: 1.35,
               ),
@@ -655,19 +926,19 @@ class _ActivityFeedNotificationsScreenState
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF10B981)),
+                      border: Border.all(color: const Color(0xFF22C55E)),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
+                        Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 14),
                         SizedBox(width: 4),
                         Text(
                           'Credited to Ledger',
                           style: TextStyle(
-                            color: Color(0xFF10B981),
+                            color: Color(0xFF22C55E),
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
                           ),
@@ -691,12 +962,12 @@ class _ActivityFeedNotificationsScreenState
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFF10361F),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0xFF0369A1),
+            color: Color(0xFF062312),
             offset: Offset(0, 4),
             blurRadius: 0,
           ),
@@ -735,7 +1006,7 @@ class _ActivityFeedNotificationsScreenState
                           ),
                           Text(
                             evt['time'] as String,
-                            style: const TextStyle(color: Colors.white38, fontSize: 10),
+                            style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 10),
                           ),
                         ],
                       ),
@@ -763,7 +1034,7 @@ class _ActivityFeedNotificationsScreenState
             const SizedBox(height: 8),
             Text(
               evt['desc'] as String,
-              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12, height: 1.35),
+              style: const TextStyle(color: Color(0xFFD1FAE5), fontSize: 12, height: 1.35),
             ),
             const SizedBox(height: 10),
             Row(
@@ -771,7 +1042,7 @@ class _ActivityFeedNotificationsScreenState
               children: [
                 Text(
                   '❤️ $cheers Citizens Cheered',
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 11, fontWeight: FontWeight.w600),
                 ),
                 ElevatedButton.icon(
                   onPressed: () => _onCheerCommunity(id),
@@ -782,8 +1053,8 @@ class _ActivityFeedNotificationsScreenState
                   ),
                   label: Text(isCheered ? 'Cheered!' : 'Cheer (+2 🪙)'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isCheered ? const Color(0xFF334155) : const Color(0xFF38BDF8),
-                    foregroundColor: isCheered ? Colors.white70 : Colors.black,
+                    backgroundColor: isCheered ? const Color(0xFF143B23) : const Color(0xFF38BDF8),
+                    foregroundColor: isCheered ? const Color(0xFF86EFAC) : Colors.black,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     elevation: 0,
@@ -809,12 +1080,12 @@ class _ActivityFeedNotificationsScreenState
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFF10361F),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.4)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0xFF6D28D9),
+            color: Color(0xFF062312),
             offset: Offset(0, 4),
             blurRadius: 0,
           ),
@@ -870,7 +1141,7 @@ class _ActivityFeedNotificationsScreenState
                 const SizedBox(height: 3),
                 Text(
                   desc,
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                  style: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 11),
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(
@@ -879,7 +1150,7 @@ class _ActivityFeedNotificationsScreenState
                     value: progress,
                     backgroundColor: Colors.white12,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      isComplete ? const Color(0xFF10B981) : const Color(0xFFA78BFA),
+                      isComplete ? const Color(0xFF22C55E) : const Color(0xFFA78BFA),
                     ),
                     minHeight: 5,
                   ),

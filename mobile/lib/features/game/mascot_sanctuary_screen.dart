@@ -12,11 +12,9 @@ import '../appliances/appliance_registry_sheet.dart';
 import '../commute/commute_travel_sheet.dart';
 import '../onboarding/energy_setup_sheet.dart';
 import '../water/water_conservation_sheet.dart';
-import '../settings/user_settings_screen.dart';
+import '../menu/sanctuary_menu_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
-import '../calculator/carbon_calculator_screen.dart';
 import '../dashboard/daily_quests_sheet.dart';
-import '../appliances/device_time_log_sheet.dart';
 import 'sparrow_3d_stage.dart';
 
 /// Screen 1: 3D Mascot Sanctuary & Interactive Companion (WebGL Three.js Game UI)
@@ -275,12 +273,13 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  void _openSettings() {
+  void _openFullMenuScreen() {
     _resetIdleTimer();
     if (_state.soundEnabled) HapticFeedback.selectionClick();
-    Navigator.push(
+    SanctuaryMenuScreen.show(
       context,
-      MaterialPageRoute(builder: (_) => const UserSettingsScreen()),
+      onSlideToActivity: widget.onSlideToActivity,
+      onSlideToWardrobe: widget.onSlideToWardrobe,
     );
   }
 
@@ -293,25 +292,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  void _openCarbonCalculator() {
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CarbonCalculatorScreen()),
-    );
-  }
-
   void _openDailyQuests() {
     _resetIdleTimer();
     if (_state.soundEnabled) HapticFeedback.selectionClick();
     DailyQuestsSheet.show(context);
-  }
-
-  void _openDeviceTimeLog() {
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    DeviceTimeLogSheet.show(context);
   }
 
   /// Displays both an in-app banner AND a real Android System Notification in the notification center
@@ -763,123 +747,32 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           ),
           const SizedBox(width: 4),
 
-          // Real App Action & Settings Menu
-          PopupMenuButton<String>(
-            tooltip: 'Sanctuary Menu',
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            color: Colors.white,
-            icon: Container(
-              padding: const EdgeInsets.all(6),
+          // Dedicated Full-Screen Menu Button (No Drop Down!)
+          GestureDetector(
+            onTap: _openFullMenuScreen,
+            child: Container(
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F8F5),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0x331B6B44)),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                ],
               ),
               child: const Icon(
                 Icons.menu_rounded,
                 color: Color(0xFF1B6B44),
-                size: 19,
+                size: 20,
               ),
             ),
-            onSelected: (val) {
-              if (_state.soundEnabled) HapticFeedback.selectionClick();
-              switch (val) {
-                case 'leaderboard':
-                  _openLeaderboard();
-                  break;
-                case 'calculator':
-                  _openCarbonCalculator();
-                  break;
-                case 'quests':
-                  _openDailyQuests();
-                  break;
-                case 'timelog':
-                  _openDeviceTimeLog();
-                  break;
-                case 'activity':
-                  widget.onSlideToActivity();
-                  break;
-                case 'wardrobe':
-                  widget.onSlideToWardrobe();
-                  break;
-                case 'ledger':
-                  _openDashboard();
-                  break;
-                case 'meter':
-                  _openElectricityTracker();
-                  break;
-                case 'devices':
-                  ApplianceRegistrySheet.show(context);
-                  break;
-                case 'water':
-                  WaterConservationSheet.show(context);
-                  break;
-                case 'commute':
-                  CommuteTravelSheet.show(context);
-                  break;
-                case 'solar':
-                  EnergySetupSheet.show(context);
-                  break;
-                case 'settings':
-                  _openSettings();
-                  break;
-                case 'logout':
-                  _showLogoutDialog();
-                  break;
-              }
-            },
-            itemBuilder: (ctx) => [
-              _buildMenuItem('leaderboard', '🏆 Multiplayer Leaderboard', 'Duolingo Leagues & Visit Gardens'),
-              _buildMenuItem('calculator', '🌱 Carbon Calculator', 'Footprint vs Gujarat Benchmarks'),
-              _buildMenuItem('quests', '🎯 Daily Quests & Streaks', 'Mission LiFE Daily Tasks & Rewards'),
-              _buildMenuItem('timelog', '⏱️ Appliance Time Logger', 'High-Hour Warnings & Cutoff Timers'),
-              const PopupMenuDivider(),
-              _buildMenuItem('activity', '⚡ Activity Feed & Alerts', 'Mission LiFE Log & Notifications'),
-              _buildMenuItem('wardrobe', '👗 Wardrobe Studio', 'Customize 3D Sparrow Outfits'),
-              _buildMenuItem('ledger', '📊 Senior Engineer Dashboard', '24h Load Curve & Multi-Domain Ledger'),
-              _buildMenuItem('meter', '📈 Monthly Meter Plot', 'Electricity Consumption Tracker'),
-              const PopupMenuDivider(),
-              _buildMenuItem('devices', '📱 Household Appliances', 'Manage Registered Devices'),
-              _buildMenuItem('water', '💧 Water Conservation', 'Piped, Sump & Tanker Tracking'),
-              _buildMenuItem('commute', '🚴 Daily Green Commute', 'Zero-Emission Mobility Modes'),
-              _buildMenuItem('solar', '⚡ Rooftop Solar Setup', 'PM Surya Ghar Grid Settings'),
-              const PopupMenuDivider(),
-              _buildMenuItem('settings', '⚙️ Citizen Settings & Hub', 'Full-Page Identity, Mascot, Solar, Sump'),
-              _buildMenuItem('logout', '🚪 Sign Out', 'Return to Login Screen', isDestructive: true),
-            ],
           ),
         ],
       ),
     );
   }
 
-  PopupMenuItem<String> _buildMenuItem(String value, String title, String subtitle, {bool isDestructive = false}) {
-    return PopupMenuItem<String>(
-      value: value,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: isDestructive ? Colors.redAccent : const Color(0xFF1B6B44),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 11, color: Colors.black54),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutDialog() {
+  void showLogoutDialog() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

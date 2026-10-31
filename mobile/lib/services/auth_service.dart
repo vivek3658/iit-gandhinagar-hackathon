@@ -114,9 +114,6 @@ class AuthService extends ChangeNotifier {
     serverClientId: AuthConfig.googleServerClientId.isNotEmpty && !AuthConfig.googleServerClientId.startsWith('YOUR_')
         ? AuthConfig.googleServerClientId
         : null,
-    clientId: AuthConfig.googleAndroidClientId.isNotEmpty && !AuthConfig.googleAndroidClientId.startsWith('YOUR_')
-        ? AuthConfig.googleAndroidClientId
-        : null,
     scopes: ['email', 'profile'],
   );
 
