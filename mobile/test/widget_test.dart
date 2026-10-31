@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:urja/features/home/main_two_screen_shell.dart';
+import 'package:urja/features/onboarding/citizen_profile_setup_screen.dart';
 import 'package:urja/main.dart';
 
 void main() {
@@ -15,7 +17,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(const UrjaApp());
+    await tester.pumpWidget(const UrjaApp(home: MainTwoScreenShell()));
     await tester.pump();
 
     // Verify Screen 1 Game HUD starts at Level 1
@@ -64,7 +66,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(const UrjaApp());
+    await tester.pumpWidget(const UrjaApp(home: MainTwoScreenShell()));
     await tester.pump();
 
     // 1. Navigate to Activity Feed & Notifications (Slide Left)
@@ -112,5 +114,58 @@ void main() {
     await tester.tap(find.text('Mascot'));
     await tester.pumpAndSettle();
     expect(find.text('Lv 1'), findsOneWidget);
+  });
+
+  testWidgets('CitizenProfileSetupScreen steps through Gujarat location, water, electricity, and sparrow', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: CitizenProfileSetupScreen()));
+    await tester.pumpAndSettle();
+
+    // Step 1: Location & House
+    expect(find.text('Citizen Sanctuary Setup'), findsOneWidget);
+    expect(find.text('Gujarat Home & District'), findsOneWidget);
+    expect(find.text('Ahmedabad'), findsOneWidget);
+    expect(find.text('Navrangpura'), findsOneWidget);
+
+    // Tap Next Step -> Step 2: Water Supply & Storage
+    await tester.tap(find.text('Next Step →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Water Supply & Storage'), findsOneWidget);
+    expect(find.text('Water Storage System'), findsOneWidget);
+
+    // Tap Next Step -> Step 3: Electricity & Normalized Devices
+    await tester.tap(find.text('Next Step →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Electricity & High-Drain Appliances'), findsOneWidget);
+    expect(find.textContaining('RO Water Purifier'), findsOneWidget);
+
+    // Tap Next Step -> Step 4: Cooking Gas
+    await tester.tap(find.text('Next Step →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kitchen Cooking Energy'), findsOneWidget);
+
+    // Tap Next Step -> Step 5: Daily Transit
+    await tester.tap(find.text('Next Step →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Daily Mobility & Transit'), findsOneWidget);
+
+    // Tap Next Step -> Step 6: Companion Sparrow
+    await tester.tap(find.text('Next Step →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Adopt Your Sparrow Companion'), findsOneWidget);
+    expect(find.text('Complete & Enter Sanctuary 🌿'), findsOneWidget);
   });
 }

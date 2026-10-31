@@ -1,6 +1,15 @@
 import crypto from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
-import type { CompleteProfileBody, GoogleAuthResponse, RefreshTokenResponse, UserDto } from './auth.schema';
+import { ProvidersService } from '../providers/providers.service';
+import type {
+  CompleteProfileBody,
+  GoogleAuthResponse,
+  HouseType,
+  RefreshTokenResponse,
+  UserDto,
+  WaterStorageType,
+  WaterSupplyType,
+} from './auth.schema';
 
 export interface UserRecord {
   id: string;
@@ -10,6 +19,15 @@ export interface UserRecord {
   avatarUrl: string | null;
   dob: string | null;
   district: string | null;
+  ward?: string | null;
+  houseType?: HouseType | null;
+  householdMembers?: number | null;
+  monthlyBillRupees?: number | null;
+  waterSupplyType?: WaterSupplyType | null;
+  waterStorageType?: WaterStorageType | null;
+  deviceCatalogIds?: string[];
+  vehicleCatalogIds?: string[];
+  mascotName?: string | null;
   role: 'CITIZEN' | 'ADMIN';
   isProfileComplete: boolean;
   points: number;
@@ -254,7 +272,7 @@ export class AuthService {
   }
 
   /**
-   * Complete onboarding profile (DOB, district, avatar)
+   * Complete onboarding profile (DOB, district, ward, house info, devices, mascot, and auto-link providers)
    */
   public static completeProfile(userId: string, body: CompleteProfileBody): UserDto {
     const user = this.repository.findById(userId);
@@ -265,9 +283,32 @@ export class AuthService {
     const updated = this.repository.updateUser(userId, {
       dob: body.dob !== undefined ? body.dob : user.dob,
       district: body.district,
+      ward: body.ward !== undefined ? body.ward : user.ward,
       avatarUrl: body.avatarUrl !== undefined ? body.avatarUrl : user.avatarUrl,
+      houseType: body.houseType !== undefined ? body.houseType : user.houseType,
+      householdMembers: body.householdMembers !== undefined ? body.householdMembers : user.householdMembers,
+      monthlyBillRupees: body.monthlyBillRupees !== undefined ? body.monthlyBillRupees : user.monthlyBillRupees,
+      waterSupplyType: body.waterSupplyType !== undefined ? body.waterSupplyType : user.waterSupplyType,
+      waterStorageType: body.waterStorageType !== undefined ? body.waterStorageType : user.waterStorageType,
+      deviceCatalogIds: body.deviceCatalogIds !== undefined ? body.deviceCatalogIds : user.deviceCatalogIds,
+      vehicleCatalogIds: body.vehicleCatalogIds !== undefined ? body.vehicleCatalogIds : user.vehicleCatalogIds,
+      mascotName: body.mascotName !== undefined ? body.mascotName : user.mascotName,
       isProfileComplete: true,
     });
+
+    if (
+      body.electricityProviderId ||
+      body.gasProviderId ||
+      body.waterProviderId ||
+      body.transitProviderIds
+    ) {
+      ProvidersService.linkCitizenProviders(userId, {
+        electricityProviderId: body.electricityProviderId,
+        gasProviderId: body.gasProviderId,
+        waterProviderId: body.waterProviderId,
+        transitProviderIds: body.transitProviderIds,
+      });
+    }
 
     return this.toDto(updated);
   }
@@ -369,6 +410,15 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       dob: user.dob,
       district: user.district,
+      ward: user.ward ?? null,
+      houseType: user.houseType ?? null,
+      householdMembers: user.householdMembers ?? null,
+      monthlyBillRupees: user.monthlyBillRupees ?? null,
+      waterSupplyType: user.waterSupplyType ?? null,
+      waterStorageType: user.waterStorageType ?? null,
+      deviceCatalogIds: user.deviceCatalogIds ?? [],
+      vehicleCatalogIds: user.vehicleCatalogIds ?? [],
+      mascotName: user.mascotName ?? null,
       role: user.role,
       isProfileComplete: user.isProfileComplete,
       points: user.points,

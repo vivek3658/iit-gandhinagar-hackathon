@@ -7,10 +7,26 @@ node_modules/
 dist/
 build/
 
-# Environment files
+# Environment files & Secrets
 .env
 .env.local
-.env.*.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
+*.jks
+*.keystore
+key.properties
+client_secret*.json
+
+# Mobile & Flutter secrets
+**/google-services.json
+**/GoogleService-Info.plist
+**/auth_config.local.dart
+**/*.local.dart
 
 # Logs
 npm-debug.log*

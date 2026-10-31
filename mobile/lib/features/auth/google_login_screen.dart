@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
-import '../home/main_navigation_shell.dart';
+import '../../services/auth_service.dart';
+import '../home/main_two_screen_shell.dart';
+import '../onboarding/citizen_profile_setup_screen.dart';
 
 class GoogleLoginScreen extends StatefulWidget {
   const GoogleLoginScreen({super.key});
@@ -14,19 +16,30 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+
+    // Call AuthService with simulated or real Google ID token
+    final auth = AuthService.instance;
+    await auth.signInWithGoogle('mock_test_token_citizen_mobile');
 
     if (mounted) {
       setState(() => _isLoading = false);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainNavigationShell()),
-      );
+
+      if (!auth.isProfileComplete) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const CitizenProfileSetupScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainTwoScreenShell()),
+        );
+      }
     }
   }
 
   void _skipAsGuest() {
+    AuthService.instance.signInAsGuest();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainNavigationShell()),
+      MaterialPageRoute(builder: (_) => const MainTwoScreenShell()),
     );
   }
 

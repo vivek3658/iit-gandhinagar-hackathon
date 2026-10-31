@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'features/home/main_two_screen_shell.dart';
+import 'features/onboarding/onboarding_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +14,8 @@ void main() {
 }
 
 class UrjaApp extends StatelessWidget {
-  const UrjaApp({super.key});
+  final Widget? home;
+  const UrjaApp({super.key, this.home});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +33,7 @@ class UrjaApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      home: const MainTwoScreenShell(),
+      home: home ?? const OnboardingScreen(),
     );
   }
 }

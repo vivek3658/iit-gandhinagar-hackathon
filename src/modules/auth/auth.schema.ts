@@ -3,6 +3,31 @@ import { Type, type Static } from '@sinclair/typebox';
 // --- Shared Core Types ---
 export const UserRoleSchema = Type.Union([Type.Literal('CITIZEN'), Type.Literal('ADMIN')]);
 
+export const HouseTypeSchema = Type.Union([
+  Type.Literal('apartment'),
+  Type.Literal('tenement'),
+  Type.Literal('bungalow'),
+  Type.Literal('row_house'),
+  Type.Literal('other'),
+]);
+export type HouseType = Static<typeof HouseTypeSchema>;
+
+export const WaterSupplyTypeSchema = Type.Union([
+  Type.Literal('municipal_piped'),
+  Type.Literal('borewell'),
+  Type.Literal('tanker'),
+  Type.Literal('other'),
+]);
+export type WaterSupplyType = Static<typeof WaterSupplyTypeSchema>;
+
+export const WaterStorageTypeSchema = Type.Union([
+  Type.Literal('underground_sump'),
+  Type.Literal('overhead_tank'),
+  Type.Literal('both_sump_overhead'),
+  Type.Literal('tubs_drums'),
+]);
+export type WaterStorageType = Static<typeof WaterStorageTypeSchema>;
+
 export const UserSchema = Type.Object({
   id: Type.String({ format: 'uuid' }),
   email: Type.String({ format: 'email' }),
@@ -10,6 +35,15 @@ export const UserSchema = Type.Object({
   avatarUrl: Type.Union([Type.String(), Type.Null()]),
   dob: Type.Union([Type.String(), Type.Null()]),
   district: Type.Union([Type.String(), Type.Null()]),
+  ward: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  houseType: Type.Optional(Type.Union([HouseTypeSchema, Type.Null()])),
+  householdMembers: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+  monthlyBillRupees: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+  waterSupplyType: Type.Optional(Type.Union([WaterSupplyTypeSchema, Type.Null()])),
+  waterStorageType: Type.Optional(Type.Union([WaterStorageTypeSchema, Type.Null()])),
+  deviceCatalogIds: Type.Optional(Type.Array(Type.String())),
+  vehicleCatalogIds: Type.Optional(Type.Array(Type.String())),
+  mascotName: Type.Optional(Type.Union([Type.String(), Type.Null()])),
   role: UserRoleSchema,
   isProfileComplete: Type.Boolean(),
   points: Type.Number(),
@@ -40,7 +74,20 @@ export type GoogleAuthResponse = Static<typeof GoogleAuthResponseSchema>;
 export const CompleteProfileBodySchema = Type.Object({
   dob: Type.Optional(Type.String({ description: 'Date of birth (YYYY-MM-DD)' })),
   district: Type.String({ minLength: 2, maxLength: 64, description: 'Gujarat district for state leaderboard' }),
+  ward: Type.Optional(Type.String({ minLength: 2, maxLength: 64, description: 'Municipal ward' })),
   avatarUrl: Type.Optional(Type.String({ description: 'Optimized ImageKit CDN avatar URL' })),
+  houseType: Type.Optional(HouseTypeSchema),
+  householdMembers: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+  monthlyBillRupees: Type.Optional(Type.Number({ minimum: 0, maximum: 100000 })),
+  electricityProviderId: Type.Optional(Type.String()),
+  gasProviderId: Type.Optional(Type.String()),
+  waterProviderId: Type.Optional(Type.String()),
+  transitProviderIds: Type.Optional(Type.Array(Type.String())),
+  waterSupplyType: Type.Optional(WaterSupplyTypeSchema),
+  waterStorageType: Type.Optional(WaterStorageTypeSchema),
+  deviceCatalogIds: Type.Optional(Type.Array(Type.String())),
+  vehicleCatalogIds: Type.Optional(Type.Array(Type.String())),
+  mascotName: Type.Optional(Type.String({ minLength: 1, maxLength: 32 })),
 });
 
 export type CompleteProfileBody = Static<typeof CompleteProfileBodySchema>;

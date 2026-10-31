@@ -14,6 +14,8 @@ import { mediaRoutes } from './modules/media/media.routes';
 import { mascotRoutes } from './modules/mascot/mascot.routes';
 import { gardenRoutes } from './modules/garden/garden.routes';
 import { activityRoutes } from './modules/activity/activity.routes';
+import { providersRoutes } from './modules/providers/providers.routes';
+import { adminRoutes } from './modules/admin/admin.routes';
 
 export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   const app = fastify({
@@ -84,6 +86,8 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.register(mascotRoutes, { prefix: '/api/v1/mascot' });
   app.register(gardenRoutes, { prefix: '/api/v1/garden' });
   app.register(activityRoutes, { prefix: '/api/v1/activity' });
+  app.register(providersRoutes, { prefix: '/api/v1/providers' });
+  app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   return app;
 }

@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets & Credentials (NEVER COMMIT TO GIT/GITHUB)
+.env*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
+*.jks
+*.keystore
+key.properties
+client_secret*.json
+**/google-services.json
+**/GoogleService-Info.plist
+lib/constants/auth_config.local.dart
+**/*.local.dart
