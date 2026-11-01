@@ -50,7 +50,11 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
 
     final res = await QuestsClientService.instance.claimQuest(quest.id);
     final coins = (res['coinsAwarded'] as int?) ?? quest.coinReward;
-    GameStateService.instance.addCoins(coins);
+    GameStateService.instance.recordEcoAction(
+      actionName: quest.title,
+      co2Saved: quest.co2SavedKg,
+      coinsAwarded: coins,
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

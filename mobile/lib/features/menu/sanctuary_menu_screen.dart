@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../constants/auth_config.dart';
+import '../../services/notification_service.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
@@ -620,6 +624,23 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
           const SizedBox(height: 18),
 
           // Section 4: System Settings & Sign Out
+          // Section 4: GEDA & DISCOM Admin Command & Dispatch
+          _buildSectionHeader('GEDA & DISCOM ADMIN DISPATCH'),
+          const SizedBox(height: 10),
+          _buildMenuTile(
+            context,
+            icon: '📢',
+            title: 'Grid Advisory & Citizen Despatch',
+            subtitle: 'Remind specific citizens by email or broadcast peak load shifts across Gujarat',
+            accentColor: const Color(0xFFEF4444),
+            onTap: () {
+              Navigator.pop(context);
+              _showAdminReminderDialog(context);
+            },
+          ),
+          const SizedBox(height: 18),
+
+          // Section 5: System Settings & Sign Out
           _buildSectionHeader('SYSTEM PREFERENCES & ACCOUNT'),
           const SizedBox(height: 10),
           _buildMenuTile(
@@ -731,4 +752,567 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
       ),
     );
   }
+
+  void _showAdminReminderDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const _AdminDispatchModal(),
+    );
+  }
 }
+
+class _AdminDispatchModal extends StatefulWidget {
+  const _AdminDispatchModal();
+
+  @override
+  State<_AdminDispatchModal> createState() => _AdminDispatchModalState();
+}
+
+class _AdminDispatchModalState extends State<_AdminDispatchModal> {
+  int _scopeMode = 0; // 0: Specific Citizen, 1: District, 2: Statewide
+  final _emailController = TextEditingController();
+  final _titleController = TextEditingController(text: 'Peak Grid Load Shift (18:00 - 22:00)');
+  final _messageController = TextEditingController(
+    text: 'Urgent Grid Notice: Gujarat transmission peak in progress. Please turn off ACs and shift heavy pumping or washing to post-22:00.',
+  );
+  String _selectedDistrict = 'Ahmedabad';
+  String _urgency = 'HIGH';
+  int _coins = 15;
+  bool _isSending = false;
+
+  final List<String> _districts = const [
+    'Ahmedabad',
+    'Surat',
+    'Vadodara',
+    'Rajkot',
+    'Gandhinagar',
+    'Bhavnagar',
+    'Jamnagar',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final userEmail = AuthService.instance.currentUser?.email;
+    _emailController.text = (userEmail != null && userEmail.isNotEmpty) ? userEmail : 'citizen@urjavatika.in';
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _titleController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  void _applyTemplate(String title, String message, String urgency, int coins) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _titleController.text = title;
+      _messageController.text = message;
+      _urgency = urgency;
+      _coins = coins;
+    });
+  }
+
+  Future<void> _sendDispatch() async {
+    final title = _titleController.text.trim();
+    final message = _messageController.text.trim();
+    if (title.isEmpty || message.isEmpty) return;
+
+    setState(() => _isSending = true);
+    HapticFeedback.heavyImpact();
+
+    final targetEmail = _scopeMode == 0 ? _emailController.text.trim() : null;
+    final targetDistrict = _scopeMode == 1 ? _selectedDistrict : null;
+
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+      final req = await client.postUrl(Uri.parse('${AuthConfig.apiBaseUrl}/admin/send-reminder'));
+      req.headers.contentType = ContentType.json;
+      final token = AuthService.instance.accessToken;
+      if (token != null && token.isNotEmpty) {
+        req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      }
+
+      req.write(jsonEncode({
+        'title': title,
+        'message': message,
+        'category': 'ALERT',
+        if (targetEmail != null && targetEmail.isNotEmpty) 'targetUserEmail': targetEmail,
+        if (targetDistrict != null) 'targetDistrict': targetDistrict,
+        'incentiveCoins': _coins,
+        'urgency': _urgency,
+      }));
+
+      final resp = await req.close();
+      final bodyStr = await resp.transform(utf8.decoder).join();
+      client.close();
+
+      String scopeDesc = 'State-wide Gujarat';
+      if (_scopeMode == 0) scopeDesc = 'Citizen ($targetEmail)';
+      if (_scopeMode == 1) scopeDesc = '$targetDistrict District';
+
+      try {
+        final parsed = jsonDecode(bodyStr) as Map<String, dynamic>;
+        if (parsed['scope'] is String) {
+          scopeDesc = parsed['scope'] as String;
+        }
+      } catch (_) {}
+
+      await NotificationService.instance.showSystemNotification(
+        title: '[DISCOM / GEDA] $title',
+        message: message,
+        id: 7001,
+        actionButton: 'Claim +$_coins 🪙 Mudra',
+      );
+
+      GameStateService.instance.addNotification(
+        title: '📢 [DISCOM / GEDA] $title',
+        message: message,
+        type: 'admin_reminder',
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF15803D),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Row(
+              children: [
+                const Text('📢', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Despatched successfully to $scopeDesc! Push notification sent.',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      await NotificationService.instance.showSystemNotification(
+        title: '[DISCOM / GEDA] $title',
+        message: message,
+        id: 7001,
+        actionButton: 'Claim +$_coins 🪙 Mudra',
+      );
+      GameStateService.instance.addNotification(
+        title: '📢 [DISCOM / GEDA] $title',
+        message: message,
+        type: 'admin_reminder',
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF047857),
+            content: Text('Notice despatched locally to notification shade ($e)'),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
+      ),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0C2417),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(color: Colors.black54, blurRadius: 30, offset: Offset(0, -8)),
+        ],
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFEF4444)),
+                  ),
+                  child: const Center(child: Text('📢', style: TextStyle(fontSize: 22))),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GEDA & DISCOM Dispatch',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Targeted citizen reminders & grid load shift advisory',
+                        style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // Scope Selector
+            const Text(
+              'RECIPIENT TARGET SCOPE',
+              style: TextStyle(
+                color: Color(0xFF86EFAC),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildScopeChip(0, '👤 Specific Citizen'),
+                const SizedBox(width: 6),
+                _buildScopeChip(1, '🏛️ District'),
+                const SizedBox(width: 6),
+                _buildScopeChip(2, '🌍 Statewide'),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Target input depending on scope
+            if (_scopeMode == 0) ...[
+              TextField(
+                controller: _emailController,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Citizen Registered Email',
+                  labelStyle: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 12),
+                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF4ADE80), size: 18),
+                  filled: true,
+                  fillColor: const Color(0xFF143B23),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF1F5435)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF4ADE80), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ] else if (_scopeMode == 1) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF143B23),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF1F5435)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedDistrict,
+                    dropdownColor: const Color(0xFF143B23),
+                    isExpanded: true,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                    items: _districts.map((d) => DropdownMenuItem(value: d, child: Text('$d District (Gujarat)'))).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedDistrict = val);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Quick Preset Templates
+            const Text(
+              'QUICK ADVISORY TEMPLATES',
+              style: TextStyle(
+                color: Color(0xFF86EFAC),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildTemplateChip(
+                    '⚡ Peak Load Shift',
+                    'Peak Grid Load Shift (18:00 - 22:00)',
+                    'Urgent Grid Notice: Gujarat transmission peak in progress. Please turn off ACs and shift heavy pumping or washing to post-22:00.',
+                    'HIGH',
+                    20,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip(
+                    '🔌 Standby Unplug',
+                    'Unplug Idle Chargers & Wall Plugs',
+                    'Vampire Load Warning: Idle phone chargers left in active sockets drain standby power 24/7. Turn off wall switches now.',
+                    'MEDIUM',
+                    10,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip(
+                    '☀️ Midday Solar Peak',
+                    'Midday Solar Peak Active (11:00 - 15:00)',
+                    'PM Surya Ghar Alert: Solar generation is peaking. Run your overhead water pump and induction cooking now on 100% clean solar!',
+                    'LOW',
+                    25,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip(
+                    '💧 Water Pump Hours',
+                    'Scheduled Municipal Water Supply Advisory',
+                    'Municipal water release scheduled in your ward. Fill overhead storage tanks before 17:00 to optimize grid distribution.',
+                    'MEDIUM',
+                    15,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Title
+            TextField(
+              controller: _titleController,
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                labelText: 'Advisory Headline / Title',
+                labelStyle: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 12),
+                filled: true,
+                fillColor: const Color(0xFF143B23),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFF1F5435)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFF4ADE80), width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Message
+            TextField(
+              controller: _messageController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              decoration: InputDecoration(
+                labelText: 'Despatch Message / Guidance',
+                labelStyle: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 12),
+                filled: true,
+                fillColor: const Color(0xFF143B23),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFF1F5435)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFF4ADE80), width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Urgency & Incentive Coins Row
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'URGENCY PRIORITY',
+                        style: TextStyle(color: Color(0xFF86EFAC), fontSize: 10, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          _buildUrgencyChip('HIGH', const Color(0xFFEF4444)),
+                          const SizedBox(width: 4),
+                          _buildUrgencyChip('MEDIUM', const Color(0xFFF59E0B)),
+                          const SizedBox(width: 4),
+                          _buildUrgencyChip('LOW', const Color(0xFF22C55E)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'INCENTIVE: +$_coins 🪙',
+                      style: const TextStyle(color: Color(0xFFFCD34D), fontSize: 11, fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 2),
+                    Slider(
+                      value: _coins.toDouble(),
+                      min: 0,
+                      max: 50,
+                      divisions: 10,
+                      activeColor: const Color(0xFFF59E0B),
+                      inactiveColor: Colors.white24,
+                      onChanged: (v) => setState(() => _coins = v.round()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Despatch Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isSending ? null : _sendDispatch,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF22C55E),
+                  foregroundColor: const Color(0xFF05200E),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 4,
+                ),
+                child: _isSending
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(color: Color(0xFF05200E), strokeWidth: 2.5),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('📢', style: TextStyle(fontSize: 18)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Dispatch Reminder to Citizen',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScopeChip(int mode, String label) {
+    final selected = _scopeMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _scopeMode = mode);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF22C55E) : const Color(0xFF143B23),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? Colors.white : const Color(0xFF1F5435)),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? const Color(0xFF05200E) : Colors.white70,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTemplateChip(String label, String title, String msg, String urgency, int coins) {
+    return GestureDetector(
+      onTap: () => _applyTemplate(title, msg, urgency, coins),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10361F),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.5)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 11, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUrgencyChip(String level, Color color) {
+    final selected = _urgency == level;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _urgency = level);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.3) : const Color(0xFF143B23),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? color : Colors.transparent),
+        ),
+        child: Text(
+          level,
+          style: TextStyle(
+            color: selected ? color : Colors.white38,
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+

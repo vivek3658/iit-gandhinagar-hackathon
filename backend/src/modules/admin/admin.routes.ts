@@ -39,6 +39,22 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     AdminController.broadcastAlert
   );
 
+  // Send reminder directly to specific citizen or broadcast
+  app.post(
+    '/send-reminder',
+    {
+      schema: {
+        description: 'Admin sends a targeted reminder or advisory to a specific citizen or broadcast',
+        tags: ['Admin'],
+        body: AdminBroadcastAlertBodySchema,
+        response: {
+          200: AdminBroadcastAlertResponseSchema,
+        },
+      },
+    },
+    AdminController.broadcastAlert
+  );
+
   // Monitor utility providers and subscriber health
   app.get(
     '/providers',

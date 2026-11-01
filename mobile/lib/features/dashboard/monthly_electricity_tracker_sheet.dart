@@ -6,9 +6,11 @@ import '../../services/game_state_service.dart';
 /// Monthly Electricity Meter Units Tracker & Reduction Plot Graph.
 ///
 /// Features:
-/// - Takes 1st day of month units taken (kWh).
-/// - Plots historical month-over-month consumption against future reduction target.
-/// - Calculates bill savings in ₹ and emission cuts in kg CO2e.
+/// - Clean White & Emerald Green UI designed for Hackathon Judges
+/// - Interactive custom canvas plot showing historical consumption trajectory
+/// - Dynamic target reduction line (-5% to -40% reduction goal)
+/// - Projected rupee bill savings & CO2e prevented KPIs
+/// - Log 1st day of month meter units reading
 class MonthlyElectricityTrackerSheet extends StatefulWidget {
   const MonthlyElectricityTrackerSheet({super.key});
 
@@ -20,15 +22,7 @@ class MonthlyElectricityTrackerSheet extends StatefulWidget {
 class _MonthlyElectricityTrackerSheetState
     extends State<MonthlyElectricityTrackerSheet> {
   final GameStateService _state = GameStateService.instance;
-  late TextEditingController _unitsController;
-
-  @override
-  void initState() {
-    super.initState();
-    _unitsController = TextEditingController(
-      text: _state.latestMonthlyUnits.toInt().toString(),
-    );
-  }
+  final TextEditingController _unitsController = TextEditingController();
 
   @override
   void dispose() {
@@ -37,20 +31,33 @@ class _MonthlyElectricityTrackerSheetState
   }
 
   void _saveNewReading() {
-    final parsed = double.tryParse(_unitsController.text);
-    if (parsed != null && parsed > 0) {
-      HapticFeedback.mediumImpact();
-      final now = DateTime.now();
-      final monthKey =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}';
-      _state.recordMonthlyUnits(monthKey, parsed);
+    final text = _unitsController.text.trim();
+    if (text.isEmpty) return;
+
+    final parsed = double.tryParse(text);
+    if (parsed == null || parsed <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('⚡ Logged $parsed units for $monthKey! Target graph updated.'),
-          backgroundColor: const Color(0xFF1B6B44),
+        const SnackBar(
+          content: Text('Please enter a valid electricity consumption in kWh!'),
+          backgroundColor: Color(0xFFDC2626),
         ),
       );
+      return;
     }
+
+    HapticFeedback.mediumImpact();
+    final now = DateTime.now();
+    final monthKey =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}";
+    _state.recordMonthlyUnits(monthKey, parsed);
+    _unitsController.clear();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('⚡ Logged $parsed units for $monthKey! Target graph updated.'),
+        backgroundColor: const Color(0xFF1B6B44),
+      ),
+    );
   }
 
   @override
@@ -69,11 +76,11 @@ class _MonthlyElectricityTrackerSheetState
             maxHeight: MediaQuery.of(context).size.height * 0.88,
           ),
           decoration: const BoxDecoration(
-            color: Color(0xFF0B2416),
+            color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black54,
+                color: Color(0x260F2B1A),
                 blurRadius: 24,
                 offset: Offset(0, -6),
               ),
@@ -87,7 +94,7 @@ class _MonthlyElectricityTrackerSheetState
                 width: 44,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -101,9 +108,9 @@ class _MonthlyElectricityTrackerSheetState
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A2B),
+                        color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF34D399)),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
                       ),
                       child: const Text('📈', style: TextStyle(fontSize: 22)),
                     ),
@@ -115,30 +122,30 @@ class _MonthlyElectricityTrackerSheetState
                           Text(
                             'Monthly Electricity & Reduction',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F2B1A),
+                              fontWeight: FontWeight.w900,
                               fontSize: 16,
                             ),
                           ),
                           Text(
                             '1st of Month Meter Units & Target Curve',
                             style: TextStyle(
-                              color: Color(0xFF86EFAC),
+                              color: Color(0xFF1B6B44),
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white70),
+                      icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const Divider(color: Color(0xFFE2E8F0), height: 20),
 
               Expanded(
                 child: ListView(
@@ -148,9 +155,9 @@ class _MonthlyElectricityTrackerSheetState
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF143522),
+                        color: const Color(0xFFF8FAF9),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
+                        border: Border.all(color: const Color(0xFFD1FAE5), width: 1.2),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,8 +168,8 @@ class _MonthlyElectricityTrackerSheetState
                               const Text(
                                 'Electricity Units Plot (kWh)',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F2B1A),
+                                  fontWeight: FontWeight.w800,
                                   fontSize: 13,
                                 ),
                               ),
@@ -172,24 +179,24 @@ class _MonthlyElectricityTrackerSheetState
                                     width: 10,
                                     height: 10,
                                     decoration: const BoxDecoration(
-                                      color: Color(0xFF34D399),
+                                      color: Color(0xFF16A34A),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
                                   const Text('Actual',
                                       style: TextStyle(
-                                          color: Colors.white70, fontSize: 10)),
+                                          color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.w600)),
                                   const SizedBox(width: 10),
                                   Container(
                                     width: 10,
                                     height: 3,
-                                    color: const Color(0xFFFBBF24),
+                                    color: const Color(0xFFD97706),
                                   ),
                                   const SizedBox(width: 4),
                                   const Text('Target Goal',
                                       style: TextStyle(
-                                          color: Colors.white70, fontSize: 10)),
+                                          color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ],
@@ -216,9 +223,9 @@ class _MonthlyElectricityTrackerSheetState
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF143522),
+                        color: const Color(0xFFF8FAF9),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: const Color(0xFFD1FAE5)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,8 +236,8 @@ class _MonthlyElectricityTrackerSheetState
                               const Text(
                                 'Target Reduction Goal',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F2B1A),
+                                  fontWeight: FontWeight.w800,
                                   fontSize: 13,
                                 ),
                               ),
@@ -238,13 +245,14 @@ class _MonthlyElectricityTrackerSheetState
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF22C55E),
+                                  color: const Color(0xFFE8F5E9),
                                   borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFF86EFAC)),
                                 ),
                                 child: Text(
                                   '-${_state.targetReductionPercent.toInt()}%',
                                   style: const TextStyle(
-                                    color: Colors.black,
+                                    color: Color(0xFF166534),
                                     fontWeight: FontWeight.w900,
                                     fontSize: 12,
                                   ),
@@ -257,8 +265,8 @@ class _MonthlyElectricityTrackerSheetState
                             min: 5.0,
                             max: 40.0,
                             divisions: 7,
-                            activeColor: const Color(0xFF34D399),
-                            inactiveColor: Colors.white12,
+                            activeColor: const Color(0xFF16A34A),
+                            inactiveColor: const Color(0xFFE2E8F0),
                             onChanged: (val) {
                               _state.setTargetReductionPercent(val);
                             },
@@ -269,12 +277,12 @@ class _MonthlyElectricityTrackerSheetState
                               Text(
                                 'Current: ${currentUnits.toInt()} kWh',
                                 style: const TextStyle(
-                                    color: Colors.white60, fontSize: 11),
+                                    color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
                               ),
                               Text(
                                 'Goal: ${targetUnits.toInt()} kWh',
                                 style: const TextStyle(
-                                  color: Color(0xFFFBBF24),
+                                  color: Color(0xFFD97706),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 11,
                                 ),
@@ -296,7 +304,7 @@ class _MonthlyElectricityTrackerSheetState
                             label: 'Potential Bill Cut',
                             value: '₹${rupeesSaved.toStringAsFixed(0)}',
                             sub: 'monthly savings',
-                            accentColor: const Color(0xFFF59E0B),
+                            accentColor: const Color(0xFFD97706),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -306,7 +314,7 @@ class _MonthlyElectricityTrackerSheetState
                             label: 'CO2e Prevented',
                             value: '${co2Saved.toStringAsFixed(1)} kg',
                             sub: 'Gujarat air cleaned',
-                            accentColor: const Color(0xFF34D399),
+                            accentColor: const Color(0xFF16A34A),
                           ),
                         ),
                       ],
@@ -318,9 +326,9 @@ class _MonthlyElectricityTrackerSheetState
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF143522),
+                        color: const Color(0xFFF8FAF9),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: const Color(0xFFD1FAE5)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,15 +336,15 @@ class _MonthlyElectricityTrackerSheetState
                           const Text(
                             'Log 1st Day of Month Meter Reading',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F2B1A),
+                              fontWeight: FontWeight.w800,
                               fontSize: 13,
                             ),
                           ),
                           const SizedBox(height: 4),
                           const Text(
                             'Enter total electricity units (kWh) from your electricity bill or meter.',
-                            style: TextStyle(color: Colors.white60, fontSize: 11),
+                            style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -346,23 +354,33 @@ class _MonthlyElectricityTrackerSheetState
                                   controller: _unitsController,
                                   keyboardType: TextInputType.number,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: Color(0xFF0F2B1A),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                   decoration: InputDecoration(
                                     suffixText: 'kWh',
                                     suffixStyle: const TextStyle(
-                                        color: Color(0xFF34D399)),
+                                        color: Color(0xFF16A34A), fontWeight: FontWeight.bold),
                                     filled: true,
-                                    fillColor: const Color(0xFF0B2416),
+                                    fillColor: Colors.white,
                                     contentPadding:
                                         const EdgeInsets.symmetric(
                                             horizontal: 14, vertical: 10),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: const BorderSide(
-                                          color: Color(0xFF34D399)),
+                                          color: Color(0xFFD1FAE5)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                          color: Color(0xFFCBD5E1)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                          color: Color(0xFF16A34A), width: 1.5),
                                     ),
                                   ),
                                 ),
@@ -371,8 +389,8 @@ class _MonthlyElectricityTrackerSheetState
                               ElevatedButton(
                                 onPressed: _saveNewReading,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF22C55E),
-                                  foregroundColor: Colors.black,
+                                  backgroundColor: const Color(0xFF16A34A),
+                                  foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -409,9 +427,9 @@ class _MonthlyElectricityTrackerSheetState
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF143522),
+        color: const Color(0xFFF1F8F5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+        border: Border.all(color: const Color(0xFFD1FAE5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,9 +442,9 @@ class _MonthlyElectricityTrackerSheetState
                 child: Text(
                   label,
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: Color(0xFF475569),
                     fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -444,7 +462,7 @@ class _MonthlyElectricityTrackerSheetState
           ),
           Text(
             sub,
-            style: const TextStyle(color: Colors.white54, fontSize: 10),
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
           ),
         ],
       ),
@@ -489,7 +507,7 @@ class _ElectricityPlotPainter extends CustomPainter {
 
     // Draw horizontal grid lines
     final gridPaint = Paint()
-      ..color = Colors.white10
+      ..color = const Color(0xFFE2E8F0)
       ..strokeWidth = 1.0;
 
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
@@ -501,7 +519,7 @@ class _ElectricityPlotPainter extends CustomPainter {
       final gridVal = (minVal + (i / 3.0) * valRange).toInt();
       textPainter.text = TextSpan(
         text: '$gridVal',
-        style: const TextStyle(color: Colors.white38, fontSize: 9),
+        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9, fontWeight: FontWeight.w600),
       );
       textPainter.layout();
       textPainter.paint(canvas, Offset(0, y - 6));
@@ -530,8 +548,8 @@ class _ElectricityPlotPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF34D399).withValues(alpha: 0.35),
-          const Color(0xFF34D399).withValues(alpha: 0.02),
+          const Color(0xFF16A34A).withValues(alpha: 0.25),
+          const Color(0xFF16A34A).withValues(alpha: 0.02),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, plotH));
 
@@ -539,7 +557,7 @@ class _ElectricityPlotPainter extends CustomPainter {
 
     // Draw Historical Line
     final linePaint = Paint()
-      ..color = const Color(0xFF34D399)
+      ..color = const Color(0xFF16A34A)
       ..strokeWidth = 3.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -551,7 +569,7 @@ class _ElectricityPlotPainter extends CustomPainter {
     canvas.drawPath(linePath, linePaint);
 
     // Draw Data Point Circles
-    final pointPaint = Paint()..color = const Color(0xFF10B981);
+    final pointPaint = Paint()..color = const Color(0xFF16A34A);
     final dotBorderPaint = Paint()
       ..color = Colors.white
       ..strokeWidth = 2.0
@@ -562,13 +580,13 @@ class _ElectricityPlotPainter extends CustomPainter {
       canvas.drawCircle(p, 5, dotBorderPaint);
     }
 
-    // Draw Projected Target Line (Dashed Golden Yellow to Goal Point)
+    // Draw Projected Target Line (Dashed Orange-Yellow to Goal Point)
     final goalX = leftMargin + (allValues.length - 1) * stepX;
     final goalY = plotH - ((targetVal - minVal) / valRange) * plotH;
     final goalOffset = Offset(goalX, goalY);
 
     final dashPaint = Paint()
-      ..color = const Color(0xFFFBBF24)
+      ..color = const Color(0xFFD97706)
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
 
@@ -588,7 +606,7 @@ class _ElectricityPlotPainter extends CustomPainter {
     }
 
     // Draw Goal Circle
-    canvas.drawCircle(goalOffset, 6, Paint()..color = const Color(0xFFFBBF24));
+    canvas.drawCircle(goalOffset, 6, Paint()..color = const Color(0xFFD97706));
     canvas.drawCircle(
       goalOffset,
       6,
@@ -605,8 +623,8 @@ class _ElectricityPlotPainter extends CustomPainter {
       textPainter.text = TextSpan(
         text: labels[i],
         style: TextStyle(
-          color: isGoal ? const Color(0xFFFBBF24) : Colors.white70,
-          fontWeight: isGoal ? FontWeight.bold : FontWeight.w500,
+          color: isGoal ? const Color(0xFFD97706) : const Color(0xFF334155),
+          fontWeight: isGoal ? FontWeight.bold : FontWeight.w600,
           fontSize: 10,
         ),
       );

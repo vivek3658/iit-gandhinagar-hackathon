@@ -64,6 +64,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   // In-app Ambient Nudge Banner State
   Map<String, dynamic>? _activeNudgeAlert;
   bool _backendMascotLoading = false;
+  DateTime _lastInteractionTime = DateTime.fromMillisecondsSinceEpoch(0);
+  bool get _isInteractionCooldown =>
+      DateTime.now().difference(_lastInteractionTime).inMilliseconds < 2500;
 
   final List<String> _startupTips = [
     "Setting your AC thermostat to 24°C saves ~24% electricity and ₹1,800/yr in Gujarat! ❄️",
@@ -201,6 +204,8 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   void _onSparrowPetted(String expression) {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
     _resetIdleTimer();
     if (_isNightTimeNestSleep) {
       if (_state.soundEnabled) HapticFeedback.lightImpact();
@@ -216,7 +221,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     if (_state.soundEnabled) HapticFeedback.selectionClick();
     _interactWithBackendMascot();
     _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
-    _sparrowKey.currentState?.pet();
+
 
     final tone = _state.mascotBehaviorTone;
     String petMsg = "Aww! 🥰 Purr-chirp! You petted me! Energy boosted!";
@@ -286,15 +291,61 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   void triggerPet() {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
     _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
       return;
     }
+    if (_state.soundEnabled) HapticFeedback.mediumImpact();
     _sparrowKey.currentState?.pet();
+    _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
+    _interactWithBackendMascot();
+    _say("Aww! 🥰 Purr-chirp! You petted Cheechee! Vitality boosted!");
   }
 
+  void triggerWater() {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
+    _resetIdleTimer();
+    if (_state.isSleeping) {
+      _wakeUpSparrow();
+      return;
+    }
+    if (_state.soundEnabled) HapticFeedback.mediumImpact();
+    _showExpression('watering');
+    _state.addCoins(5);
+    _say("Nurturing the green sapling! 💧 Every drop saved protects Gujarat's Narmada basin!");
+  }
+
+  void triggerCelebrate() {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
+    _resetIdleTimer();
+    if (_state.isSleeping) {
+      _wakeUpSparrow();
+      return;
+    }
+    if (_state.soundEnabled) HapticFeedback.heavyImpact();
+    _showExpression('celebrating');
+    _say("Chirp hooray! 🎉 +${_state.co2eSavedKg.toStringAsFixed(1)} kg CO2e saved! Level ${_state.mascotLevel} Companion!");
+  }
+
+  // Trigger nest
+  void triggerNest() {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
+    _resetIdleTimer();
+    if (_state.soundEnabled) HapticFeedback.selectionClick();
+    _showExpression('nest');
+    _say("Resting cozy in the sanctuary nest 🪺 Vampire load standby switches are OFF!");
+  }
+
+
   void triggerFeed() {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
     _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
@@ -307,6 +358,8 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   void triggerNextTip() {
+    if (_isInteractionCooldown) return;
+    _lastInteractionTime = DateTime.now();
     _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
@@ -611,6 +664,8 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  _buildCompanionActionDock(),
+                  const SizedBox(height: 8),
                   _buildVitalityCard(),
                   const SizedBox(height: 12),
                   _buildScrollToGardenButton(),
@@ -653,7 +708,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Text(
               label,
               style: const TextStyle(
-                color: const Color(0xFF344033),
+                color: Color(0xFF344033),
                 fontWeight: FontWeight.w800,
                 fontSize: 11,
               ),
@@ -1044,7 +1099,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Text(
               'Meter Plot',
               style: TextStyle(
-                color: const Color(0xFF344033),
+                color: Color(0xFF344033),
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
               ),
@@ -1082,7 +1137,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Text(
               'CO2e Ledger',
               style: TextStyle(
-                color: const Color(0xFF344033),
+                color: Color(0xFF344033),
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
               ),
@@ -1094,6 +1149,71 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   
+
+  Widget _buildCompanionActionDock() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF86EFAC), width: 1.4),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x181B6B44),
+            blurRadius: 14,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildActionDockButton(icon: '🐥', label: 'Pet', onTap: triggerPet),
+          _buildActionDockButton(icon: '🌾', label: 'Feed', onTap: triggerFeed),
+          _buildActionDockButton(icon: '💧', label: 'Water', onTap: triggerWater),
+          _buildActionDockButton(icon: '🥳', label: 'Cheer', onTap: triggerCelebrate),
+          _buildActionDockButton(icon: '💡', label: 'Tip', onTap: triggerNextTip),
+          _buildActionDockButton(icon: '🪺', label: 'Nest', onTap: triggerNest),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionDockButton({
+    required String icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F8F5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFD1FAE5), width: 1.0),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF1B6B44),
+                fontWeight: FontWeight.w800,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildVitalityCard() {
     final percentInt = (_state.vitality * 100).toInt();

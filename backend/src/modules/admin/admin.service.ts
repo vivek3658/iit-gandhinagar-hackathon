@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { ActivityService } from '../activity/activity.service';
+import { AuthService } from '../auth/auth.service';
 import { ProvidersService } from '../providers/providers.service';
 import type {
   AdminBroadcastAlertBody,
@@ -47,16 +48,26 @@ export class AdminService {
     const broadcastId = crypto.randomUUID();
     const activityRepo = ActivityService.getRepository();
 
-    const titlePrefix = body.targetProviderId
-      ? `[${body.targetProviderId.toUpperCase()}] `
-      : body.targetDistrict
-        ? `[${body.targetDistrict.toUpperCase()} GEDA] `
-        : '[STATE ADVISORY GEDA] ';
+    let targetUserId: string | null = null;
+    if (body.targetUserId) {
+      targetUserId = body.targetUserId;
+    } else if (body.targetUserEmail) {
+      const citizen = AuthService.getRepository().findByEmail(body.targetUserEmail);
+      targetUserId = citizen ? citizen.id : `email:${body.targetUserEmail}`;
+    }
+
+    const titlePrefix = targetUserId
+      ? `[DIRECT CITIZEN REMINDER] `
+      : body.targetProviderId
+        ? `[${body.targetProviderId.toUpperCase()}] `
+        : body.targetDistrict
+          ? `[${body.targetDistrict.toUpperCase()} GEDA] `
+          : '[STATE ADVISORY GEDA] ';
 
     // Add alert to Activity feed with global accessibility
     activityRepo.add({
       id: broadcastId,
-      userId: null, // Broadcast to all matching citizens
+      userId: targetUserId,
       category: body.category || 'ALERT',
       title: `${titlePrefix}${body.title}`,
       message: body.message,
@@ -67,18 +78,22 @@ export class AdminService {
       createdAt: new Date().toISOString(),
     });
 
-    const scope = body.targetDistrict
-      ? `District: ${body.targetDistrict}`
-      : body.targetProviderId
-        ? `Provider: ${body.targetProviderId}`
-        : 'State-wide (All Gujarat Districts)';
+    const scope = targetUserId
+      ? `Specific Citizen Reminder (${body.targetUserEmail || targetUserId})`
+      : body.targetDistrict
+        ? `District: ${body.targetDistrict}`
+        : body.targetProviderId
+          ? `Provider: ${body.targetProviderId}`
+          : 'State-wide (All Gujarat Districts)';
 
     return {
       success: true,
       broadcastId,
       scope,
-      recipientsReached: body.targetDistrict ? 14250 : 55630,
-      message: 'State admin announcement broadcast successfully to citizen notification feeds',
+      recipientsReached: targetUserId ? 1 : body.targetDistrict ? 14250 : 55630,
+      message: targetUserId
+        ? 'Direct reminder despatched successfully to citizen notification feed'
+        : 'State admin announcement broadcast successfully to citizen notification feeds',
     };
   }
 

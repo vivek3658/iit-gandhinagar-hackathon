@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../constants/auth_config.dart';
+import 'auth_service.dart';
 import 'notification_service.dart';
 
 /// Central Game & Behavioral State for URJA ONE.
@@ -11,10 +15,13 @@ import 'notification_service.dart';
 /// - Garden blocks do NOT generate coins or fake CO2e.
 /// - Monthly Electricity Meter Units tracker with reduction goals & plot graph.
 /// - Idle sleep timer (2 min), night dimming, and interactive bird states.
+/// - Robust Local Persistence (Never loses purchases or garden on refresh) + Backend Sync.
 class GameStateService extends ChangeNotifier {
   static final GameStateService instance = GameStateService._internal();
 
   GameStateService._internal() {
+    _loadFromLocalStorage();
+
     NotificationService.instance.onChargerDisconnected.listen((_) {
       if (_enableChargerReminder) {
         addCoins(5);
@@ -39,6 +46,9 @@ class GameStateService extends ChangeNotifier {
         type: 'departure_verified',
       );
     });
+
+    // Asynchronously synchronize with remote Fastify backend if online
+    syncWithBackend();
   }
 
   // --- Mascot State ---
@@ -155,6 +165,228 @@ class GameStateService extends ChangeNotifier {
   double get targetReductionPercent => _targetReductionPercent;
   List<Map<String, dynamic>> get notificationHistory =>
       List.unmodifiable(_notificationHistory);
+
+  // ==========================================
+  // LOCAL PERSISTENCE SYSTEM (Never resets on refresh)
+  // ==========================================
+  File _getStorageFile() {
+    try {
+      final androidFiles = Directory('/data/user/0/com.example.urja/files');
+      if (androidFiles.existsSync()) {
+        return File('${androidFiles.path}/urja_game_state.json');
+      }
+    } catch (_) {}
+    try {
+      return File('${Directory.systemTemp.path}/urja_game_state.json');
+    } catch (_) {
+      return File('urja_game_state.json');
+    }
+  }
+
+  void _loadFromLocalStorage() {
+    try {
+      final file = _getStorageFile();
+      if (!file.existsSync()) return;
+      final raw = file.readAsStringSync();
+      if (raw.isEmpty) return;
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+
+      if (json['coins'] is num) _coins = (json['coins'] as num).toInt();
+      if (json['vitality'] is num) _vitality = (json['vitality'] as num).toDouble().clamp(0.0, 1.0);
+      if (json['mascotLevel'] is num) _mascotLevel = (json['mascotLevel'] as num).toInt();
+      if (json['co2eSavedKg'] is num) _co2eSavedKg = (json['co2eSavedKg'] as num).toDouble();
+      if (json['ownedItems'] is List) {
+        for (final item in json['ownedItems'] as List) {
+          _ownedItems.add(item.toString());
+        }
+      }
+      _equippedHead = json['equippedHead'] as String?;
+      _equippedFace = json['equippedFace'] as String?;
+      _equippedNeck = json['equippedNeck'] as String?;
+      _equippedHeld = json['equippedHeld'] as String?;
+      _equippedOutfit = json['equippedOutfit'] as String? ?? _equippedOutfit;
+
+      if (json['gardenGridSlots'] is List) {
+        final list = json['gardenGridSlots'] as List;
+        for (final s in list) {
+          if (s is Map) {
+            final x = s['x'];
+            final z = s['z'];
+            final id = s['id'] as String?;
+            final r = s['r'] as int? ?? 0;
+            final idx = _gardenGridSlots.indexWhere((g) => g['x'] == x && g['z'] == z);
+            if (idx != -1) {
+              _gardenGridSlots[idx]['id'] = id;
+              _gardenGridSlots[idx]['r'] = r;
+            }
+          }
+        }
+      }
+
+      if (json['gardenInventory'] is List) {
+        _gardenInventory.clear();
+        for (final item in json['gardenInventory'] as List) {
+          _gardenInventory.add(item.toString());
+        }
+      }
+
+      if (json['monthlyUnitsLedger'] is Map) {
+        final map = json['monthlyUnitsLedger'] as Map;
+        map.forEach((k, v) {
+          if (v is num) _monthlyUnitsLedger[k.toString()] = v.toDouble();
+        });
+      }
+
+      if (json['electricityProvider'] is String) {
+        _electricityProvider = json['electricityProvider'] as String;
+      }
+      if (json['hasSolar'] is bool) _hasSolar = json['hasSolar'] as bool;
+      if (json['solarCapacityKw'] is num) {
+        _solarCapacityKw = (json['solarCapacityKw'] as num).toDouble();
+      }
+      if (json['hasBatteryStorage'] is bool) {
+        _hasBatteryStorage = json['hasBatteryStorage'] as bool;
+      }
+    } catch (e) {
+      debugPrint('[GameStateService] Failed to load local state: $e');
+    }
+  }
+
+  void _saveToLocalStorage() {
+    try {
+      final file = _getStorageFile();
+      final json = {
+        'coins': _coins,
+        'vitality': _vitality,
+        'mascotLevel': _mascotLevel,
+        'co2eSavedKg': _co2eSavedKg,
+        'ownedItems': _ownedItems.toList(),
+        'equippedHead': _equippedHead,
+        'equippedFace': _equippedFace,
+        'equippedNeck': _equippedNeck,
+        'equippedHeld': _equippedHeld,
+        'equippedOutfit': _equippedOutfit,
+        'gardenGridSlots': _gardenGridSlots,
+        'gardenInventory': _gardenInventory,
+        'monthlyUnitsLedger': _monthlyUnitsLedger,
+        'electricityProvider': _electricityProvider,
+        'hasSolar': _hasSolar,
+        'solarCapacityKw': _solarCapacityKw,
+        'hasBatteryStorage': _hasBatteryStorage,
+      };
+      file.writeAsStringSync(jsonEncode(json), flush: true);
+    } catch (e) {
+      debugPrint('[GameStateService] Failed to save local state: $e');
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    _saveToLocalStorage();
+    super.notifyListeners();
+  }
+
+  // ==========================================
+  // BACKEND SYNC SYSTEM
+  // ==========================================
+  Future<void> _sendBackendPost(String endpoint, Map<String, dynamic> data) async {
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
+      final request = await client.postUrl(Uri.parse('${AuthConfig.apiBaseUrl}$endpoint'));
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode(data));
+      final response = await request.close();
+      client.close();
+      debugPrint('[GameStateService] Backend POST $endpoint -> ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[GameStateService] Backend POST $endpoint error: $e');
+    }
+  }
+
+  Future<void> syncWithBackend() async {
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+
+      // 1. Fetch remote Mascot State
+      final mascotReq = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/state'));
+      mascotReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      mascotReq.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final mascotResp = await mascotReq.close();
+      final mascotBody = await mascotResp.transform(utf8.decoder).join();
+      if (mascotResp.statusCode == 200) {
+        final decoded = jsonDecode(mascotBody) as Map<String, dynamic>;
+        final data = decoded['data'] is Map<String, dynamic>
+            ? decoded['data'] as Map<String, dynamic>
+            : decoded;
+        if (data['vitality'] is num) {
+          final v = (data['vitality'] as num).toDouble();
+          _vitality = (v > 1 ? v / 100 : v).clamp(0.0, 1.0);
+        }
+        if (data['level'] is num) _mascotLevel = (data['level'] as num).toInt();
+        if (data['co2eSavedKg'] is num) _co2eSavedKg = (data['co2eSavedKg'] as num).toDouble();
+      }
+
+      // 2. Fetch remote Wardrobe
+      final wardrobeReq = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/wardrobe'));
+      wardrobeReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      wardrobeReq.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final wardrobeResp = await wardrobeReq.close();
+      final wardrobeBody = await wardrobeResp.transform(utf8.decoder).join();
+      if (wardrobeResp.statusCode == 200) {
+        final decoded = jsonDecode(wardrobeBody) as Map<String, dynamic>;
+        final owned = decoded['owned'] is List
+            ? decoded['owned'] as List
+            : (decoded['data']?['owned'] as List?);
+        if (owned != null) {
+          for (final item in owned) {
+            if (item is String) _ownedItems.add(item);
+            else if (item is Map && item['id'] is String) _ownedItems.add(item['id'] as String);
+          }
+        }
+      }
+
+      // 3. Fetch remote Garden Sanctuary
+      final gardenReq = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/garden'));
+      gardenReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      gardenReq.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final gardenResp = await gardenReq.close();
+      final gardenBody = await gardenResp.transform(utf8.decoder).join();
+      if (gardenResp.statusCode == 200) {
+        final decoded = jsonDecode(gardenBody) as Map<String, dynamic>;
+        final data = decoded['garden'] is Map<String, dynamic>
+            ? decoded['garden'] as Map<String, dynamic>
+            : decoded['data'];
+        if (data is Map<String, dynamic>) {
+          final slots = data['grid'] is List ? data['grid'] as List : data['slots'] as List?;
+          if (slots != null) {
+            for (final s in slots) {
+              if (s is Map) {
+                final x = s['x'];
+                final z = s['z'] ?? s['y'];
+                final id = s['tileCatalogId'] ?? s['id'];
+                final r = s['rotation'] ?? s['r'] ?? 0;
+                final idx = _gardenGridSlots.indexWhere((g) => g['x'] == x && g['z'] == z);
+                if (idx != -1) {
+                  _gardenGridSlots[idx]['id'] = id;
+                  _gardenGridSlots[idx]['r'] = r;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      client.close();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[GameStateService] Sync backend failed: $e');
+    }
+  }
 
   /// Calculate the 15-minute advance reminder time for user's bedtime
   TimeOfDay get sleepReminderTime {
@@ -344,7 +576,7 @@ class GameStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Purchase an accessory with Urja Mudra coins
+  /// Purchase an accessory with Urja Mudra coins (Persists locally & syncs to Fastify API)
   bool buyAccessory({
     required String itemId,
     required int price,
@@ -356,6 +588,7 @@ class GameStateService extends ChangeNotifier {
 
     _coins -= price;
     _ownedItems.add(itemId);
+    _sendBackendPost('/mascot/wardrobe/buy', {'itemId': itemId});
     notifyListeners();
     return true;
   }
@@ -377,6 +610,7 @@ class GameStateService extends ChangeNotifier {
         break;
     }
     _equippedOutfit = null;
+    _sendBackendPost('/mascot/wardrobe/equip', {'slot': slot, 'itemId': itemId});
     notifyListeners();
   }
 
@@ -387,6 +621,7 @@ class GameStateService extends ChangeNotifier {
     _equippedFace = slots['face'];
     _equippedNeck = slots['neck'];
     _equippedHeld = slots['held'];
+    _sendBackendPost('/mascot/outfits/equip', {'outfitId': outfitKey});
     notifyListeners();
   }
 
@@ -406,6 +641,14 @@ class GameStateService extends ChangeNotifier {
     _coins -= cost;
     _gardenGridSlots[idx]['id'] = tileId;
     _gardenGridSlots[idx]['r'] = rotation;
+
+    _sendBackendPost('/garden/buy-and-place', {
+      'tileCatalogId': tileId,
+      'x': x,
+      'y': z,
+      'rotation': rotation,
+    });
+
     notifyListeners();
     return true;
   }
@@ -460,6 +703,8 @@ class GameStateService extends ChangeNotifier {
     _gardenInventory.add(tileId);
     _gardenGridSlots[idx]['id'] = null;
     _gardenGridSlots[idx]['r'] = 0;
+
+    _sendBackendPost('/garden/remove-to-inventory', {'x': x, 'y': z});
     notifyListeners();
     return true;
   }
@@ -477,6 +722,14 @@ class GameStateService extends ChangeNotifier {
     _gardenInventory.remove(tileId);
     _gardenGridSlots[idx]['id'] = tileId;
     _gardenGridSlots[idx]['r'] = rotation;
+
+    _sendBackendPost('/garden/place-from-inventory', {
+      'tileCatalogId': tileId,
+      'x': x,
+      'y': z,
+      'rotation': rotation,
+    });
+
     notifyListeners();
     return true;
   }
@@ -493,11 +746,52 @@ class GameStateService extends ChangeNotifier {
     return true;
   }
 
+  /// Sell tile from inventory or grid with 80% coin recovery
+  bool sellGardenTile(String tileCatalogId) {
+    final costs = <String, int>{
+      'NEEM_TREE': 40,
+      'TULSI_SHRINE': 30,
+      'SOLAR_PUMP': 60,
+      'DRIP_FEEDER': 25,
+      'RAIN_CISTERN': 45,
+      'COMPOST_TUMBLER': 35,
+      'BEE_HOTEL': 30,
+      'HERB_SPIRAL': 20,
+      'TERRACOTTA_BENCH': 25,
+      'STONE_PATH': 10,
+    };
+    final origCost = costs[tileCatalogId] ?? 30;
+    final refund = (origCost * 0.8).round();
+
+    if (_gardenInventory.contains(tileCatalogId)) {
+      _gardenInventory.remove(tileCatalogId);
+    } else {
+      final idx = _gardenGridSlots.indexWhere((s) => s['id'] == tileCatalogId);
+      if (idx != -1) {
+        _gardenGridSlots[idx]['id'] = null;
+        _gardenGridSlots[idx]['r'] = 0;
+      } else {
+        return false;
+      }
+    }
+
+    addCoins(refund);
+    addNotification(
+      title: '💰 Garden Eco-Resale Completed',
+      message: 'Recovered +$refund 🪙 Urja Mudra (80% resale value) for sustainable reuse!',
+      type: 'garden_sale',
+    );
+
+    _sendBackendPost('/garden/sell', {'tileCatalogId': tileCatalogId});
+    notifyListeners();
+    return true;
+  }
+
   void syncGardenGrid(List<dynamic> remoteSlots) {
     for (final s in remoteSlots) {
       if (s is Map) {
         final x = s['x'] as int?;
-        final z = s['z'] as int?;
+        final z = (s['z'] ?? s['y']) as int?;
         final id = s['id'] as String?;
         final r = s['r'] as int? ?? 0;
         final idx =

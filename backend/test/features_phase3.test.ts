@@ -160,4 +160,61 @@ describe('Phase 3 Advanced Systems Integration Tests (Leaderboard, Calculator, A
     expect(Array.isArray(summaryBody.devices)).toBe(true);
     expect(summaryBody.highHourWarnings.length).toBeGreaterThan(0);
   });
+
+  it('13. POST /api/v1/admin/send-reminder dispatches targeted reminder to a specific citizen', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/send-reminder',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        title: 'Peak Grid Load Shift',
+        message: 'Please shift heavy loads during 18:00-22:00 peak hours',
+        targetUserEmail: 'test_user_phase3@urjavatika.in',
+        category: 'ALERT',
+        incentiveCoins: 15,
+        urgency: 'HIGH',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.success).toBe(true);
+    expect(body.broadcastId).toBeDefined();
+    expect(body.recipientsReached).toBe(1);
+    expect(body.scope).toContain('test_user_phase3@urjavatika.in');
+  });
+
+  it('14. POST /api/v1/admin/broadcast-alert broadcasts district advisory', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/broadcast-alert',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        title: 'Ahmedabad Midday Solar Advisory',
+        message: 'Run your water pump during 11:00-15:00 on free solar',
+        targetDistrict: 'Ahmedabad',
+        category: 'COMMUNITY',
+        incentiveCoins: 20,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.success).toBe(true);
+    expect(body.scope).toContain('Ahmedabad');
+  });
+
+  it('15. GET /api/v1/admin/kpis returns statewide energy demand and citizen metrics', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/kpis',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.success).toBe(true);
+    expect(body.kpis).toBeDefined();
+    expect(body.kpis.totalCo2eSavedKg).toBeDefined();
+  });
 });

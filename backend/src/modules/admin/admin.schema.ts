@@ -22,6 +22,8 @@ export const AdminBroadcastAlertBodySchema = Type.Object({
   category: Type.Optional(Type.Union([Type.Literal('ALERT'), Type.Literal('COMMUNITY'), Type.Literal('HABIT')])),
   targetDistrict: Type.Optional(Type.String({ description: 'Specific Gujarat district or null for state-wide' })),
   targetProviderId: Type.Optional(Type.String({ description: 'Specific utility provider or null for all' })),
+  targetUserId: Type.Optional(Type.String({ description: 'Specific citizen ID to remind' })),
+  targetUserEmail: Type.Optional(Type.String({ description: 'Specific citizen email to remind' })),
   incentiveCoins: Type.Optional(Type.Number({ minimum: 0, maximum: 100 })),
   urgency: Type.Optional(Type.Union([Type.Literal('LOW'), Type.Literal('MEDIUM'), Type.Literal('HIGH')])),
 });

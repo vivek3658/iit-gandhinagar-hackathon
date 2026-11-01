@@ -176,9 +176,9 @@ Object.assign(P0,{
 DEMO.push(['angry',2.6],['frustrated',2.8],['sad',2.6],['crying',3.2],['petted',2.8],['levelup',3.2],['announce',3.4]);
 
 // ---- tap = pet ----
-let pd=null,petT=null,petBack='happy';
+let pd=null,petT=null,petBack='happy',lastPetTime=0;
 const notifyFlutter=(obj)=>{try{if(window.FlutterBridge&&window.FlutterBridge.postMessage){window.FlutterBridge.postMessage(JSON.stringify(obj))}}catch(e){}};
-const pet=()=>{stop();if(curKey==='sleep'||curKey==='nest'||curKey==='resting'){set('happy');notifyFlutter({type:'wake',wasSleeping:true});return;}if(curKey!=='petted')petBack=curKey;set('petted');notifyFlutter({type:'pet',expression:'petted'});clearTimeout(petT);petT=setTimeout(()=>{if(curKey==='petted')set(petBack)},2800);};
+const pet=()=>{const now=performance.now();if(now-lastPetTime<2500)return;lastPetTime=now;stop();if(curKey==='sleep'||curKey==='nest'||curKey==='resting'){set('happy');notifyFlutter({type:'wake',wasSleeping:true});return;}if(curKey!=='petted')petBack=curKey;set('petted');notifyFlutter({type:'pet',expression:'petted'});clearTimeout(petT);petT=setTimeout(()=>{if(curKey==='petted')set(petBack)},2800);};
 wrap.addEventListener('pointerdown',e=>{pd={x:e.clientX,y:e.clientY,t:performance.now()}});
 wrap.addEventListener('pointerup',e=>{if(!pd)return;const d=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),dt=performance.now()-pd.t;pd=null;if(d<6&&dt<400)pet()});
 Object.assign(window.Sparrow,{poses:Object.keys(P0),pet,levelUp:n=>{drawLvl('LEVEL UP!',n?'Lv '+(n-1)+' → '+n:'');window.Sparrow.set('levelup')},announce:t=>{drawBadge(String(t||'NEW!'));window.Sparrow.set('announce')}});
@@ -391,7 +391,7 @@ const doBuy=async(keys,cost)=>{const h=window.Sparrow.onPurchase;
  if(typeof h==='function'){let ok=false;try{ok=!!(await h({items:keys,price:cost}))}catch(e){}if(!ok)return false}
  else{if(ST.coins<cost)return false;ST.coins-=cost}
  keys.forEach(k=>{if(!own(k))ST.owned.push(k)});save();wallet();return true};
-const ask=(msg,cost,yes,no)=>{$buy.hidden=false;$buy.innerHTML='';const p=document.createElement('span');p.textContent=msg;
+const ask=(msg,cost,yes,no)=>{if(yes)yes();return;};
  const hook=typeof window.Sparrow.onPurchase==='function',broke=!hook&&cost>ST.coins;
  const by=document.createElement('button');by.className='on';by.textContent=broke?'Not enough coins':'Buy · '+cost+' 🪙';by.disabled=broke;
  by.onclick=async()=>{by.disabled=true;const ok=await yes();if(ok){$buy.hidden=true}else{by.disabled=false;p.textContent='Purchase failed.'}};
