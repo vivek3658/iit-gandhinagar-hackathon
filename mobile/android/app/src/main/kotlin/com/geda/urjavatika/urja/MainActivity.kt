@@ -121,6 +121,48 @@ class MainActivity : FlutterActivity() {
                     channel.invokeMethod("onChargerDisconnected", mapOf("timestamp" to System.currentTimeMillis()))
                     result.success(true)
                 }
+                "triggerThreeEcoTips" -> {
+                    showNotification(
+                        "❄️ AC 24°C Sweet Spot (Save 24% Power)",
+                        "Setting your AC thermostat to 24°C saves ~24% electricity and ₹1,800/yr in Gujarat! Every 1°C increase saves 6% power.",
+                        3001,
+                        "Set 24°C (+10 🪙)"
+                    )
+                    showNotification(
+                        "🔌 Stop Standby Vampire Drain",
+                        "Idle laptop chargers, TV setups & microwave sockets silently drain 35W continuously. Turn off wall sockets to save ~₹150/month!",
+                        3002,
+                        "Switch OFF (+10 🪙)"
+                    )
+                    showNotification(
+                        "☀️ Midday Rooftop Solar Window",
+                        "Solar irradiance is at peak (11 AM - 3 PM)! Run heavy appliances and agricultural water pumps now for 100% free green energy.",
+                        3003,
+                        "Run Clean (+15 🪙)"
+                    )
+                    result.success(true)
+                }
+                "triggerShortDepartureReminder" -> {
+                    val dist = call.argument<Double>("distance") ?: 150.0
+                    showNotification(
+                        "⚡ Left Home (${dist.toInt()}m)? Turn Off Wall Switches",
+                        "Did you switch off the AC, geyser & unplug phone chargers? Confirm to prevent continuous vampire drain!",
+                        4001,
+                        "Confirm All OFF (+10 🪙)"
+                    )
+                    result.success(true)
+                }
+                "triggerLongCommuteNotification" -> {
+                    val km = call.argument<Double>("distanceKm") ?: 4.2
+                    val kmStr = String.format("%.1f", km)
+                    showNotification(
+                        "🚇 Traveled $kmStr km! Log Transport Mode",
+                        "You traveled $kmStr km! Did you take the Ahmedabad Metro, EV, Bicycle, or Walk? Log it to earn Urja Mudra & cut carbon!",
+                        4002,
+                        "Log Metro (+20 🪙)"
+                    )
+                    result.success(true)
+                }
                 "triggerLearningNotification" -> {
                     val type = call.argument<String>("type") ?: "phantom"
                     if (type == "solar") {

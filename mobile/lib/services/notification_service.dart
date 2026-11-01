@@ -97,6 +97,27 @@ class NotificationService {
   }
 
   /// Triggers creative learning notifications (phantom vampire load or solar generation window)
+  /// Triggers 3 Mission LiFE push notifications directly to device shade
+  Future<void> triggerThreeEcoTips() async {
+    try {
+      await _channel.invokeMethod('triggerThreeEcoTips');
+    } catch (_) {}
+  }
+
+  /// Triggers short departure reminder (< 300m)
+  Future<void> triggerShortDepartureReminder({double distance = 150.0}) async {
+    try {
+      await _channel.invokeMethod('triggerShortDepartureReminder', {'distance': distance});
+    } catch (_) {}
+  }
+
+  /// Triggers long commute travel reminder (> 1.5 km)
+  Future<void> triggerLongCommuteNotification({double distanceKm = 4.2}) async {
+    try {
+      await _channel.invokeMethod('triggerLongCommuteNotification', {'distanceKm': distanceKm});
+    } catch (_) {}
+  }
+
   Future<void> triggerLearningNotification(String type) async {
     try {
       await _channel.invokeMethod('triggerLearningNotification', {'type': type});

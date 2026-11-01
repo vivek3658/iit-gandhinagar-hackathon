@@ -36,6 +36,7 @@ class CarbonDashboardSheet extends StatefulWidget {
 class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
   SeniorCarbonAnalytics? _data;
   bool _isLoading = true;
+  int _selectedDomainTab = 0;
 
   @override
   void initState() {
@@ -174,6 +175,14 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)))
                 : ListView(
                     children: [
+                      // Wireframe Filter Tabs: CO2E | ELECTRICITY | WATER | GAS
+                      _buildDomainTabBar(),
+                      // Wireframe Bar Graph
+                      _buildInteractiveBarGraph(),
+                      const SizedBox(height: 12),
+                      // Wireframe 3 Stat Cards
+                      _buildWireframeThreeStatCards(),
+                      const SizedBox(height: 18),
                       // 1. Real-Time Power & Solar Metrics
                       _buildRealTimeMetricsRow(),
                       const SizedBox(height: 18),
@@ -201,6 +210,280 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
                       const SizedBox(height: 12),
                     ],
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  
+  Widget _buildDomainTabBar() {
+    final tabs = ['CO2E 🍃', 'ELECTRICITY ⚡', 'WATER 💧', 'GAS 🥘'];
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, idx) {
+          final isSelected = _selectedDomainTab == idx;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedDomainTab = idx),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  tabs[idx],
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInteractiveBarGraph() {
+    final List<Map<String, dynamic>> barData = switch (_selectedDomainTab) {
+      1 => [
+        {'day': 'Mon', 'val': 4.2, 'unit': 'kWh'},
+        {'day': 'Tue', 'val': 3.8, 'unit': 'kWh'},
+        {'day': 'Wed', 'val': 5.1, 'unit': 'kWh'},
+        {'day': 'Thu', 'val': 3.4, 'unit': 'kWh'},
+        {'day': 'Fri', 'val': 4.0, 'unit': 'kWh'},
+        {'day': 'Sat', 'val': 2.9, 'unit': 'kWh'},
+        {'day': 'Today', 'val': 2.1, 'unit': 'kWh'},
+      ],
+      2 => [
+        {'day': 'Mon', 'val': 120, 'unit': 'L'},
+        {'day': 'Tue', 'val': 140, 'unit': 'L'},
+        {'day': 'Wed', 'val': 95, 'unit': 'L'},
+        {'day': 'Thu', 'val': 160, 'unit': 'L'},
+        {'day': 'Fri', 'val': 110, 'unit': 'L'},
+        {'day': 'Sat', 'val': 130, 'unit': 'L'},
+        {'day': 'Today', 'val': 85, 'unit': 'L'},
+      ],
+      3 => [
+        {'day': 'Mon', 'val': 25, 'unit': 'm'},
+        {'day': 'Tue', 'val': 30, 'unit': 'm'},
+        {'day': 'Wed', 'val': 20, 'unit': 'm'},
+        {'day': 'Thu', 'val': 35, 'unit': 'm'},
+        {'day': 'Fri', 'val': 28, 'unit': 'm'},
+        {'day': 'Sat', 'val': 18, 'unit': 'm'},
+        {'day': 'Today', 'val': 15, 'unit': 'm'},
+      ],
+      _ => [
+        {'day': 'Mon', 'val': 2.4, 'unit': 'kg'},
+        {'day': 'Tue', 'val': 3.1, 'unit': 'kg'},
+        {'day': 'Wed', 'val': 2.8, 'unit': 'kg'},
+        {'day': 'Thu', 'val': 4.2, 'unit': 'kg'},
+        {'day': 'Fri', 'val': 3.6, 'unit': 'kg'},
+        {'day': 'Sat', 'val': 5.0, 'unit': 'kg'},
+        {'day': 'Today', 'val': 4.5, 'unit': 'kg'},
+      ],
+    };
+
+    final maxVal = barData.map((e) => (e['val'] as num).toDouble()).reduce((a, b) => a > b ? a : b);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'WEEKLY EMISSIONS & CONSERVATION',
+                style: TextStyle(
+                  color: const Color(0xFF16A34A),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Target: -20% LiFE',
+                  style: TextStyle(
+                    color: Color(0xFF166534),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 9,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Bar Columns
+          SizedBox(
+            height: 120,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: barData.map((item) {
+                final val = (item['val'] as num).toDouble();
+                final heightFactor = (val / maxVal).clamp(0.12, 1.0);
+                final isToday = item['day'] == 'Today';
+
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${val.toStringAsFixed(1)}',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: isToday ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 22,
+                      height: 80 * heightFactor,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: isToday
+                              ? [const Color(0xFF16A34A), const Color(0xFF4ADE80)]
+                              : [const Color(0xFF94A3B8), const Color(0xFFCBD5E1)],
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item['day'] as String,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: isToday ? FontWeight.w900 : FontWeight.w600,
+                        color: isToday ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWireframeThreeStatCards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _summaryStatCard(
+            title: 'Today Saved',
+            val: '9.2 kg',
+            sub: '+14% vs avg',
+            color: const Color(0xFF16A34A),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _summaryStatCard(
+            title: 'Solar Gen',
+            val: '11.2 kWh',
+            sub: 'Rooftop Net',
+            color: const Color(0xFF0284C7),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _summaryStatCard(
+            title: 'Grid Saved',
+            val: '₹ 284',
+            sub: 'GUVNL Tariff',
+            color: const Color(0xFFD97706),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryStatCard({
+    required String title,
+    required String val,
+    required String sub,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            val,
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            style: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

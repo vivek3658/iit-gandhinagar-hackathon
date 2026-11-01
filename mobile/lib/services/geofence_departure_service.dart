@@ -9,12 +9,16 @@ class GeofenceDepartureService {
   // Citizen registered home coordinates (Default: Navrangpura, Ahmedabad)
   double _homeLat = 23.0365;
   double _homeLng = 72.5611;
+  String _homeAddress = 'Navrangpura, Ahmedabad, Gujarat';
   double _currentDistanceMeters = 45.0; // Currently inside home zone
   bool _isOutsideGeofence = false;
   bool _locationPermissionGranted = false;
 
   final double departureThresholdMeters = 300.0;
 
+  double get homeLat => _homeLat;
+  double get homeLng => _homeLng;
+  String get homeAddress => _homeAddress;
   double get currentDistanceMeters => _currentDistanceMeters;
   bool get isOutsideGeofence => _isOutsideGeofence;
   bool get locationPermissionGranted => _locationPermissionGranted;
@@ -24,9 +28,12 @@ class GeofenceDepartureService {
     _locationPermissionGranted = true;
   }
 
-  void setHomeCoordinates(double lat, double lng) {
+  void setHomeCoordinates(double lat, double lng, [String? address]) {
     _homeLat = lat;
     _homeLng = lng;
+    if (address != null && address.isNotEmpty) {
+      _homeAddress = address;
+    }
   }
 
   /// Calculates geodesic distance using Haversine formula
@@ -43,20 +50,42 @@ class GeofenceDepartureService {
     return r * c;
   }
 
-  /// Updates user location and triggers modern Android notification if user departed 300m
+  /// Updates user location and triggers notifications
   Future<void> updateLocation(double lat, double lng) async {
     _currentDistanceMeters = calculateDistance(_homeLat, _homeLng, lat, lng);
-    if (_currentDistanceMeters >= departureThresholdMeters && !_isOutsideGeofence) {
+    if (_currentDistanceMeters >= 50 && _currentDistanceMeters <= departureThresholdMeters && !_isOutsideGeofence) {
       _isOutsideGeofence = true;
-      await NotificationService.instance.triggerDepartureNotification(
+      await NotificationService.instance.triggerShortDepartureReminder(
         distance: _currentDistanceMeters,
       );
-    } else if (_currentDistanceMeters < departureThresholdMeters) {
+    } else if (_currentDistanceMeters > 1500) {
+      await NotificationService.instance.triggerLongCommuteNotification(
+        distanceKm: _currentDistanceMeters / 1000.0,
+      );
+    } else if (_currentDistanceMeters < 50) {
       _isOutsideGeofence = false;
     }
   }
 
-  /// Simulates departing home (> 300m) to immediately test the creative modern Android notification
+  /// Simulates departing home (< 300m) to check appliances & switches
+  Future<void> simulateShortDeparture([double distanceMeters = 180.0]) async {
+    _currentDistanceMeters = distanceMeters;
+    _isOutsideGeofence = true;
+    await NotificationService.instance.triggerShortDepartureReminder(
+      distance: distanceMeters,
+    );
+  }
+
+  /// Simulates long commute travel (> 1.5 km) to log transit mode
+  Future<void> simulateLongCommute([double distanceKm = 4.2]) async {
+    _currentDistanceMeters = distanceKm * 1000.0;
+    _isOutsideGeofence = true;
+    await NotificationService.instance.triggerLongCommuteNotification(
+      distanceKm: distanceKm,
+    );
+  }
+
+  /// Simulates departing home (> 300m)
   Future<void> simulateDeparture([double distanceMeters = 350.0]) async {
     _currentDistanceMeters = distanceMeters;
     _isOutsideGeofence = true;

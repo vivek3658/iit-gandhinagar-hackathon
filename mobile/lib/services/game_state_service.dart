@@ -171,10 +171,18 @@ class GameStateService extends ChangeNotifier {
   // ==========================================
   File _getStorageFile() {
     try {
-      final androidFiles = Directory('/data/user/0/com.example.urja/files');
-      if (androidFiles.existsSync()) {
-        return File('${androidFiles.path}/urja_game_state.json');
+      final dir = Directory('/data/user/0/com.geda.urjavatika.urja/files');
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
       }
+      return File('${dir.path}/urja_game_state.json');
+    } catch (_) {}
+    try {
+      final dir2 = Directory('/data/data/com.geda.urjavatika.urja/files');
+      if (!dir2.existsSync()) {
+        dir2.createSync(recursive: true);
+      }
+      return File('${dir2.path}/urja_game_state.json');
     } catch (_) {}
     try {
       return File('${Directory.systemTemp.path}/urja_game_state.json');

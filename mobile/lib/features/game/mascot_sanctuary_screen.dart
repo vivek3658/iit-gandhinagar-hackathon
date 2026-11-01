@@ -18,6 +18,7 @@ import '../water/water_conservation_sheet.dart';
 import '../menu/sanctuary_menu_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../dashboard/daily_quests_sheet.dart';
+import '../settings/user_settings_sheet.dart';
 import 'sparrow_3d_stage.dart';
 
 /// Screen 1: 3D Mascot Sanctuary & Interactive Companion (WebGL Three.js Game UI)
@@ -50,6 +51,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   final GlobalKey<Sparrow3DStageState> _sparrowKey =
       GlobalKey<Sparrow3DStageState>();
   final GameStateService _state = GameStateService.instance;
+  final TextEditingController _chatInputController = TextEditingController();
 
   WeatherData? _currentWeather;
   String _currentDialogue =
@@ -66,7 +68,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   bool _backendMascotLoading = false;
   DateTime _lastInteractionTime = DateTime.fromMillisecondsSinceEpoch(0);
   bool get _isInteractionCooldown =>
-      DateTime.now().difference(_lastInteractionTime).inMilliseconds < 2500;
+      DateTime.now().difference(_lastInteractionTime).inMilliseconds < 3000;
 
   final List<String> _startupTips = [
     "Setting your AC thermostat to 24°C saves ~24% electricity and ₹1,800/yr in Gujarat! ❄️",
@@ -114,6 +116,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _dialogueResetTimer?.cancel();
     _idleSleepTimer?.cancel();
     _expressionResetTimer?.cancel();
+    _chatInputController.dispose();
     _bubbleAnimController.dispose();
     _state.removeListener(_onStateChange);
     super.dispose();
@@ -201,6 +204,48 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
         });
       }
     });
+  }
+
+  
+  void _onSendMessage(String text) {
+    if (text.trim().isEmpty) return;
+    _chatInputController.clear();
+    FocusScope.of(context).unfocus();
+    _resetIdleTimer();
+    HapticFeedback.mediumImpact();
+
+    final q = text.toLowerCase();
+    String reply = '';
+    String expression = 'happy';
+
+    if (q.contains('ac') || q.contains('air conditioner') || q.contains('cool')) {
+      reply = 'Setting AC to 24°C saves ~24% power and ₹1,800/yr in Gujarat! ❄️';
+      expression = 'cheering';
+    } else if (q.contains('vampire') || q.contains('standby') || q.contains('plug') || q.contains('charger')) {
+      reply = 'Unplugging idle phone/laptop chargers cuts phantom load and saves ₹800/yr! 🔌';
+      expression = 'thinking';
+    } else if (q.contains('solar') || q.contains('sun') || q.contains('roof')) {
+      reply = 'Midday (11 AM - 3 PM) is prime Gujarat solar generation! Run heavy appliances now! ☀️';
+      expression = 'celebrating';
+    } else if (q.contains('water') || q.contains('tap') || q.contains('bath')) {
+      reply = "Every drop saved protects the Narmada basin. Aerators cut tap flow 50%! 💧";
+      expression = 'watering';
+    } else if (q.contains('feed') || q.contains('food') || q.contains('seeds') || q.contains('hungry')) {
+      triggerFeed();
+      return;
+    } else if (q.contains('metro') || q.contains('commute') || q.contains('travel') || q.contains('bike')) {
+      reply = 'Metro and EV travel prevent ~1.8 kg CO2e every 10 km! Great choice! 🚇';
+      expression = 'cheering';
+    } else {
+      reply = 'Chirp! 🌿 Little eco actions every day keep Gujarat clean and green! 🍃';
+      expression = 'happy';
+    }
+
+    _showExpression(expression);
+    _say(reply, duration: const Duration(seconds: 8));
+    _state.addCoins(5);
+    _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
+    _interactWithBackendMascot();
   }
 
   void _onSparrowPetted(String expression) {
@@ -692,9 +737,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F0DE).withValues(alpha: 0.95),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white, width: 1.2),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: const [
             BoxShadow(color: Color(0x66321D10), blurRadius: 12, offset: Offset(0, 4)),
             BoxShadow(color: Colors.white70, blurRadius: 0, offset: Offset(0, 1)),
@@ -719,61 +764,85 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  Widget _buildTopGameHud() {
+    Widget _buildTopGameHud() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F0DE).withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.white, width: 1.5),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x66321D10), offset: Offset(0, 4), blurRadius: 14),
-          BoxShadow(color: Colors.white70, offset: Offset(0, 1), blurRadius: 0),
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            offset: Offset(0, 4),
+            blurRadius: 14,
+          ),
         ],
       ),
       child: Row(
         children: [
-          // Activity Feed Capsule
+          // Wireframe MENU Button
           InkWell(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              widget.onSlideToActivity();
-            },
-            borderRadius: BorderRadius.circular(16),
+            onTap: _openFullMenuScreen,
+            borderRadius: BorderRadius.circular(14),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE5F2CB),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFC5D8A4)),
+                color: const Color(0xFF16A34A),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.bolt_rounded, color: Color(0xFF9A6A10), size: 18),
+              child: const Row(
+                children: [
+                  Icon(Icons.menu_rounded, color: Colors.white, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'MENU',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // Player Level & Progress
+          // Player Level Progress (Middle)
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFEDE4D1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE0D5C0)),
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Lv ${_state.mascotLevel} Sparrow',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF276C42),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 10,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Lv ${_state.mascotLevel} Sparrow',
+                        style: const TextStyle(
+                          color: Color(0xFF16A34A),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 10,
+                        ),
+                      ),
+                      Text(
+                        '🪙 ${_state.coins}',
+                        style: const TextStyle(
+                          color: Color(0xFFD97706),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 3),
                   ClipRRect(
@@ -782,8 +851,8 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                       height: 4,
                       child: LinearProgressIndicator(
                         value: _state.levelProgress,
-                        backgroundColor: Color(0xFFD3D0BE),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF22C55E)),
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF16A34A)),
                       ),
                     ),
                   ),
@@ -793,91 +862,50 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           ),
           const SizedBox(width: 8),
 
-          // Coins Capsule
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: const [
-                BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 2)),
-              ],
-            ),
-            child: Row(
-              children: [
-                const Text('🪙', style: TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
-                Text(
-                  '${_state.coins}',
-                  style: const TextStyle(
-                    color: Color(0xFF92400E),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Leaderboard Trophy Button
+          // Wireframe BELL Notification Button
           InkWell(
-            onTap: _openLeaderboard,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFF59E0B)),
-              ),
-              child: const Center(
-                child: Text('🏆', style: TextStyle(fontSize: 14)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Daily Quests Button
-          InkWell(
-            onTap: _openDailyQuests,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFB8D39B)),
-              ),
-              child: const Center(
-                child: Text('🎯', style: TextStyle(fontSize: 14)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Command Hub / Menu Button
-          InkWell(
-            onTap: _openFullMenuScreen,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              widget.onSlideToActivity();
+            },
             borderRadius: BorderRadius.circular(12),
             child: Container(
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF22C55E), Color(0xFF15803D)],
-                ),
+                color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(color: Color(0xFF0A3612), offset: Offset(0, 2)),
-                ],
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: const Icon(
-                Icons.menu_rounded,
-                color: Color(0xFF05200E),
-                size: 20,
+              child: const Center(
+                child: Icon(Icons.notifications_outlined, color: Color(0xFF334155), size: 18),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Wireframe USER Profile Button
+          InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const UserSettingsSheet(),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: const Center(
+                child: Icon(Icons.person_rounded, color: Color(0xFF16A34A), size: 18),
               ),
             ),
           ),
@@ -1080,9 +1108,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F0DE).withValues(alpha: 0.97),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white, width: 1.2),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
@@ -1118,9 +1146,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F0DE).withValues(alpha: 0.97),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white, width: 1.2),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
@@ -1220,9 +1248,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E9).withValues(alpha: 0.96),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white, width: 1.2),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x100F2B1A),
@@ -1317,4 +1345,188 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   
+
+  Widget _buildChatBox() {
+    final chips = [
+      '💡 AC 24°C',
+      '🔌 Vampire Load',
+      '☀️ Solar Window',
+      '🌾 Feed Seeds',
+      '💧 Save Water',
+      '🚴 Metro Commute',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Quick prompt suggestion chips
+          SizedBox(
+            height: 26,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: chips.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, idx) {
+                final label = chips[idx];
+                return GestureDetector(
+                  onTap: () => _onSendMessage(label),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: Color(0xFF334155),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 5),
+
+          // Chat Input Row
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 34,
+                  child: TextField(
+                    controller: _chatInputController,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      hintText: "Ask Cheechee (e.g. 'How to save power?')...",
+                      hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF16A34A)),
+                      ),
+                    ),
+                    onSubmitted: _onSendMessage,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _onSendMessage(_chatInputController.text),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavTab(icon: Icons.cruelty_free_rounded, label: 'Mascot', isSelected: true, onTap: () {}),
+          _buildNavTab(icon: Icons.bar_chart_rounded, label: 'Dashboard', isSelected: false, onTap: _openDashboard),
+          _buildNavTab(icon: Icons.power_rounded, label: 'Log', isSelected: false, onTap: () => ApplianceRegistrySheet.show(context)),
+          _buildNavTab(icon: Icons.settings_rounded, label: 'Setting', isSelected: false, onTap: _openFullMenuScreen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavTab({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFDCFCE7) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: isSelected ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }

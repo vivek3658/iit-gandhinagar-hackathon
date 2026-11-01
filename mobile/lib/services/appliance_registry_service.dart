@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 /// Appliance communication and IoT technology type
@@ -17,11 +16,11 @@ enum ApplianceState {
   off,
 }
 
-/// Model representing a smart or traditional ("dumb") household electrical device
+/// Model representing a smart household electrical device with inbuilt WiFi / BLE
 class ApplianceDevice {
   final String id;
   final String name;
-  final String category; // 'ac', 'fridge', 'tv', 'washing_machine', 'fan', 'geyser', 'microwave'
+  final String category; // 'ac', 'fridge', 'tv', 'geyser'
   final bool isSmart;
   final ApplianceTechType techType;
   final double activePowerWatts;
@@ -76,8 +75,7 @@ class OfflineApplianceEvent {
       };
 }
 
-/// Service managing household electrical devices, IoT recognition (BLE, Wi-Fi, IR),
-/// event-driven delta updates (only dispatched on state change), and offline sync queuing.
+/// Service managing smart appliances with inbuilt WiFi / BLE
 class ApplianceRegistryService extends ChangeNotifier {
   static final ApplianceRegistryService instance =
       ApplianceRegistryService._internal();
@@ -87,12 +85,10 @@ class ApplianceRegistryService extends ChangeNotifier {
   }
 
   bool _isOnline = true;
-  bool _isScanningIot = false;
   final List<ApplianceDevice> _devices = [];
   final List<OfflineApplianceEvent> _offlineEventQueue = [];
 
   bool get isOnline => _isOnline;
-  bool get isScanningIot => _isScanningIot;
   List<ApplianceDevice> get devices => List.unmodifiable(_devices);
   List<OfflineApplianceEvent> get offlineEventQueue =>
       List.unmodifiable(_offlineEventQueue);
@@ -109,7 +105,7 @@ class ApplianceRegistryService extends ChangeNotifier {
     _devices.addAll([
       ApplianceDevice(
         id: 'dev_ac_1',
-        name: 'Master Bed Dual Inverter AC',
+        name: 'Master Bed Smart Inverter AC',
         category: 'ac',
         isSmart: true,
         techType: ApplianceTechType.wifiMdns,
@@ -119,7 +115,7 @@ class ApplianceRegistryService extends ChangeNotifier {
       ),
       ApplianceDevice(
         id: 'dev_fridge_1',
-        name: 'Kitchen Frost-Free Refrigerator',
+        name: 'Kitchen Smart Refrigerator',
         category: 'fridge',
         isSmart: true,
         techType: ApplianceTechType.bleIot,
@@ -129,7 +125,7 @@ class ApplianceRegistryService extends ChangeNotifier {
       ),
       ApplianceDevice(
         id: 'dev_tv_1',
-        name: 'Living Room 55" 4K Smart TV',
+        name: 'Living Room 55" Smart Connected TV',
         category: 'tv',
         isSmart: true,
         techType: ApplianceTechType.wifiMdns,
@@ -138,85 +134,30 @@ class ApplianceRegistryService extends ChangeNotifier {
         state: ApplianceState.standby,
       ),
       ApplianceDevice(
-        id: 'dev_wm_1',
-        name: 'EcoInverter Washing Machine',
-        category: 'washing_machine',
+        id: 'dev_geyser_1',
+        name: 'Bathroom Smart Water Geyser',
+        category: 'geyser',
         isSmart: true,
         techType: ApplianceTechType.bleIot,
-        activePowerWatts: 450.0,
+        activePowerWatts: 2000.0,
         standbyPowerWatts: 5.0,
         state: ApplianceState.off,
-      ),
-      ApplianceDevice(
-        id: 'dev_fan_1',
-        name: 'BLDC Smart Ceiling Fan',
-        category: 'fan',
-        isSmart: true,
-        techType: ApplianceTechType.bleIot,
-        activePowerWatts: 28.0,
-        standbyPowerWatts: 1.5,
-        state: ApplianceState.running,
-      ),
-      ApplianceDevice(
-        id: 'dev_fan_dumb',
-        name: 'Balcony Traditional Regulator Fan',
-        category: 'fan',
-        isSmart: false,
-        techType: ApplianceTechType.manual,
-        activePowerWatts: 75.0,
-        standbyPowerWatts: 0.0,
-        state: ApplianceState.off,
-      ),
-      ApplianceDevice(
-        id: 'dev_geyser_1',
-        name: 'Bathroom Storage Geyser (Smart Plug)',
-        category: 'geyser',
-        isSmart: false,
-        techType: ApplianceTechType.smartPlug,
-        activePowerWatts: 2000.0,
-        standbyPowerWatts: 2.0,
-        state: ApplianceState.off,
-      ),
-      ApplianceDevice(
-        id: 'dev_microwave_1',
-        name: 'Kitchen Convection Microwave',
-        category: 'microwave',
-        isSmart: false,
-        techType: ApplianceTechType.irBlaster,
-        activePowerWatts: 1200.0,
-        standbyPowerWatts: 6.0,
-        state: ApplianceState.standby,
       ),
     ]);
   }
 
-  /// Toggles simulated network connectivity (online <-> offline)
-  void setOnlineStatus(bool online) {
-    if (_isOnline == online) return;
-    _isOnline = online;
-    if (_isOnline && _offlineEventQueue.isNotEmpty) {
-      syncOfflineQueue();
-    }
-    notifyListeners();
-  }
-
-  /// Updates an appliance's operational state with delta-only dispatching
-  bool updateDeviceState(String deviceId, ApplianceState newState) {
+  /// Changes the state of a device
+  void setDeviceState(String deviceId, ApplianceState newState) {
     final idx = _devices.indexWhere((d) => d.id == deviceId);
-    if (idx == -1) return false;
+    if (idx == -1) return;
 
-    final device = _devices[idx];
-    if (device.state == newState) {
-      // Delta rule: Only dispatch or log if state has ACTUALLY changed!
-      return false;
-    }
+    final oldState = _devices[idx].state;
+    if (oldState == newState) return;
 
-    final oldState = device.state;
-    device.state = newState;
-    device.lastStateChange = DateTime.now();
+    _devices[idx].state = newState;
+    _devices[idx].lastStateChange = DateTime.now();
 
     if (!_isOnline) {
-      // Buffer event in offline queue
       _offlineEventQueue.add(
         OfflineApplianceEvent(
           deviceId: deviceId,
@@ -225,41 +166,16 @@ class ApplianceRegistryService extends ChangeNotifier {
           timestamp: DateTime.now(),
         ),
       );
-    } else {
-      // Immediately dispatch state delta to server
-      _dispatchStateDelta(device, oldState, newState);
     }
 
     notifyListeners();
-    return true;
   }
 
-  /// Flushes all queued offline events in batch when internet connection returns
-  int syncOfflineQueue() {
-    if (_offlineEventQueue.isEmpty) return 0;
-    final count = _offlineEventQueue.length;
-    // In production, sends batch POST /api/v1/appliances/events/batch
-    _offlineEventQueue.clear();
+  void toggleOnline(bool online) {
+    _isOnline = online;
+    if (_isOnline && _offlineEventQueue.isNotEmpty) {
+      _offlineEventQueue.clear();
+    }
     notifyListeners();
-    return count;
-  }
-
-  void _dispatchStateDelta(
-    ApplianceDevice device,
-    ApplianceState oldState,
-    ApplianceState newState,
-  ) {
-    // Delta dispatched to backend API
-  }
-
-  /// Discovers nearby IoT appliances via Wi-Fi/mDNS and BLE scan
-  Future<int> scanNearbyIotDevices() async {
-    _isScanningIot = true;
-    notifyListeners();
-
-    await Future.delayed(const Duration(milliseconds: 1400));
-    _isScanningIot = false;
-    notifyListeners();
-    return _devices.where((d) => d.isSmart).length;
   }
 }

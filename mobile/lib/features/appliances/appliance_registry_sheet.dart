@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:urja/services/appliance_registry_service.dart';
 
-/// Modal bottom sheet presenting household electronics, IoT detection (BLE, Wi-Fi, IR),
-/// event-driven delta updates, and offline sync queuing.
+/// Modal bottom sheet presenting smart household appliances with inbuilt Wi-Fi / BLE,
+/// live wattage consumption, standby vampire power tracking, and state controls.
 class ApplianceRegistrySheet extends StatefulWidget {
   const ApplianceRegistrySheet({super.key});
 
@@ -47,50 +47,46 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
         return Icons.kitchen_rounded;
       case 'tv':
         return Icons.tv_rounded;
-      case 'washing_machine':
-        return Icons.local_laundry_service_rounded;
-      case 'fan':
-        return Icons.mode_fan_off_rounded;
       case 'geyser':
         return Icons.water_drop_rounded;
-      case 'microwave':
-        return Icons.microwave_rounded;
       default:
         return Icons.devices_other_rounded;
     }
   }
 
-  String _getTechBadge(ApplianceTechType type) {
-    switch (type) {
-      case ApplianceTechType.wifiMdns:
-        return 'Wi-Fi mDNS';
-      case ApplianceTechType.bleIot:
-        return 'BLE IoT';
-      case ApplianceTechType.irBlaster:
-        return 'IR Blaster';
-      case ApplianceTechType.smartPlug:
-        return 'Smart Plug';
-      case ApplianceTechType.manual:
-        return 'Manual';
+  Color _getCategoryColor(String cat) {
+    switch (cat) {
+      case 'ac':
+        return const Color(0xFF0284C7); // Sky 600
+      case 'fridge':
+        return const Color(0xFF0D9488); // Teal 600
+      case 'tv':
+        return const Color(0xFF7C3AED); // Violet 600
+      case 'geyser':
+        return const Color(0xFFEA580C); // Orange 600
+      default:
+        return const Color(0xFF16A34A);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final devices = _service.devices;
-    final isOnline = _service.isOnline;
-    final offlineQueue = _service.offlineEventQueue;
+    final totalActiveWatts = _service.totalActivePowerWatts;
+    final totalStandbyWatts = _service.totalStandbyVampireWatts;
+    final dailyKwh = ((totalActiveWatts * 8.0) + (totalStandbyWatts * 16.0)) / 1000.0;
+    final dailyCostRupees = (dailyKwh * 6.5).toStringAsFixed(1);
 
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFF0A1F14),
+        color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black87,
+            color: Color(0x1F000000),
             blurRadius: 24,
             offset: Offset(0, -6),
           ),
@@ -103,7 +99,7 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: const Color(0xFFCBD5E1),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -117,35 +113,36 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B6B44).withValues(alpha: 0.35),
+                    color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF34D399), width: 1.5),
+                    border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
                   ),
                   child: const Icon(
-                    Icons.sensors_rounded,
-                    color: Color(0xFF34D399),
+                    Icons.wifi_tethering_rounded,
+                    color: Color(0xFF16A34A),
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 14),
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Electronics & IoT Registry',
+                      Text(
+                        'Smart Connected Appliances',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2),
                       Text(
-                        'Smart & Dumb Devices • Event Delta Dispatch',
+                        'Inbuilt Wi-Fi & BLE Live Energy Tracking',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: Color(0xFF64748B),
                           fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -153,198 +150,95 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                  icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Power Dashboard Banner
+          // Power Dashboard Banner (Modern White/Slate Card)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF134E2E).withValues(alpha: 0.8),
-                    const Color(0xFF0F3820).withValues(alpha: 0.9),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x06000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '⚡ Active Draw',
-                          style: TextStyle(color: Color(0xFF86EFAC), fontSize: 11),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_service.totalActivePowerWatts.toStringAsFixed(0)} W',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.white12),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '🧛 Phantom Vampire',
-                          style: TextStyle(color: Color(0xFFFCA5A5), fontSize: 11),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_service.totalStandbyVampireWatts.toStringAsFixed(0)} W',
-                          style: const TextStyle(
-                            color: Color(0xFFF87171),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.white12),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isOnline ? '🟢 Online' : '🟠 Offline',
-                          style: TextStyle(
-                            color: isOnline ? const Color(0xFF4ADE80) : const Color(0xFFFBBF24),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          offlineQueue.isEmpty
-                              ? 'Synced'
-                              : '${offlineQueue.length} Queued',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildMetricCol('ACTIVE LOAD', '${totalActiveWatts.toInt()} W', const Color(0xFF16A34A), '⚡ Running'),
+                      Container(width: 1, height: 42, color: const Color(0xFFE2E8F0)),
+                      _buildMetricCol('VAMPIRE STANDBY', '${totalStandbyWatts.toInt()} W', const Color(0xFFD97706), '🔌 Phantom'),
+                      Container(width: 1, height: 42, color: const Color(0xFFE2E8F0)),
+                      _buildMetricCol('EST. DAILY COST', '₹$dailyCostRupees', const Color(0xFF2563EB), 'Discom Rate'),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // Action row: Scan IoT devices + Network toggle
+          // Section Title
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _service.isScanningIot
-                        ? null
-                        : () async {
-                            HapticFeedback.mediumImpact();
-                            final count = await _service.scanNearbyIotDevices();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('📡 Scan finished: Detected $count smart IoT appliances!'),
-                                  backgroundColor: const Color(0xFF1B6B44),
-                                ),
-                              );
-                            }
-                          },
-                    icon: _service.isScanningIot
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                          )
-                        : const Icon(Icons.radar_rounded, size: 16),
-                    label: Text(
-                      _service.isScanningIot ? 'Scanning...' : 'Scan IoT Devices',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
+                const Text(
+                  'ONLINE SMART APPLIANCES',
+                  style: TextStyle(
+                    color: Color(0xFF15803D),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    _service.setOnlineStatus(!isOnline);
-                    if (!isOnline) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('📶 Internet restored: Flushed offline state buffer to server!'),
-                          backgroundColor: Color(0xFF1B6B44),
-                        ),
-                      );
-                    }
-                  },
-                  icon: Icon(
-                    isOnline ? Icons.wifi_off_rounded : Icons.wifi_rounded,
-                    size: 16,
-                    color: isOnline ? const Color(0xFFF87171) : const Color(0xFF34D399),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  label: Text(
-                    isOnline ? 'Test Offline' : 'Go Online',
-                    style: TextStyle(
-                      color: isOnline ? const Color(0xFFF87171) : const Color(0xFF34D399),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                  child: Text(
+                    '${devices.length} Devices Monitored',
+                    style: const TextStyle(
+                      color: Color(0xFF15803D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: isOnline ? const Color(0xFFF87171) : const Color(0xFF34D399),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // Device List
+          // Device Cards List
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               itemCount: devices.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (ctx, i) {
-                final d = devices[i];
-                return _buildDeviceCard(d);
+              itemBuilder: (context, index) {
+                final d = devices[index];
+                return _buildApplianceCard(d);
               },
             ),
           ),
@@ -353,43 +247,103 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
     );
   }
 
-  Widget _buildDeviceCard(ApplianceDevice d) {
-    Color stateColor = Colors.white54;
-    String stateLabel = 'OFF';
-    if (d.state == ApplianceState.running) {
-      stateColor = const Color(0xFF22C55E);
-      stateLabel = 'RUNNING';
-    } else if (d.state == ApplianceState.standby) {
-      stateColor = const Color(0xFFFBBF24);
-      stateLabel = 'STANDBY';
+  Widget _buildMetricCol(String label, String value, Color valColor, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: valColor,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildApplianceCard(ApplianceDevice d) {
+    final catColor = _getCategoryColor(d.category);
+    final isRunning = d.state == ApplianceState.running;
+    final isStandby = d.state == ApplianceState.standby;
+
+    String currentWattText;
+    Color statusBadgeBg;
+    Color statusBadgeText;
+    String statusLabel;
+
+    if (isRunning) {
+      currentWattText = '${d.activePowerWatts.toInt()} W active';
+      statusBadgeBg = const Color(0xFFDCFCE7);
+      statusBadgeText = const Color(0xFF15803D);
+      statusLabel = 'Running ⚡';
+    } else if (isStandby) {
+      currentWattText = '${d.standbyPowerWatts.toInt()} W phantom';
+      statusBadgeBg = const Color(0xFFFEF3C7);
+      statusBadgeText = const Color(0xFF92400E);
+      statusLabel = 'Standby 🔌';
+    } else {
+      currentWattText = '0 W (Off)';
+      statusBadgeBg = const Color(0xFFF1F5F9);
+      statusBadgeText = const Color(0xFF64748B);
+      statusLabel = 'Off ⚪';
     }
+
+    final techLabel = d.techType == ApplianceTechType.wifiMdns ? 'Inbuilt Wi-Fi' : 'Inbuilt BLE';
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2E1E),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: d.state == ApplianceState.running
-              ? const Color(0xFF22C55E).withValues(alpha: 0.4)
-              : Colors.white10,
+          color: isRunning ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+          width: isRunning ? 1.5 : 1.0,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: stateColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  color: catColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: catColor.withValues(alpha: 0.3)),
                 ),
                 child: Icon(
                   _getCategoryIcon(d.category),
-                  color: stateColor,
-                  size: 20,
+                  color: catColor,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 12),
@@ -397,64 +351,50 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      d.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            d.name,
+                            style: const TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                           decoration: BoxDecoration(
-                            color: Colors.white10,
+                            color: const Color(0xFFF0FDF4),
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
                           ),
                           child: Text(
-                            _getTechBadge(d.techType),
+                            techLabel,
                             style: const TextStyle(
-                              color: Color(0xFF93C5FD),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF16A34A),
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        if (d.isSmart)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF22C55E).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'Smart IoT',
-                              style: TextStyle(
-                                color: Color(0xFF86EFAC),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white12,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'Traditional',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                              ),
-                            ),
+                        const SizedBox(width: 8),
+                        Text(
+                          currentWattText,
+                          style: TextStyle(
+                            color: isStandby ? const Color(0xFFD97706) : (isRunning ? const Color(0xFF16A34A) : const Color(0xFF94A3B8)),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
                           ),
+                        ),
                       ],
                     ),
                   ],
@@ -463,78 +403,75 @@ class _ApplianceRegistrySheetState extends State<ApplianceRegistrySheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: stateColor.withValues(alpha: 0.2),
+                  color: statusBadgeBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: stateColor.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  stateLabel,
+                  statusLabel,
                   style: TextStyle(
-                    color: stateColor,
+                    color: statusBadgeText,
                     fontSize: 11,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 12),
 
-          // Operational Controls (OFF | STANDBY | RUNNING)
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  d.state == ApplianceState.running
-                      ? '⚡ ${d.activePowerWatts.toStringAsFixed(0)} W'
-                      : (d.state == ApplianceState.standby
-                          ? '🧛 ${d.standbyPowerWatts.toStringAsFixed(0)} W standby'
-                          : '💤 0 W (No Vampire Draw)'),
-                  style: TextStyle(
-                    color: d.state == ApplianceState.running
-                        ? const Color(0xFF86EFAC)
-                        : (d.state == ApplianceState.standby
-                            ? const Color(0xFFFCA5A5)
-                            : Colors.white54),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-
-              // Segmented controls
-              _buildStateButton(d, ApplianceState.off, 'OFF'),
-              const SizedBox(width: 4),
-              _buildStateButton(d, ApplianceState.standby, 'STANDBY'),
-              const SizedBox(width: 4),
-              _buildStateButton(d, ApplianceState.running, 'ON'),
-            ],
+          // 3-Way Segmented Control
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                _buildStateSegment(d, ApplianceState.running, '⚡ Running', const Color(0xFF16A34A)),
+                _buildStateSegment(d, ApplianceState.standby, '🔌 Standby', const Color(0xFFD97706)),
+                _buildStateSegment(d, ApplianceState.off, '⚪ Off', const Color(0xFF64748B)),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStateButton(ApplianceDevice d, ApplianceState targetState, String label) {
-    final isSelected = d.state == targetState;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        _service.updateDeviceState(d.id, targetState);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF22C55E) : Colors.white10,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.black : Colors.white70,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
+  Widget _buildStateSegment(ApplianceDevice d, ApplianceState state, String label, Color activeColor) {
+    final isSelected = d.state == state;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _service.setDeviceState(d.id, state);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: isSelected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x10000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? activeColor : const Color(0xFF64748B),
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
           ),
         ),
       ),

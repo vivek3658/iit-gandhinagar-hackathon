@@ -57,13 +57,13 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF102B1D),
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Row(
           children: [
             Text('🚪', style: TextStyle(fontSize: 22)),
             SizedBox(width: 8),
-            Text('Sign Out?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+            Text('Sign Out?', style: TextStyle(color: const Color(0xFF0F172A), fontWeight: FontWeight.w900)),
           ],
         ),
         content: const Text(
@@ -134,22 +134,22 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
     final userDistrict = user?.district ?? 'Ahmedabad';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06140D),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF06140D),
+        backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         title: const Text(
           'Command Hub & Menu',
           style: TextStyle(
-            color: Colors.white,
+            color: const Color(0xFF0F172A),
             fontWeight: FontWeight.w900,
             fontSize: 18,
             letterSpacing: 0.5,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
+          icon: const Icon(Icons.close_rounded, color: Color(0xFF0F172A), size: 26),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -161,12 +161,12 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF143B23), Color(0xFF0D2818)],
+                colors: [Colors.white, Color(0xFFF8FAFC)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: const Color(0xFF4ADE80).withValues(alpha: 0.8), width: 1.5),
+              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
               boxShadow: const [
                 BoxShadow(color: Color(0xFF051B0E), offset: Offset(0, 4), blurRadius: 0),
                 BoxShadow(color: Colors.black45, blurRadius: 16, offset: Offset(0, 6)),
@@ -188,7 +188,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Colors.white24, width: 2),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
+                          BoxShadow(color: const Color(0xFFF0F9FF), blurRadius: 8, offset: Offset(0, 3)),
                         ],
                       ),
                       child: const Center(
@@ -207,7 +207,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                                 child: Text(
                                   userName,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: const Color(0xFF0F172A),
                                     fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -223,7 +223,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                                 child: const Text(
                                   'CITIZEN VERIFIED',
                                   style: TextStyle(
-                                    color: Color(0xFF86EFAC),
+                                    color: const Color(0xFF15803D),
                                     fontSize: 9,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.5,
@@ -236,7 +236,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                           Text(
                             '$userWard Ward • $userDistrict (Gujarat)',
                             style: const TextStyle(
-                              color: Color(0xFFA7F3D0),
+                              color: const Color(0xFF15803D),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -298,7 +298,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF0F3220), Color(0xFF0A2216)],
+                colors: [Colors.white, Colors.white],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -334,8 +334,8 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                           Text(
                             '300m HOME DEPARTURE GUARDIAN',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF0F172A),
+                        fontWeight: FontWeight.w800,
                               fontSize: 12,
                               letterSpacing: 0.8,
                             ),
@@ -343,7 +343,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                           SizedBox(height: 2),
                           Text(
                             'Reminds you to switch off AC, geysers & unplug wall sockets when leaving.',
-                            style: TextStyle(color: Color(0xFFBAE6FD), fontSize: 11),
+                            style: TextStyle(color: const Color(0xFF475569), fontSize: 11),
                           ),
                         ],
                       ),
@@ -358,7 +358,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                   decoration: BoxDecoration(
                     color: Colors.black26,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(color: const Color(0xFFBAE6FD)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -384,13 +384,13 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                             _geofence.isOutsideGeofence
                                 ? 'Status: Departed (> 300m)'
                                 : 'Status: Inside Home (${_geofence.currentDistanceMeters.toInt()}m)',
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                       Text(
                         'Threshold: 300m',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
                       ),
                     ],
                   ),
@@ -458,7 +458,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                             child: Text(
                               'Permission',
                               style: TextStyle(
-                                color: Color(0xFF86EFAC),
+                                color: const Color(0xFF15803D),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 11,
                               ),
@@ -674,7 +674,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
       child: Text(
         title,
         style: const TextStyle(
-          color: Color(0xFF86EFAC),
+          color: const Color(0xFF15803D),
           fontSize: 11,
           fontWeight: FontWeight.w900,
           letterSpacing: 1.2,
@@ -699,11 +699,11 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF10361F),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF1F5435), width: 1.2),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
           boxShadow: const [
-            BoxShadow(color: Color(0xFF062312), offset: Offset(0, 3)),
+            BoxShadow(color: Color(0x06000000), offset: Offset(0, 3), blurRadius: 6),
           ],
         ),
         child: Row(
@@ -737,7 +737,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Color(0xFFA7F3D0),
+                      color: const Color(0xFF15803D),
                       fontSize: 11,
                       height: 1.3,
                     ),
@@ -982,7 +982,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
                       ),
                       Text(
                         'Targeted citizen reminders & grid load shift advisory',
-                        style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 11),
+                        style: TextStyle(color: const Color(0xFF15803D), fontSize: 11),
                       ),
                     ],
                   ),
@@ -995,7 +995,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
             const Text(
               'RECIPIENT TARGET SCOPE',
               style: TextStyle(
-                color: Color(0xFF86EFAC),
+                color: const Color(0xFF15803D),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.0,
@@ -1020,7 +1020,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: InputDecoration(
                   labelText: 'Citizen Registered Email',
-                  labelStyle: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 12),
+                  labelStyle: const TextStyle(color: const Color(0xFF15803D), fontSize: 12),
                   prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF4ADE80), size: 18),
                   filled: true,
                   fillColor: const Color(0xFF143B23),
@@ -1064,7 +1064,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
             const Text(
               'QUICK ADVISORY TEMPLATES',
               style: TextStyle(
-                color: Color(0xFF86EFAC),
+                color: const Color(0xFF15803D),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.0,
@@ -1117,7 +1117,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
               style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
                 labelText: 'Advisory Headline / Title',
-                labelStyle: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 12),
+                labelStyle: const TextStyle(color: const Color(0xFF15803D), fontSize: 12),
                 filled: true,
                 fillColor: const Color(0xFF143B23),
                 enabledBorder: OutlineInputBorder(
@@ -1140,7 +1140,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
               style: const TextStyle(color: Colors.white, fontSize: 12),
               decoration: InputDecoration(
                 labelText: 'Despatch Message / Guidance',
-                labelStyle: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 12),
+                labelStyle: const TextStyle(color: const Color(0xFF15803D), fontSize: 12),
                 filled: true,
                 fillColor: const Color(0xFF143B23),
                 enabledBorder: OutlineInputBorder(
@@ -1165,7 +1165,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
                     children: [
                       const Text(
                         'URGENCY PRIORITY',
-                        style: TextStyle(color: Color(0xFF86EFAC), fontSize: 10, fontWeight: FontWeight.w900),
+                        style: TextStyle(color: const Color(0xFF15803D), fontSize: 10, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 6),
                       Row(
@@ -1283,7 +1283,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
         ),
         child: Text(
           label,
-          style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 11, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: const Color(0xFF15803D), fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
     );

@@ -375,7 +375,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
         final currentList = _catalog[currentCategory] ?? [];
 
         return Scaffold(
-          backgroundColor: const Color(0xFF071B11),
+          backgroundColor: const Color(0xFFF8FAFC),
           body: Stack(
             fit: StackFit.expand,
             children: [
@@ -388,7 +388,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                     colors: [
                       Color(0xFFBAE6FD),
                       Color(0xFFD1FAE5),
-                      Color(0xFF0F2619),
+                      Color(0xFFF8FAFC),
                     ],
                     stops: [0.0, 0.38, 0.85],
                   ),
@@ -421,7 +421,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   decoration: const BoxDecoration(
-                    color: Color(0xFF0A2216),
+                    color: Colors.white,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                     boxShadow: [
                       BoxShadow(
@@ -480,7 +480,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2B1A).withValues(alpha: 0.95),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
@@ -489,7 +489,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
             offset: Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
@@ -571,7 +571,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Color(0xFF86EFAC),
+                          color: Color(0xFF16A34A),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -632,10 +632,10 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFF143522),
+                color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFFDE68A) : Colors.white12,
+                  color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
                   width: 1.2,
                 ),
                 boxShadow: isSelected
@@ -646,7 +646,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                 child: Text(
                   _categories[i],
                   style: TextStyle(
-                    color: isSelected ? Colors.black : Colors.white70,
+                    color: isSelected ? Colors.white : const Color(0xFF475569),
                     fontWeight: FontWeight.w900,
                     fontSize: 12,
                   ),
@@ -683,15 +683,15 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
       if (slot == 'held') isEquipped = _state.equippedHeld == key;
     }
 
-    Color borderColor = Colors.white12;
-    Color bgColor = const Color(0xFF122C1D);
+    Color borderColor = const Color(0xFFE2E8F0);
+    Color bgColor = Colors.white;
 
     if (isPreviewing) {
       borderColor = const Color(0xFFFBBF24); // Golden preview glow
-      bgColor = const Color(0xFF24482F);
+      bgColor = const Color(0xFFFFFBEB);
     } else if (isEquipped) {
       borderColor = const Color(0xFF22C55E); // Green equipped border
-      bgColor = const Color(0xFF18422A);
+      bgColor = const Color(0xFFF0FDF4);
     }
 
     return GestureDetector(
@@ -727,7 +727,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF0F172A),
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -763,7 +763,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                   else if (isOwned)
                     const Text(
                       'Owned • Tap Preview',
-                      style: TextStyle(color: Colors.white60, fontSize: 10),
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
                     )
                   else
                     Row(
@@ -815,9 +815,9 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F3120),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFBBF24), width: 1.5),
+        border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Colors.black54,
@@ -836,7 +836,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                 Text(
                   name,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF0F172A),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -848,7 +848,7 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                           ? 'Locked (Lv $reqLevel Required)'
                           : 'Price: $price 🪙 Urja Mudra'),
                   style: TextStyle(
-                    color: isLocked ? const Color(0xFFF87171) : const Color(0xFF86EFAC),
+                    color: isLocked ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -861,8 +861,8 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
           OutlinedButton(
             onPressed: _cancelPreview,
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white70,
-              side: const BorderSide(color: Colors.white24),
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
@@ -894,8 +894,8 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isLocked ? Colors.grey : const Color(0xFF22C55E),
-                foregroundColor: Colors.black,
+                backgroundColor: isLocked ? Colors.grey : const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),

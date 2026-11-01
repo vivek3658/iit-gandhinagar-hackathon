@@ -1,3 +1,4 @@
+import '../../services/game_state_service.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -82,7 +83,14 @@ class Garden3DStageState extends State<Garden3DStage> {
             if (mounted) {
               setState(() => _isReady = true);
               widget.onLoaded?.call(true);
+              try {
+                final currentSlots = GameStateService.instance.gardenGridSlots;
+                setIslandState(currentSlots);
+              } catch (_) {}
             }
+          },
+          onWebResourceError: (error) {
+            debugPrint('[GardenWebView] Error: ${error.description}');
           },
         ),
       )

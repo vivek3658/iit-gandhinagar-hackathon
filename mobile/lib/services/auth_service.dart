@@ -94,7 +94,93 @@ class CitizenProfile {
 /// Authentication and Profile Management Service
 class AuthService extends ChangeNotifier {
   static final AuthService instance = AuthService._internal();
-  AuthService._internal();
+  AuthService._internal() {
+    _loadProfileFromStorage();
+  }
+
+  File _getAuthStorageFile() {
+    try {
+      final dir = Directory('/data/user/0/com.geda.urjavatika.urja/files');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      return File('${dir.path}/urja_citizen_profile.json');
+    } catch (_) {}
+    try {
+      final dir2 = Directory('/data/data/com.geda.urjavatika.urja/files');
+      if (!dir2.existsSync()) dir2.createSync(recursive: true);
+      return File('${dir2.path}/urja_citizen_profile.json');
+    } catch (_) {}
+    return File('${Directory.systemTemp.path}/urja_citizen_profile.json');
+  }
+
+  void _loadProfileFromStorage() {
+    try {
+      final file = _getAuthStorageFile();
+      if (!file.existsSync()) return;
+      final raw = file.readAsStringSync();
+      if (raw.isEmpty) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      _currentUser = CitizenProfile.fromJson(data);
+      if (data['accessToken'] is String) {
+        _accessToken = data['accessToken'] as String;
+      }
+    } catch (e) {
+      debugPrint('[AuthService] Error reading cached citizen profile: $e');
+    }
+  }
+
+  void _saveProfileToStorage() {
+    try {
+      if (_currentUser == null) return;
+      final file = _getAuthStorageFile();
+      final data = _currentUser!.toJson();
+      if (_accessToken != null) {
+        data['accessToken'] = _accessToken;
+      }
+      file.writeAsStringSync(jsonEncode(data), flush: true);
+    } catch (e) {
+      debugPrint('[AuthService] Error writing citizen profile to disk: $e');
+    }
+  }
+
+  CitizenProfile _createOrUpdateProfileFromGoogle(GoogleSignInAccount account) {
+    final existing = _currentUser;
+    final isAlreadyDone = existing != null &&
+        existing.isProfileComplete &&
+        (existing.email == account.email || existing.district != null);
+
+    if (isAlreadyDone) {
+      return CitizenProfile(
+        id: existing.id.isNotEmpty ? existing.id : 'citizen_${account.id}',
+        email: account.email,
+        name: (account.displayName != null && account.displayName!.isNotEmpty) ? account.displayName! : existing.name,
+        avatarUrl: account.photoUrl ?? existing.avatarUrl,
+        dob: existing.dob,
+        district: existing.district,
+        ward: existing.ward,
+        houseType: existing.houseType,
+        householdMembers: existing.householdMembers,
+        monthlyBillRupees: existing.monthlyBillRupees,
+        waterSupplyType: existing.waterSupplyType,
+        waterStorageType: existing.waterStorageType,
+        deviceCatalogIds: existing.deviceCatalogIds,
+        vehicleCatalogIds: existing.vehicleCatalogIds,
+        mascotName: existing.mascotName,
+        role: existing.role,
+        isProfileComplete: true,
+        points: existing.points > 50 ? existing.points : 150,
+      );
+    }
+
+    return CitizenProfile(
+      id: 'citizen_${account.id}',
+      email: account.email,
+      name: account.displayName ?? 'Gujarat Citizen',
+      avatarUrl: account.photoUrl,
+      role: 'CITIZEN',
+      isProfileComplete: false,
+      points: 50,
+    );
+  }
 
   String? _accessToken;
   String? _refreshToken;
@@ -200,15 +286,7 @@ class AuthService extends ChangeNotifier {
           debugPrint('[AuthService] Backend network error: $netErr');
           // If network failed but user authenticated via Google, enter with Google profile
           if (account != null) {
-            _currentUser = CitizenProfile(
-              id: 'citizen_${account.id}',
-              email: account.email,
-              name: account.displayName ?? 'Gujarat Citizen',
-              avatarUrl: account.photoUrl,
-              role: 'CITIZEN',
-              isProfileComplete: false,
-              points: 50,
-            );
+            _currentUser = _createOrUpdateProfileFromGoogle(account);
             _isGuestMode = false;
             notifyListeners();
             return true;
@@ -218,15 +296,7 @@ class AuthService extends ChangeNotifier {
 
       // If user selected an account, allow them in with their Google account
       if (account != null) {
-        _currentUser = CitizenProfile(
-          id: 'citizen_${account.id}',
-          email: account.email,
-          name: account.displayName ?? 'Gujarat Citizen',
-          avatarUrl: account.photoUrl,
-          role: 'CITIZEN',
-          isProfileComplete: false,
-          points: 50,
-        );
+        _currentUser = _createOrUpdateProfileFromGoogle(account);
         _isGuestMode = false;
         notifyListeners();
         return true;
@@ -237,15 +307,7 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[AuthService] Google Authentication error: $e');
       if (account != null) {
-        _currentUser = CitizenProfile(
-          id: 'citizen_${account.id}',
-          email: account.email,
-          name: account.displayName ?? 'Gujarat Citizen',
-          avatarUrl: account.photoUrl,
-          role: 'CITIZEN',
-          isProfileComplete: false,
-          points: 50,
-        );
+        _currentUser = _createOrUpdateProfileFromGoogle(account);
         _isGuestMode = false;
         notifyListeners();
         return true;
@@ -353,7 +415,17 @@ class AuthService extends ChangeNotifier {
     return true;
   }
 
+  @override
+  void notifyListeners() {
+    _saveProfileToStorage();
+    super.notifyListeners();
+  }
+
   void logout() {
+    try {
+      final file = _getAuthStorageFile();
+      if (file.existsSync()) file.deleteSync();
+    } catch (_) {}
     _accessToken = null;
     _refreshToken = null;
     _currentUser = null;

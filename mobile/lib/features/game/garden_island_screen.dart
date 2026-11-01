@@ -463,7 +463,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     final item = _activePlacement!['item'] as Map<String, dynamic>;
     final rotation = _activePlacement!['rotation'] as int;
     final price = item['price'] as int;
-    final isInventory = item['cat'] == 'Inventory' || price == 0;
+    final isInventory = _state.gardenInventory.contains(item['id']) || item['cat'].toString().contains('Inventory') || price == 0;
 
     if (isInventory) {
       // Free deployment from personal inventory
@@ -595,7 +595,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
       listenable: _state,
       builder: (context, _) {
         return Scaffold(
-          backgroundColor: const Color(0xFF081C12),
+          backgroundColor: const Color(0xFFF8FAFC),
           body: Stack(
             fit: StackFit.expand,
             children: [
@@ -608,7 +608,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                     colors: [
                       Color(0xFFBAE6FD),
                       Color(0xFFD1FAE5),
-                      Color(0xFF081C12),
+                      Color(0xFFF8FAFC),
                     ],
                     stops: [0.0, 0.40, 0.90],
                   ),
@@ -705,7 +705,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2B1A).withValues(alpha: 0.95),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
@@ -952,7 +952,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2B1A).withValues(alpha: 0.95),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
@@ -1055,7 +1055,8 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     return Container(
       height: _isTrayExpanded ? 236 : 50,
       decoration: const BoxDecoration(
-        color: Color(0xFF0A2216),
+        color: Colors.white,
+        border: const Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.2)),
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, -6)),
@@ -1082,7 +1083,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                         width: 32,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.white30,
+                          color: const Color(0xFFCBD5E1),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -1092,7 +1093,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                             ? 'Sanctuary Wardrobe Tray'
                             : 'Tap to Browse Structures 🌿',
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: const Color(0xFF475569),
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1101,7 +1102,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                   ),
                   Icon(
                     _isTrayExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
-                    color: Colors.white70,
+                    color: const Color(0xFF475569),
                     size: 20,
                   ),
                 ],
@@ -1130,10 +1131,10 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                       duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF22C55E) : const Color(0xFF143522),
+                        color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isSelected ? Colors.white : Colors.white12,
+                          color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
                           width: 1.2,
                         ),
                         boxShadow: isSelected
@@ -1144,7 +1145,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                         child: Text(
                           catName,
                           style: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white70,
+                            color: isSelected ? Colors.white : const Color(0xFF475569),
                             fontWeight: FontWeight.w900,
                             fontSize: 11,
                           ),
@@ -1188,7 +1189,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     final isSelected = _activePlacement != null &&
         (_activePlacement!['item'] as Map<String, dynamic>)['id'] == item['id'];
     final price = item['price'] as int;
-    final isInventory = item['cat'] == 'Inventory 📦' || price == 0;
+    final isInventory = _state.gardenInventory.contains(item['id']) || item['cat'].toString().contains('Inventory') || price == 0;
     final canAfford = isInventory || _state.coins >= price;
 
     return GestureDetector(
@@ -1198,10 +1199,10 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
         width: 116,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF165230) : const Color(0xFF143522),
+          color: isSelected ? const Color(0xFFFFFBEB) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFBBF24) : Colors.white12,
+            color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0),
             width: isSelected ? 2.0 : 1.0,
           ),
           boxShadow: isSelected
@@ -1215,7 +1216,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
+                color: const Color(0xFFF1F5F9),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -1229,7 +1230,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF0F172A),
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
               ),
@@ -1263,7 +1264,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     final price = item['price'] as int;
     final x = _activePlacement!['x'] as int;
     final z = _activePlacement!['z'] as int;
-    final isInventory = item['cat'] == 'Inventory 📦' || price == 0;
+    final isInventory = _state.gardenInventory.contains(item['id']) || item['cat'].toString().contains('Inventory') || price == 0;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1334,7 +1335,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
           const SizedBox(width: 6),
           IconButton(
             onPressed: _cancelActivePlacement,
-            icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+            icon: const Icon(Icons.close, color: const Color(0xFF475569), size: 20),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -1430,9 +1431,9 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                     Text(
                       name,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        color: Color(0xFF0F172A),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
                       ),
                     ),
                     Text(

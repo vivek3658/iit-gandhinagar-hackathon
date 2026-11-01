@@ -78,7 +78,7 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Stack(
         children: [
           // Horizontal PageView:
@@ -139,11 +139,11 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9F0DE).withValues(alpha: 0.96),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white, width: 1.3),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x66321D10), blurRadius: 14, offset: Offset(0, 4)),
+                      BoxShadow(color: Color(0x0A0F172A), blurRadius: 14, offset: Offset(0, 4)),
                     ],
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -187,7 +187,7 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
           width: isActive ? 28 : 22,
           height: isActive ? 28 : 22,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF84AD4A) : const Color(0xFFE9DFC9),
+            color: isActive ? const Color(0xFF16A34A) : const Color(0xFFF1F5F9),
             shape: BoxShape.circle,
             border: Border.all(
               color: isActive ? const Color(0xFF567C2C) : Colors.white,

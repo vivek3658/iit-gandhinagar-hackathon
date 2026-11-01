@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:urja/services/commute_travel_service.dart';
+import 'package:urja/services/geofence_departure_service.dart';
+import 'package:urja/services/game_state_service.dart';
 
 /// Modal bottom sheet for logging sustainable travel commutes,
-/// managing user vehicle garage, and validating walk limits.
+/// setting home location on Gujarat map, and testing auto-commute distance notifications.
 class CommuteTravelSheet extends StatefulWidget {
   const CommuteTravelSheet({super.key});
 
@@ -22,18 +24,24 @@ class CommuteTravelSheet extends StatefulWidget {
 
 class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
   final _service = CommuteTravelService.instance;
-  double _distanceKm = 2.4;
-  CommuteMode _selectedMode = CommuteMode.walk;
-  String? _selectedVehicleName;
-  String? _validationWarning;
+  final _geofence = GeofenceDepartureService.instance;
+  double _distanceKm = 3.5;
+  CommuteMode _selectedMode = CommuteMode.publicTransit;
+    String? _validationWarning;
+
+  final List<Map<String, dynamic>> _gujaratLocations = const [
+    {'name': 'Navrangpura, Ahmedabad', 'lat': 23.0365, 'lng': 72.5611},
+    {'name': 'Sector 21, Gandhinagar', 'lat': 23.2230, 'lng': 72.6492},
+    {'name': 'Vesu, Surat', 'lat': 21.1418, 'lng': 72.7709},
+    {'name': 'Alkapuri, Vadodara', 'lat': 22.3107, 'lng': 73.1812},
+    {'name': 'Kalawad Road, Rajkot', 'lat': 22.2818, 'lng': 70.7690},
+  ];
 
   @override
   void initState() {
     super.initState();
     _service.addListener(_onServiceChanged);
-    if (_service.vehicles.isNotEmpty) {
-      _selectedVehicleName = _service.vehicles.first.name;
-    }
+
     _checkWalkValidation();
   }
 
@@ -76,7 +84,7 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
       case CommuteMode.bicycle:
         return 'Cycle';
       case CommuteMode.publicTransit:
-        return 'Public Bus/Metro';
+        return 'Metro / Bus';
       case CommuteMode.ev:
         return 'Electric EV';
       case CommuteMode.petrolVehicle:
@@ -99,10 +107,92 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
     }
   }
 
+  void _showLocationPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.pin_drop_rounded, color: Color(0xFF16A34A), size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Set Your Home Base Location',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Select your Gujarat residence coordinates for 300m departure auto-reminders:',
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            ..._gujaratLocations.map((loc) {
+              final isCurrent = _service.homeAddress.contains(loc['name'] as String);
+              return ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: isCurrent ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0)),
+                ),
+                tileColor: isCurrent ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                leading: Icon(
+                  Icons.home_rounded,
+                  color: isCurrent ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                ),
+                title: Text(
+                  loc['name'] as String,
+                  style: TextStyle(
+                    color: isCurrent ? const Color(0xFF16A34A) : const Color(0xFF0F172A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: Text(
+                  '${(loc['lat'] as double).toStringAsFixed(4)}° N, ${(loc['lng'] as double).toStringAsFixed(4)}° E',
+                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                ),
+                trailing: isCurrent ? const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A)) : null,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  final lat = loc['lat'] as double;
+                  final lng = loc['lng'] as double;
+                  final name = loc['name'] as String;
+                  _service.setHomeLocation(lat, lng, name);
+                  _geofence.setHomeCoordinates(lat, lng, name);
+                  Navigator.pop(ctx);
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('📍 Home Base set to $name!'),
+                      backgroundColor: const Color(0xFF16A34A),
+                    ),
+                  );
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final garage = _service.vehicles;
-    final tripHistory = _service.tripHistory;
     final estimatedCoins = (_distanceKm * _getRateCoins(_selectedMode)).round();
 
     return Container(
@@ -110,11 +200,11 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
         maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFF091F13),
+        color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black87,
+            color: Color(0x1F000000),
             blurRadius: 24,
             offset: Offset(0, -6),
           ),
@@ -127,7 +217,7 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: const Color(0xFFCBD5E1),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -141,42 +231,207 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B6B44).withValues(alpha: 0.35),
+                    color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF34D399), width: 1.5),
+                    border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
                   ),
                   child: const Icon(
-                    Icons.route_rounded,
-                    color: Color(0xFF34D399),
+                    Icons.directions_subway_rounded,
+                    color: Color(0xFF16A34A),
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 14),
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Travel & Commute Logger',
+                      Text(
+                        'Sustainable Travel & Commute',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFF86EFAC)),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
+                      SizedBox(height: 2),
+                      Text(
+                        'Auto-Departure Reminders • Mission LiFE Rewards',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              children: [
+                // 1. Home Base Map Coordinate Card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.pin_drop_rounded, color: Color(0xFF16A34A), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'HOME BASE GEOFENCE',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
                               _service.homeAddress,
                               style: const TextStyle(
-                                color: Color(0xFF86EFAC),
-                                fontSize: 11,
+                                color: Color(0xFF0F172A),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
                               ),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _showLocationPicker,
+                        icon: const Icon(Icons.edit_location_alt_rounded, size: 15),
+                        label: const Text('Change', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF16A34A),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 2. Auto-Commute Displacement Guardian Card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFBAE6FD), width: 1.2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x080284C7),
+                        blurRadius: 10,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.radar_rounded, color: Color(0xFF0284C7), size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'AUTO-DISTANCE GEOFENCE NOTIFICATIONS',
+                            style: TextStyle(
+                              color: Color(0xFF0284C7),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Short departure (50m-300m) checks switches. Long travel (>1.5 km) reminds to log eco transit mode.',
+                        style: TextStyle(color: Color(0xFF475569), fontSize: 11),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                HapticFeedback.heavyImpact();
+                                await _geofence.simulateShortDeparture(160.0);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('⚡ Short departure notification posted (160m)! Check notification shade.'),
+                                      backgroundColor: Color(0xFF16A34A),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Text('🔌', style: TextStyle(fontSize: 13)),
+                              label: const Text('Test Left Home (160m)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFEF3C7),
+                                foregroundColor: const Color(0xFF92400E),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                HapticFeedback.heavyImpact();
+                                await _geofence.simulateLongCommute(_distanceKm);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('🚇 Long commute notification posted (${_distanceKm.toStringAsFixed(1)} km)! Check notification shade.'),
+                                      backgroundColor: const Color(0xFF0284C7),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Text('🚇', style: TextStyle(fontSize: 13)),
+                              label: Text('Test Traveled (${_distanceKm.toStringAsFixed(1)}km)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFE0F2FE),
+                                foregroundColor: const Color(0xFF0369A1),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                              ),
                             ),
                           ),
                         ],
@@ -184,27 +439,16 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                // Distance Selector
+                // 3. Distance Slider Card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F3120),
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +459,7 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                           const Text(
                             'Trip Distance Traveled',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF0F172A),
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -223,14 +467,14 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF22C55E).withValues(alpha: 0.2),
+                              color: const Color(0xFFDCFCE7),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               '${_distanceKm.toStringAsFixed(1)} km',
                               style: const TextStyle(
-                                color: Color(0xFF4ADE80),
-                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF16A34A),
+                                fontWeight: FontWeight.w900,
                                 fontSize: 15,
                               ),
                             ),
@@ -242,12 +486,10 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                         min: 0.5,
                         max: 20.0,
                         divisions: 39,
-                        activeColor: const Color(0xFF22C55E),
-                        inactiveColor: Colors.white12,
+                        activeColor: const Color(0xFF16A34A),
+                        inactiveColor: const Color(0xFFE2E8F0),
                         onChanged: (val) {
-                          setState(() {
-                            _distanceKm = val;
-                          });
+                          setState(() => _distanceKm = val);
                           _checkWalkValidation();
                         },
                       ),
@@ -257,16 +499,17 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
 
                 const SizedBox(height: 16),
 
-                // Commute Mode Selector
+                // 4. Commute Mode Selector
                 const Text(
-                  'Choose How You Traveled',
+                  'CHOOSE HOW YOU TRAVELED',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    color: Color(0xFF15803D),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    letterSpacing: 0.8,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 Wrap(
                   spacing: 8,
@@ -277,23 +520,20 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                     return GestureDetector(
                       onTap: () {
                         HapticFeedback.selectionClick();
-                        setState(() {
-                          _selectedMode = mode;
-                        });
+                        setState(() => _selectedMode = mode);
                         _checkWalkValidation();
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF22C55E)
-                              : const Color(0xFF0F3120),
+                          color: isSelected ? const Color(0xFF16A34A) : Colors.white,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF4ADE80)
-                                : Colors.white12,
+                            color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
                           ),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x06000000), offset: Offset(0, 2), blurRadius: 4),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -301,13 +541,13 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                             Icon(
                               _getModeIcon(mode),
                               size: 16,
-                              color: isSelected ? Colors.black : Colors.white70,
+                              color: isSelected ? Colors.white : const Color(0xFF475569),
                             ),
                             const SizedBox(width: 6),
                             Text(
                               _getModeLabel(mode),
                               style: TextStyle(
-                                color: isSelected ? Colors.black : Colors.white,
+                                color: isSelected ? Colors.white : const Color(0xFF0F172A),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
@@ -316,17 +556,15 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Colors.black12
-                                    : const Color(0xFF1B6B44).withValues(alpha: 0.5),
+                                color: isSelected ? Colors.white24 : const Color(0xFFFEF3C7),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                '+$rate 🪙/km',
+                                rate > 0 ? '+$rate/km' : '0 🪙',
                                 style: TextStyle(
-                                  color: isSelected ? Colors.black87 : const Color(0xFF86EFAC),
+                                  color: isSelected ? Colors.white : const Color(0xFF92400E),
                                   fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w900,
                                 ),
                               ),
                             ),
@@ -337,29 +575,23 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                   }).toList(),
                 ),
 
-                // Walk Limit Warning
                 if (_validationWarning != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFF87171), width: 1.5),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFF87171), size: 18),
+                        const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _validationWarning!,
-                            style: const TextStyle(
-                              color: Color(0xFFFCA5A5),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: const TextStyle(color: Color(0xFF991B1B), fontSize: 11),
                           ),
                         ),
                       ],
@@ -367,146 +599,45 @@ class _CommuteTravelSheetState extends State<CommuteTravelSheet> {
                   ),
                 ],
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Multi-Vehicle Selector
-                if (_selectedMode == CommuteMode.ev || _selectedMode == CommuteMode.petrolVehicle) ...[
-                  const Text(
-                    'Select Vehicle from Garage',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F3120),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedVehicleName,
-                        dropdownColor: const Color(0xFF0F3120),
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.white70),
-                        items: garage.map((v) {
-                          return DropdownMenuItem<String>(
-                            value: v.name,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  v.type.name.contains('ev')
-                                      ? Icons.electric_scooter_rounded
-                                      : Icons.two_wheeler_rounded,
-                                  color: v.type.name.contains('ev')
-                                      ? const Color(0xFF34D399)
-                                      : Colors.amber,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  v.name,
-                                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  v.efficiencyText,
-                                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedVehicleName = val;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Submit Button
+                // 5. Submit Button
                 ElevatedButton(
-                  onPressed: _validationWarning != null
-                      ? null
-                      : () {
-                          HapticFeedback.heavyImpact();
-                          final success = _service.logCommuteTrip(
-                            distanceKm: _distanceKm,
-                            mode: _selectedMode,
-                            vehicleName: _selectedVehicleName,
-                          );
-                          if (success && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('🎉 Commute Logged! Earned +$estimatedCoins 🪙 and prevented CO2e!'),
-                                backgroundColor: const Color(0xFF1B6B44),
-                              ),
-                            );
-                            Navigator.pop(context);
-                          }
-                        },
+                  onPressed: () {
+                    HapticFeedback.heavyImpact();
+                    final coins = estimatedCoins;
+                    final co2e = _distanceKm * 0.18; // ~0.18 kg CO2e saved vs petrol car
+                    GameStateService.instance.recordEcoAction(
+                      actionName: 'Sustainable Commute via ${_getModeLabel(_selectedMode)}',
+                      co2Saved: co2e,
+                      coinsAwarded: coins,
+                    );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('🎉 Logged ${_distanceKm.toStringAsFixed(1)} km via ${_getModeLabel(_selectedMode)}! Earned +$coins 🪙 & cut ${co2e.toStringAsFixed(2)} kg CO₂e!'),
+                        backgroundColor: const Color(0xFF16A34A),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.black,
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text(
-                    'Log Commute (+ $estimatedCoins 🪙)',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Log Verified Trip (+$estimatedCoins 🪙)',
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 24),
-
-                // Trip History
-                if (tripHistory.isNotEmpty) ...[
-                  const Text(
-                    'Recent Eco Journeys',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...tripHistory.take(4).map((t) => Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F2E1E),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(_getModeIcon(t.mode), color: const Color(0xFF86EFAC), size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                '${_getModeLabel(t.mode)} • ${t.distanceKm.toStringAsFixed(1)} km',
-                                style: const TextStyle(color: Colors.white, fontSize: 12),
-                              ),
-                            ),
-                            Text(
-                              '+${t.coinsEarned} 🪙',
-                              style: const TextStyle(
-                                color: Color(0xFFFBBF24),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
               ],
             ),
           ),

@@ -68,6 +68,9 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
               widget.onLoaded?.call(true);
             }
           },
+          onWebResourceError: (error) {
+            debugPrint('[SparrowWebView] Error: ${error.description}');
+          },
         ),
       )
       ..loadFlutterAsset('assets/web/sparrow.html');
