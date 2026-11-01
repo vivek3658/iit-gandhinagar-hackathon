@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import '../constants/auth_config.dart';
+import 'auth_service.dart';
 
 class LeagueMemberData {
   final int rank;
@@ -98,202 +99,34 @@ class LeaderboardClientService {
 
   final HttpClient _http = HttpClient()..connectionTimeout = const Duration(seconds: 4);
 
+  Future<Map<String, dynamic>> _request(String path, {String method = 'GET'}) async {
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) throw Exception('Sign in to view real leaderboard data.');
+    final request = await _http.openUrl(method, Uri.parse('${AuthConfig.apiBaseUrl}$path'));
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException('Leaderboard request failed (${response.statusCode}).');
+    }
+    return jsonDecode(body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> getLeague() async {
-    try {
-      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/leaderboard/league');
-      final req = await _http.getUrl(uri);
-      final res = await req.close();
-      if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        return jsonDecode(body) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return _mockLeague();
+    return _request('/leaderboard/league');
   }
 
   Future<Map<String, dynamic>> getGlobal() async {
-    try {
-      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/leaderboard/global');
-      final req = await _http.getUrl(uri);
-      final res = await req.close();
-      if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        return jsonDecode(body) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return _mockGlobal();
+    return _request('/leaderboard/global');
   }
 
   Future<GardenVisitorData?> visitGarden(String citizenId) async {
-    try {
-      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/leaderboard/visit/$citizenId');
-      final req = await _http.getUrl(uri);
-      final res = await req.close();
-      if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        return GardenVisitorData.fromJson(jsonDecode(body) as Map<String, dynamic>);
-      }
-    } catch (_) {}
-    return _mockVisitor(citizenId);
+    final result = await _request('/leaderboard/visit/${Uri.encodeComponent(citizenId)}');
+    return GardenVisitorData.fromJson(result);
   }
 
   Future<Map<String, dynamic>> cheerCitizen(String citizenId) async {
-    try {
-      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/leaderboard/cheer/$citizenId');
-      final req = await _http.postUrl(uri);
-      final res = await req.close();
-      if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        return jsonDecode(body) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return {
-      'success': true,
-      'message': '👏 Cheered citizen! Received +2 Urja Mudra coins!',
-      'coinsEarned': 2,
-    };
+    return _request('/leaderboard/cheer/${Uri.encodeComponent(citizenId)}', method: 'POST');
   }
 
-  Map<String, dynamic> _mockLeague() {
-    return {
-      'league': 'GOLD',
-      'seasonEndsAt': 'Sunday 23:59 IST (3d 12h left)',
-      'totalMembers': 10,
-      'yourRank': 4,
-      'members': [
-        {
-          'rank': 1,
-          'citizenId': 'cit_priya_ahmedabad',
-          'name': 'Priya Patel',
-          'district': 'Ahmedabad',
-          'weeklyExp': 340,
-          'streakDays': 14,
-          'status': 'PROMOTING',
-          'isCurrentUser': false,
-          'mascotSnapshot': {'name': 'Cheechee', 'level': 4, 'vitality': 95, 'expression': 'cheering'},
-          'gardenSnapshot': {'islandLevel': 2, 'placedTilesCount': 4, 'previewEmoji': '🏡'},
-        },
-        {
-          'rank': 2,
-          'citizenId': 'cit_aarav_surat',
-          'name': 'Aarav Shah',
-          'district': 'Surat',
-          'weeklyExp': 310,
-          'streakDays': 11,
-          'status': 'PROMOTING',
-          'isCurrentUser': false,
-          'mascotSnapshot': {'name': 'Piku', 'level': 3, 'vitality': 88, 'expression': 'happy'},
-          'gardenSnapshot': {'islandLevel': 2, 'placedTilesCount': 3, 'previewEmoji': '🌳'},
-        },
-        {
-          'rank': 3,
-          'citizenId': 'cit_diya_vadodara',
-          'name': 'Diya Mehta',
-          'district': 'Vadodara',
-          'weeklyExp': 290,
-          'streakDays': 9,
-          'status': 'PROMOTING',
-          'isCurrentUser': false,
-          'mascotSnapshot': {'name': 'Mithu', 'level': 3, 'vitality': 82, 'expression': 'curious'},
-          'gardenSnapshot': {'islandLevel': 2, 'placedTilesCount': 3, 'previewEmoji': '🌷'},
-        },
-        {
-          'rank': 4,
-          'citizenId': 'guest_citizen',
-          'name': 'You (Energy Guard)',
-          'district': 'Ahmedabad',
-          'weeklyExp': 240,
-          'streakDays': 7,
-          'status': 'SAFE',
-          'isCurrentUser': true,
-          'mascotSnapshot': {'name': 'Piku', 'level': 2, 'vitality': 90, 'expression': 'happy'},
-          'gardenSnapshot': {'islandLevel': 1, 'placedTilesCount': 3, 'previewEmoji': '🏡'},
-        },
-        {
-          'rank': 5,
-          'citizenId': 'cit_karan_rajkot',
-          'name': 'Karan Jadeja',
-          'district': 'Rajkot',
-          'weeklyExp': 210,
-          'streakDays': 6,
-          'status': 'SAFE',
-          'isCurrentUser': false,
-          'mascotSnapshot': {'name': 'Chirpy', 'level': 2, 'vitality': 78, 'expression': 'happy'},
-          'gardenSnapshot': {'islandLevel': 1, 'placedTilesCount': 2, 'previewEmoji': '🪨'},
-        },
-        {
-          'rank': 6,
-          'citizenId': 'cit_neha_gandhinagar',
-          'name': 'Neha Trivedi',
-          'district': 'Gandhinagar',
-          'weeklyExp': 180,
-          'streakDays': 5,
-          'status': 'SAFE',
-          'isCurrentUser': false,
-          'mascotSnapshot': {'name': 'Sparrow', 'level': 2, 'vitality': 74, 'expression': 'curious'},
-          'gardenSnapshot': {'islandLevel': 1, 'placedTilesCount': 2, 'previewEmoji': '⛲'},
-        },
-        {
-          'rank': 7,
-          'citizenId': 'cit_manan_bhavnagar',
-          'name': 'Manan Joshi',
-          'district': 'Bhavnagar',
-          'weeklyExp': 120,
-          'streakDays': 3,
-          'status': 'DEMOTING',
-          'isCurrentUser': false,
-          'mascotSnapshot': {'name': 'Bansi', 'level': 1, 'vitality': 62, 'expression': 'sleepy'},
-          'gardenSnapshot': {'islandLevel': 1, 'placedTilesCount': 1, 'previewEmoji': '🏡'},
-        },
-      ],
-    };
-  }
-
-  Map<String, dynamic> _mockGlobal() {
-    return {
-      'municipalRankings': [
-        {'rank': 1, 'district': 'Ahmedabad', 'totalCo2SavedTonnes': 1420.5, 'activeCitizens': 38200, 'primaryEnergyMode': 'Solar Rooftop & BRTS'},
-        {'rank': 2, 'district': 'Surat', 'totalCo2SavedTonnes': 1280.2, 'activeCitizens': 32400, 'primaryEnergyMode': 'EV Charging & Textile Solars'},
-        {'rank': 3, 'district': 'Vadodara', 'totalCo2SavedTonnes': 890.4, 'activeCitizens': 21900, 'primaryEnergyMode': 'Biogas & Domestic Solar'},
-        {'rank': 4, 'district': 'Rajkot', 'totalCo2SavedTonnes': 740.1, 'activeCitizens': 18500, 'primaryEnergyMode': 'Drip Garden & Rooftop PV'},
-        {'rank': 5, 'district': 'Gandhinagar', 'totalCo2SavedTonnes': 610.8, 'activeCitizens': 14200, 'primaryEnergyMode': 'Net-Zero Govt Grid'},
-      ],
-      'topCitizens': [
-        {'rank': 1, 'citizenId': 'cit_priya_ahmedabad', 'name': 'Priya Patel', 'district': 'Ahmedabad', 'totalCo2SavedKg': 248.5, 'mascotLevel': 5, 'badgeTitle': 'Solar Champion'},
-        {'rank': 2, 'citizenId': 'cit_aarav_surat', 'name': 'Aarav Shah', 'district': 'Surat', 'totalCo2SavedKg': 214.2, 'mascotLevel': 4, 'badgeTitle': 'EV Commuter'},
-        {'rank': 3, 'citizenId': 'cit_diya_vadodara', 'name': 'Diya Mehta', 'district': 'Vadodara', 'totalCo2SavedKg': 195.8, 'mascotLevel': 4, 'badgeTitle': 'Water Guardian'},
-      ],
-    };
-  }
-
-  GardenVisitorData _mockVisitor(String citizenId) {
-    return GardenVisitorData(
-      citizen: {
-        'id': citizenId,
-        'name': citizenId.contains('surat') ? 'Aarav Shah' : 'Priya Patel',
-        'district': citizenId.contains('surat') ? 'Surat' : 'Ahmedabad',
-        'ward': citizenId.contains('surat') ? 'Adajan' : 'Navrangpura',
-        'streakDays': 14,
-        'totalCo2SavedKg': 48.2,
-      },
-      mascot: {
-        'name': citizenId.contains('surat') ? 'Piku' : 'Cheechee',
-        'level': 4,
-        'vitality': 94,
-        'mood': 'EXCITED',
-        'expression': 'cheering',
-        'equipped': {'head': 'flowers', 'face': null, 'neck': 'bow', 'held': null},
-      },
-      garden: {
-        'islandLevel': 2,
-        'placedTilesCount': 4,
-        'slots': [
-          {'x': 0, 'z': 0, 'id': 'SPARROW_HOME', 'name': 'Sparrow Eco Home', 'icon': '🏡', 'rotation': 0},
-          {'x': 0, 'z': -1, 'id': 'FLOWER_BED', 'name': 'Fragrant Flower Bed', 'icon': '🌷', 'rotation': 0},
-          {'x': 1, 'z': 0, 'id': 'SPARROW_BATH', 'name': 'Bird Bath Fountain', 'icon': '⛲', 'rotation': 1},
-          {'x': -1, 'z': 0, 'id': 'SOLAR_STREET_LAMP', 'name': 'Solar Lantern Post', 'icon': '🏮', 'rotation': 0},
-        ],
-      },
-    );
-  }
 }

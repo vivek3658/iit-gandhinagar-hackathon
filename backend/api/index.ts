@@ -11,7 +11,10 @@ function getFastifyApp(): Promise<FastifyInstance> {
       });
       await app.ready();
       return app;
-    })();
+    })().catch((err) => {
+      appPromise = null;
+      throw err;
+    });
   }
   return appPromise;
 }
@@ -20,9 +23,11 @@ export default async function handler(req: any, res: any): Promise<void> {
   const app = await getFastifyApp();
 
   // On Vercel, rewrites can map routes to /api. Restore the original user-facing URL:
-  const matchedPath = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'];
-  if (matchedPath && (req.url === '/api' || req.url === '/api/')) {
-    req.url = matchedPath;
+  const matchedPath = (req.headers['x-matched-path'] || req.headers['x-forwarded-uri']) as string | undefined;
+  if (matchedPath && (req.url === '/api' || req.url === '/api/' || req.url.startsWith('/api?') || req.url === '/api/index')) {
+    const queryIndex = req.url.indexOf('?');
+    const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
+    req.url = matchedPath + queryString;
   }
 
   return new Promise<void>((resolve, reject) => {

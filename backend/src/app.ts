@@ -1,6 +1,6 @@
 import fastifyEnv from '@fastify/env';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import fastify, { FastifyError, FastifyInstance, FastifyServerOptions } from 'fastify';
+import fastify, { FastifyError, FastifyInstance, FastifyServerOptions, type FastifyReply, type FastifyRequest } from 'fastify';
 import { envOptions } from './config/env';
 import compressPlugin from './plugins/compress';
 import corsPlugin from './plugins/cors';
@@ -75,8 +75,8 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   });
 
   // 4. Root & Documentation Aliases
-  const handleRoot = async (request: any, reply: any) => {
-    const accept = (request.headers.accept as string) || '';
+  const handleRoot = async (request: FastifyRequest, reply: FastifyReply) => {
+    const accept = request.headers.accept || '';
     if (accept.includes('text/html')) {
       return reply.redirect('/docs');
     }

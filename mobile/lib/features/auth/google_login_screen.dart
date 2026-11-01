@@ -14,6 +14,21 @@ class GoogleLoginScreen extends StatefulWidget {
 
 class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
   bool _isLoading = false;
+  String? _errorMessage;
+
+  String _googleErrorText(String? error) {
+    final detail = error?.toLowerCase() ?? '';
+    if (detail.contains('network') || detail.contains('socket')) {
+      return 'Could not reach Google or URJA. Check your internet connection and try again.';
+    }
+    if (detail.contains('10') || detail.contains('developer_error') || detail.contains('sign_in_failed')) {
+      return 'Google sign-in configuration was rejected. Check this Android app’s package name and SHA-1 in Google Cloud Console.';
+    }
+    if (detail.contains('id token') || detail.contains('idtoken') || detail.contains('audience')) {
+      return 'Google did not provide a valid sign-in token. Set the Web OAuth client ID for both app and backend.';
+    }
+    return 'Google sign-in failed. Please try again or continue as guest.';
+  }
 
   Future<void> _handleGoogleSignIn() async {
     HapticFeedback.mediumImpact();
@@ -21,12 +36,19 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
 
     // Triggers real Google Sign-In with Google account picker sheet
     final auth = AuthService.instance;
-    final success = await auth.signInWithGoogle();
+    var success = false;
+    try {
+      success = await auth.signInWithGoogle();
+    } catch (error) {
+      _errorMessage = error.toString();
+    }
 
     if (mounted) {
       setState(() => _isLoading = false);
-
-      if (!success) return;
+      if (!success) {
+        setState(() => _errorMessage ??= auth.lastSignInError ?? _googleErrorText(null));
+        return;
+      }
 
       if (!auth.isProfileComplete) {
         Navigator.of(context).pushReplacement(
@@ -217,6 +239,11 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
                     ),
 
                     const SizedBox(height: 18),
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFF9C3427), fontSize: 12)),
+                      ),
 
                     // 1-Click 3D Google Sign In Button
                     SizedBox(

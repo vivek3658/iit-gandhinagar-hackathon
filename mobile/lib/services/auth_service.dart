@@ -110,8 +110,16 @@ class AuthService extends ChangeNotifier {
 
   final HttpClient _httpClient = HttpClient()..connectionTimeout = const Duration(seconds: 8);
 
+  String? _lastSignInError;
+  String? get lastSignInError => _lastSignInError;
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: AuthConfig.googleServerClientId.isNotEmpty && !AuthConfig.googleServerClientId.startsWith('YOUR_')
+    clientId: AuthConfig.googleAndroidClientId.isNotEmpty
+        ? AuthConfig.googleAndroidClientId
+        : null,
+    serverClientId: AuthConfig.googleServerClientId.isNotEmpty &&
+            AuthConfig.googleServerClientId.endsWith('.apps.googleusercontent.com') &&
+            !AuthConfig.googleServerClientId.startsWith('YOUR_')
         ? AuthConfig.googleServerClientId
         : null,
     scopes: ['email', 'profile'],
@@ -119,11 +127,8 @@ class AuthService extends ChangeNotifier {
 
   /// Authenticate with Google: triggers native Google account picker on Android
   Future<bool> signInWithGoogle([String? providedIdToken]) async {
+    _lastSignInError = null;
     String? token = providedIdToken;
-    String? googleEmail;
-    String? googleName;
-    String? googlePhoto;
-
     try {
       if (token == null) {
         final GoogleSignInAccount? account = await _googleSignIn.signIn();
@@ -133,9 +138,6 @@ class AuthService extends ChangeNotifier {
         }
         final GoogleSignInAuthentication auth = await account.authentication;
         token = auth.idToken;
-        googleEmail = account.email;
-        googleName = account.displayName;
-        googlePhoto = account.photoUrl;
       }
 
       if (token != null && token.isNotEmpty) {
@@ -156,27 +158,29 @@ class AuthService extends ChangeNotifier {
           notifyListeners();
           return true;
         }
+        _lastSignInError = 'Backend authentication failed (HTTP ${response.statusCode}).';
+        if (responseBody.isNotEmpty && responseBody.length < 400) {
+          _lastSignInError = responseBody;
+        }
+        debugPrint('[AuthService] Google auth endpoint returned ${response.statusCode}: $responseBody');
+        await _googleSignIn.signOut();
+        return false;
       }
+      _lastSignInError = AuthConfig.googleServerClientId.isEmpty
+          ? 'Google sign-in returned no ID token. Configure the Web OAuth client ID in the app and backend.'
+          : 'Google sign-in returned no ID token. Check OAuth client IDs and Android signing configuration.';
+      debugPrint('[AuthService] $_lastSignInError');
+      await _googleSignIn.signOut();
+      return false;
     } catch (e) {
-      debugPrint('[AuthService] Google Authentication error, creating active session: $e');
+      _lastSignInError = e is SocketException
+          ? 'Could not reach ${AuthConfig.apiBaseUrl}. Check network access and the backend URL.'
+          : 'Google authentication failed: $e';
+      debugPrint('[AuthService] Google Authentication error: $e');
+      await _googleSignIn.signOut();
+      return false;
     }
-
-    // Graceful session provision
-    _currentUser = CitizenProfile(
-      id: 'citizen_${DateTime.now().millisecondsSinceEpoch}',
-      email: googleEmail ?? 'citizen@gujarat.urja',
-      name: googleName ?? 'Gujarat Citizen',
-      avatarUrl: googlePhoto,
-      dob: '1998-05-15',
-      district: 'Ahmedabad',
-      ward: 'Navrangpura',
-      role: 'CITIZEN',
-      isProfileComplete: false,
-      points: 50,
-    );
-    _isGuestMode = false;
-    notifyListeners();
-    return true;
+    return false;
   }
 
   /// Guest / Dev Mode

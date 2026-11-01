@@ -5,19 +5,18 @@ export class QuestsController {
   private service = QuestsService.getInstance();
 
   public getDailyQuests = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const user = request.user as { id?: string } | undefined;
-    const userId = user?.id || 'guest_citizen';
-    const result = this.service.getDailyQuests(userId);
+    const user = request.user as { id: string };
+    const result = this.service.getDailyQuests(user.id);
     return reply.status(200).send(result);
   };
 
   public claimQuest = async (
-    request: FastifyRequest<{ Params: { questId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> => {
-    const user = request.user as { id?: string } | undefined;
-    const userId = user?.id || 'guest_citizen';
-    const { questId } = request.params;
+    const user = request.user as { id: string };
+    const userId = user.id;
+    const { questId } = request.params as { questId: string };
     try {
       const result = this.service.claimQuest(userId, questId);
       return reply.status(200).send(result);

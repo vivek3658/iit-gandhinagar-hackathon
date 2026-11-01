@@ -365,6 +365,7 @@ export class AuthService {
     googleClientId: string,
   ): Promise<{ sub: string; email: string; name: string; picture?: string }> {
     // 1. Instant deterministic bypass for tests & offline development
+    const cleanClientId = (googleClientId || '').trim().replace(/^["']|["']$/g, '');
     if (idToken.startsWith('mock_test_token_')) {
       const parts = idToken.split('_');
       const suffix = parts[3] || 'citizen1';
@@ -378,13 +379,13 @@ export class AuthService {
 
     // 2. Production verification with Google JWKS
     if (!this.oauthClient) {
-      this.oauthClient = new OAuth2Client(googleClientId);
+      this.oauthClient = new OAuth2Client(cleanClientId);
     }
 
     try {
       const ticket = await this.oauthClient.verifyIdToken({
         idToken,
-        audience: googleClientId,
+        audience: cleanClientId,
       });
       const payload = ticket.getPayload();
       if (!payload || !payload.sub || !payload.email) {

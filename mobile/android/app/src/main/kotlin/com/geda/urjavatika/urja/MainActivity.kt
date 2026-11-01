@@ -2,12 +2,14 @@ package com.geda.urjavatika.urja
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.Manifest
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -140,7 +142,10 @@ class MainActivity : FlutterActivity() {
                 }
                 "requestPermission" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+                        val permission = Manifest.permission.POST_NOTIFICATIONS
+                        if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(arrayOf(permission), 101)
+                        }
                     }
                     result.success(true)
                 }
@@ -196,7 +201,7 @@ class MainActivity : FlutterActivity() {
         )
 
         val builder = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
@@ -254,7 +259,7 @@ class MainActivity : FlutterActivity() {
         )
 
         val builder = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("⚡ Left Home (${distanceMeters}m)? Turn Off Wall Switches")
             .setContentText("Did you turn off the AC, water geyser & unplug phone chargers? Confirm to prevent continuous vampire drain and earn rewards!")
             .setStyle(

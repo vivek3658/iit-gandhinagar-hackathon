@@ -55,59 +55,10 @@ export class ActivityService {
    * Seed initial activities for a new citizen so feed is lively immediately
    */
   public static ensureInitialActivities(userId: string, district = 'Ahmedabad'): void {
-    const existing = this.repository.findForUser(userId);
-    if (existing.length > 0) return;
-
-    // Welcome action
-    this.repository.add({
-      id: crypto.randomUUID(),
-      userId,
-      category: 'HABIT',
-      title: 'Welcome to Urja Sanctuary! 🌿',
-      message: 'You received 50 Urja Mudra coins to embark on your Mission LiFE journey.',
-      icon: 'spark',
-      coinsEarned: 50,
-      district,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    });
-
-    // Gujarat community broadcasts
-    this.repository.add({
-      id: crypto.randomUUID(),
-      userId: null,
-      category: 'COMMUNITY',
-      title: 'Surat Solar Park Milestone ☀️',
-      message: 'Citizens in Surat collectively generated 25,000 kWh of rooftop solar energy this week!',
-      icon: 'solar',
-      district: 'Surat',
-      isRead: false,
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    });
-
-    this.repository.add({
-      id: crypto.randomUUID(),
-      userId: null,
-      category: 'ALERT',
-      title: 'Peak Grid Hour Reminder ⚡',
-      message: 'Ahmedabad grid peak begins at 6:30 PM. Switch off standby appliances to earn 2x bonus points!',
-      icon: 'zap',
-      district: 'Ahmedabad',
-      isRead: false,
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-    });
-
-    this.repository.add({
-      id: crypto.randomUUID(),
-      userId: null,
-      category: 'SANCTUARY',
-      title: 'Rajkot Eco-Gardener Landmark 🌳',
-      message: 'Citizen Patel unlocked the Sacred Canopy Banyan tree after saving 120 kg of CO2.',
-      icon: 'tree',
-      district: 'Rajkot',
-      isRead: false,
-      createdAt: new Date(Date.now() - 14400000).toISOString(),
-    });
+    // New accounts start with a truthful, empty feed. Events are added by
+    // completed server actions, not fabricated onboarding rewards.
+    void userId;
+    void district;
   }
 
   /**

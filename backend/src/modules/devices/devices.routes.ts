@@ -13,6 +13,7 @@ export const devicesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/log-hours',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Devices & Appliances'],
         summary: 'Log appliance runtime hours and receive high-usage warnings and rupee savings',
@@ -29,6 +30,7 @@ export const devicesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/summary',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Devices & Appliances'],
         summary: 'Get household device runtime summary, monthly projected bill, and active warnings',

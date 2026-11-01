@@ -5,6 +5,7 @@ import type {
   LogHoursBody,
 } from './devices.schema';
 import type { Static } from '@sinclair/typebox';
+import { ActivityService } from '../activity/activity.service';
 
 type HighUsageAlert = Static<typeof HighUsageAlertSchema>;
 
@@ -68,9 +69,17 @@ const APPLIANCE_SPECS: Record<string, MasterApplianceSpec> = {
   },
 };
 
+interface DeviceRuntimeLog {
+  date: string;
+  operatingHours: number;
+  energyConsumedKwh: number;
+  co2EmissionsKg: number;
+  effectiveKw: number;
+}
+
 export class DevicesService {
   private static instance: DevicesService;
-  private userLogs = new Map<string, Map<string, number>>(); // userId -> (deviceId -> hours)
+  private userLogs = new Map<string, Map<string, DeviceRuntimeLog[]>>();
 
   public static getInstance(): DevicesService {
     if (!DevicesService.instance) {
@@ -90,13 +99,6 @@ export class DevicesService {
       normalMaxDailyHours: 4.0,
     };
 
-    let userMap = this.userLogs.get(userId);
-    if (!userMap) {
-      userMap = new Map<string, number>();
-      this.userLogs.set(userId, userMap);
-    }
-    userMap.set(spec.id, body.operatingHours);
-
     // Dynamic temperature power adjustments for AC
     let effectiveKw = spec.ratedPowerKw;
     if (spec.id === 'ac' && body.thermostatTemp) {
@@ -110,6 +112,33 @@ export class DevicesService {
 
     const energyKwh = Math.round(effectiveKw * body.operatingHours * 10) / 10;
     const co2Kg = Math.round(energyKwh * 0.82 * 10) / 10;
+
+    let userMap = this.userLogs.get(userId);
+    if (!userMap) {
+      userMap = new Map<string, DeviceRuntimeLog[]>();
+      this.userLogs.set(userId, userMap);
+    }
+    const deviceLogs = userMap.get(spec.id) ?? [];
+    const date = body.date ?? new Date().toISOString().slice(0, 10);
+    const existingIndex = deviceLogs.findIndex((entry) => entry.date === date);
+    const newEntry: DeviceRuntimeLog = {
+      date,
+      operatingHours: body.operatingHours,
+      energyConsumedKwh: energyKwh,
+      co2EmissionsKg: co2Kg,
+      effectiveKw,
+    };
+    if (existingIndex >= 0) deviceLogs[existingIndex] = newEntry;
+    else deviceLogs.push(newEntry);
+    userMap.set(spec.id, deviceLogs);
+
+    ActivityService.postActivity({
+      userId,
+      category: 'HABIT',
+      title: `${spec.name} runtime logged`,
+      message: `${body.operatingHours} hours · ${energyKwh.toFixed(1)} kWh estimated from rated appliance power.`,
+      icon: 'zap',
+    });
 
     let highUsageAlert: HighUsageAlert | null = null;
 
@@ -157,24 +186,17 @@ export class DevicesService {
   }
 
   public getDeviceSummary(userId: string): DeviceSummaryResponse {
-    const userMap = this.userLogs.get(userId) || new Map<string, number>();
-
-    const defaultHours: Record<string, number> = {
-      ac: 6.5,
-      refrigerator: 14.0,
-      geyser: 1.2,
-      pump: 0.8,
-      induction: 1.5,
-      ev_charger: 3.5,
-    };
+    const userMap = this.userLogs.get(userId) || new Map<string, DeviceRuntimeLog[]>();
 
     const warnings: string[] = [];
     let monthlyProjectedKwh = 0;
 
     const devices = Object.values(APPLIANCE_SPECS).map((spec) => {
-      const dailyHours = userMap.get(spec.id) ?? defaultHours[spec.id] ?? 2.0;
-      const weeklyHours = Math.round(dailyHours * 7 * 10) / 10;
-      monthlyProjectedKwh += dailyHours * spec.ratedPowerKw * 30;
+      const logs = userMap.get(spec.id) ?? [];
+      const recentLogs = logs.slice(-7);
+      const weeklyHours = Math.round(recentLogs.reduce((sum, entry) => sum + entry.operatingHours, 0) * 10) / 10;
+      const dailyHours = recentLogs.length ? Math.round((weeklyHours / recentLogs.length) * 10) / 10 : 0;
+      monthlyProjectedKwh += recentLogs.reduce((sum, entry) => sum + entry.energyConsumedKwh, 0);
 
       let status: 'OPTIMAL' | 'MODERATE' | 'HIGH_USAGE' = 'OPTIMAL';
       let rec = 'Operating within eco-optimal range.';

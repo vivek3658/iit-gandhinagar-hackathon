@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/weather_service.dart';
+import '../../constants/auth_config.dart';
 import '../auth/google_login_screen.dart';
 import '../dashboard/carbon_dashboard_sheet.dart';
 import '../dashboard/monthly_electricity_tracker_sheet.dart';
@@ -53,12 +56,14 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       "Chirp! 🌿 Welcome to URJA ONE! Tap me to pet or check our carbon dashboard!";
   Timer? _dialogueResetTimer;
   Timer? _idleSleepTimer;
+  Timer? _expressionResetTimer;
 
   late final AnimationController _bubbleAnimController;
   late final Animation<double> _bubbleScale;
 
   // In-app Ambient Nudge Banner State
   Map<String, dynamic>? _activeNudgeAlert;
+  bool _backendMascotLoading = false;
 
   final List<String> _startupTips = [
     "Setting your AC thermostat to 24°C saves ~24% electricity and ₹1,800/yr in Gujarat! ❄️",
@@ -96,16 +101,16 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
     _state.addListener(_onStateChange);
     _loadWeatherAndStartupTip();
+    _loadBackendMascot();
     _resetIdleTimer();
 
-    // Request Android 13+ Notification Permission on startup
-    NotificationService.instance.requestPermission();
   }
 
   @override
   void dispose() {
     _dialogueResetTimer?.cancel();
     _idleSleepTimer?.cancel();
+    _expressionResetTimer?.cancel();
     _bubbleAnimController.dispose();
     _state.removeListener(_onStateChange);
     super.dispose();
@@ -113,6 +118,17 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
   void _onStateChange() {
     if (mounted) setState(() {});
+  }
+
+  void _showExpression(String expression, {Duration duration = const Duration(seconds: 5)}) {
+    _expressionResetTimer?.cancel();
+    _sparrowKey.currentState?.setExpression(expression);
+    if (expression == 'sleep' || expression == 'resting' || expression == 'nest') return;
+    _expressionResetTimer = Timer(duration, () {
+      if (mounted && !_state.isSleeping) {
+        _sparrowKey.currentState?.setExpression('happy');
+      }
+    });
   }
 
   void _resetIdleTimer() {
@@ -134,7 +150,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _state.setSleeping(false);
     HapticFeedback.mediumImpact();
     _sparrowKey.currentState?.wake();
-    _sparrowKey.currentState?.setExpression('curious');
+    _showExpression('curious');
     _say("Yawn... Chirp! 🌿 I'm awake and ready to guard your energy! ⚡");
     _resetIdleTimer();
   }
@@ -198,6 +214,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     }
 
     if (_state.soundEnabled) HapticFeedback.selectionClick();
+    _interactWithBackendMascot();
     _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
     _sparrowKey.currentState?.pet();
 
@@ -210,6 +227,62 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     }
 
     _say(petMsg);
+  }
+
+  Future<void> _loadBackendMascot() async {
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty || _backendMascotLoading) return;
+    _backendMascotLoading = true;
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+      final request = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/state'));
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+      client.close();
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) return;
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final data = decoded['data'] is Map<String, dynamic>
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
+      final vitality = data['vitality'];
+      if (vitality is num) _state.setVitality((vitality > 1 ? vitality / 100 : vitality).toDouble());
+      final expression = data['expression'] as String?;
+      if (expression != null && expression.isNotEmpty) _showExpression(expression.toLowerCase());
+      final dialogue = data['dialogue'];
+      final line = dialogue is Map<String, dynamic> ? dialogue['text'] as String? : dialogue as String?;
+      if (line != null && line.isNotEmpty) _say(line, duration: const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('[Mascot] Backend state unavailable: $e');
+    } finally {
+      _backendMascotLoading = false;
+    }
+  }
+
+  Future<void> _interactWithBackendMascot() async {
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+      final request = await client.postUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/interact'));
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.headers.contentType = ContentType.json;
+      request.write('{}');
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+      client.close();
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) return;
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final data = decoded['data'] is Map<String, dynamic>
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
+      final dialogue = data['dialogue'];
+      final line = dialogue is Map<String, dynamic> ? dialogue['text'] as String? : dialogue as String?;
+      if (line != null && line.isNotEmpty) _say(line);
+    } catch (e) {
+      debugPrint('[Mascot] Backend interaction unavailable: $e');
+    }
   }
 
   void triggerPet() {
@@ -229,7 +302,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     }
     if (_state.soundEnabled) HapticFeedback.mediumImpact();
     _state.setVitality((_state.vitality + 0.15).clamp(0.0, 1.0));
-    _sparrowKey.currentState?.setExpression('happy');
+    _showExpression('happy');
     _say("Nom nom! 🌾 Delicious organic seeds! Vitality restored to ${(_state.vitality * 100).toInt()}%!");
   }
 
@@ -242,7 +315,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     if (_state.soundEnabled) HapticFeedback.selectionClick();
     _tipIndex++;
     final tip = _startupTips[_tipIndex % _startupTips.length];
-    _sparrowKey.currentState?.setExpression('thinking');
+    _showExpression('thinking');
     _say("Mission LiFE Tip: $tip", duration: const Duration(seconds: 7));
   }
 
@@ -255,7 +328,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       isScrollControlled: true,
       builder: (ctx) => CarbonDashboardSheet(
         onActionCompleted: () {
-          _sparrowKey.currentState?.setExpression('cheering');
+          _showExpression('cheering');
           _say("Carbon prevented! 🍃 Every kg keeps Gujarat green!");
         },
       ),
@@ -353,7 +426,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       _sparrowKey.currentState?.levelUp(_state.mascotLevel);
       _say("🎉 LEVEL UP! I'm now Level ${_state.mascotLevel}! Real carbon saved! 🌟");
     } else {
-      _sparrowKey.currentState?.setExpression('excited');
+      _showExpression('excited');
       _say("Awesome! +$coins 🪙 & +${co2}kg CO2e prevented! 🍃");
     }
   }
@@ -389,6 +462,19 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               ),
             ),
 
+            // Soft environmental wash keeps the existing 3D Sparrow readable
+            // while matching the warm, storybook surfaces in the app reference.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x120B132B), Colors.transparent, Color(0x330B132B)],
+                  stops: [0, 0.48, 1],
+                ),
+              ),
+            ),
+
             // Interactive 3D WebGL Sparrow Mascot Canvas
             Sparrow3DStage(
               key: _sparrowKey,
@@ -407,7 +493,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Live Weather Status Pill (Top Left under HUD)
             if (_currentWeather != null)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 68,
+                top: MediaQuery.of(context).padding.top + 76,
                 left: 20,
                 child: _buildWeatherPill(),
               ),
@@ -415,7 +501,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // In-App Ambient Nudge Banner (e.g. Charger Unplug / Bedtime Sweep)
             if (_activeNudgeAlert != null)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 104,
+                top: MediaQuery.of(context).padding.top + 124,
                 left: 16,
                 right: 16,
                 child: _buildAmbientNudgeBanner(),
@@ -424,7 +510,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Companion Speech Bubble
             if (_activeNudgeAlert == null)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 108,
+                top: MediaQuery.of(context).padding.top + 124,
                 left: 20,
                 right: 20,
                 child: _buildSpeechBubble(),
@@ -433,7 +519,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Floating Action Pills (Left side: Domains)
             Positioned(
               left: 16,
-              bottom: 236,
+              bottom: MediaQuery.of(context).size.height < 720 ? 205 : 236,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,7 +558,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Floating Action Pills (Right side)
             Positioned(
               right: 16,
-              bottom: 236,
+              bottom: MediaQuery.of(context).size.height < 720 ? 205 : 236,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -487,7 +573,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Cozy Nest Indicator (11 PM - 6 AM)
             if (_isNightTimeNestSleep)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 68,
+                top: MediaQuery.of(context).padding.top + 76,
                 right: 20,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -549,29 +635,26 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
         onTap();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0C2417).withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.7), width: 1.2),
+          color: const Color(0xFFF9F0DE).withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white, width: 1.2),
           boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
+            BoxShadow(color: Color(0x66321D10), blurRadius: 12, offset: Offset(0, 4)),
+            BoxShadow(color: Colors.white70, blurRadius: 0, offset: Offset(0, 1)),
           ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 12)),
+            Text(icon, style: const TextStyle(fontSize: 14)),
             const SizedBox(width: 4),
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                color: const Color(0xFF344033),
+                fontWeight: FontWeight.w800,
                 fontSize: 11,
               ),
             ),
@@ -585,20 +668,12 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D2818).withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.6), width: 1.5),
+        color: const Color(0xFFF9F0DE).withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white, width: 1.5),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0xFF051B0E),
-            offset: Offset(0, 4),
-            blurRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.black45,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
+          BoxShadow(color: Color(0x66321D10), offset: Offset(0, 4), blurRadius: 14),
+          BoxShadow(color: Colors.white70, offset: Offset(0, 1), blurRadius: 0),
         ],
       ),
       child: Row(
@@ -613,24 +688,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF143B23),
+                color: const Color(0xFFE5F2CB),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF1F5435)),
+                border: Border.all(color: const Color(0xFFC5D8A4)),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.bolt_rounded, color: Color(0xFFFBBF24), size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    'Feed',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
+              child: const Icon(Icons.bolt_rounded, color: Color(0xFF9A6A10), size: 18),
             ),
           ),
           const SizedBox(width: 8),
@@ -640,34 +702,23 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: Colors.black26,
+                color: const Color(0xFFEDE4D1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white10),
+                border: Border.all(color: const Color(0xFFE0D5C0)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Lv ${_state.mascotLevel} Companion',
-                        style: const TextStyle(
-                          color: Color(0xFF86EFAC),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 10,
-                        ),
-                      ),
-                      Text(
-                        '${_state.co2eSavedKg.toStringAsFixed(1)} kg',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Lv ${_state.mascotLevel} Sparrow',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF276C42),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   ClipRRect(
@@ -676,7 +727,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                       height: 4,
                       child: LinearProgressIndicator(
                         value: _state.levelProgress,
-                        backgroundColor: Colors.white12,
+                        backgroundColor: Color(0xFFD3D0BE),
                         valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF22C55E)),
                       ),
                     ),
@@ -722,7 +773,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFF143B23),
+                color: const Color(0xFFFFF8E9),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFF59E0B)),
               ),
@@ -741,9 +792,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFF143B23),
+                color: const Color(0xFFFFF8E9),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF22C55E)),
+                border: Border.all(color: const Color(0xFFB8D39B)),
               ),
               child: const Center(
                 child: Text('🎯', style: TextStyle(fontSize: 14)),
@@ -956,7 +1007,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF14532D),
+                    color: Color(0xFF344033),
                     height: 1.3,
                   ),
                 ),
@@ -974,9 +1025,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFF163E27).withValues(alpha: 0.95),
+          color: const Color(0xFFF9F0DE).withValues(alpha: 0.97),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF34D399)),
+          border: Border.all(color: Colors.white, width: 1.2),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
@@ -993,7 +1044,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Text(
               'Meter Plot',
               style: TextStyle(
-                color: Colors.white,
+                color: const Color(0xFF344033),
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
               ),
@@ -1012,9 +1063,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F261A).withValues(alpha: 0.94),
+          color: const Color(0xFFF9F0DE).withValues(alpha: 0.97),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF4ADE80)),
+          border: Border.all(color: Colors.white, width: 1.2),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
@@ -1031,7 +1082,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Text(
               'CO2e Ledger',
               style: TextStyle(
-                color: Colors.white,
+                color: const Color(0xFF344033),
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
               ),
@@ -1049,9 +1100,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
+        color: const Color(0xFFFFF8E9).withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x221B6B44)),
+        border: Border.all(color: Colors.white, width: 1.2),
         boxShadow: const [
           BoxShadow(
             color: Color(0x100F2B1A),
@@ -1070,7 +1121,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
-                color: Color(0xFF0F2B1A),
+              color: Color(0xFF344033),
               ),
               overflow: TextOverflow.ellipsis,
             ),

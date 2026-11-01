@@ -7,15 +7,18 @@ export class MediaController {
     request: FastifyRequest,
     _reply: FastifyReply,
   ): Promise<ImageKitAuthResponse> {
-    const privateKey =
+    const rawPrivateKey =
       request.server.config?.IMAGEKIT_PRIVATE_KEY ||
       process.env.IMAGEKIT_PRIVATE_KEY ||
       'private_mock_imagekit_key_strictly_secret';
 
-    const publicKey =
+    const rawPublicKey =
       request.server.config?.IMAGEKIT_PUBLIC_KEY ||
       process.env.IMAGEKIT_PUBLIC_KEY ||
       'public_mock_imagekit_key';
+
+    const privateKey = rawPrivateKey.trim().replace(/^["']|["']$/g, '');
+    const publicKey = rawPublicKey.trim().replace(/^["']|["']$/g, '');
 
     return MediaService.getImageKitAuth(privateKey, publicKey);
   }

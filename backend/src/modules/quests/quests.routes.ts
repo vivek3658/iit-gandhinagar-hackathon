@@ -10,6 +10,7 @@ export const questsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/daily',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Daily Quests'],
         summary: 'Get active rotating Mission LiFE daily tasks and streak progress',
@@ -25,6 +26,7 @@ export const questsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/claim/:questId',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Daily Quests'],
         summary: 'Claim coins, XP, and mascot vitality for completed quest',

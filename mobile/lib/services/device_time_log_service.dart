@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import '../constants/auth_config.dart';
+import 'auth_service.dart';
 import 'notification_service.dart';
 
 class HighUsageAlertData {
@@ -129,159 +130,33 @@ class LoggedDeviceResult {
 
 class DeviceTimeLogService {
   static final DeviceTimeLogService instance = DeviceTimeLogService._();
-  DeviceTimeLogService._() {
-    _seedInitialHistory();
-  }
+  DeviceTimeLogService._();
 
   final HttpClient _http = HttpClient()..connectionTimeout = const Duration(seconds: 4);
   final List<ApplianceLogEntry> _history = [];
 
   List<ApplianceLogEntry> get history => List.unmodifiable(_history);
 
-  void _seedInitialHistory() {
-    final now = DateTime.now();
-    _history.addAll([
-      ApplianceLogEntry(
-        id: 'log_seed_1',
-        deviceId: 'ac',
-        deviceName: 'Inverter Split AC (1.5 Ton)',
-        icon: '❄️',
-        operatingHours: 8.5,
-        energyConsumedKwh: 12.3,
-        co2EmissionsKg: 10.1,
-        costRupees: 80,
-        isOverLimit: true,
-        loggedAt: now.subtract(const Duration(days: 1)),
-      ),
-      ApplianceLogEntry(
-        id: 'log_seed_2',
-        deviceId: 'refrigerator',
-        deviceName: 'Frost-Free Refrigerator',
-        icon: '🧊',
-        operatingHours: 14.0,
-        energyConsumedKwh: 2.2,
-        co2EmissionsKg: 1.8,
-        costRupees: 15,
-        isOverLimit: false,
-        loggedAt: now.subtract(const Duration(days: 1)),
-      ),
-      ApplianceLogEntry(
-        id: 'log_seed_3',
-        deviceId: 'geyser',
-        deviceName: 'Storage Water Geyser',
-        icon: '🚿',
-        operatingHours: 1.2,
-        energyConsumedKwh: 2.4,
-        co2EmissionsKg: 2.0,
-        costRupees: 16,
-        isOverLimit: false,
-        loggedAt: now.subtract(const Duration(days: 2)),
-      ),
-      ApplianceLogEntry(
-        id: 'log_seed_4',
-        deviceId: 'pump',
-        deviceName: 'Sump Water Pump',
-        icon: '💧',
-        operatingHours: 0.8,
-        energyConsumedKwh: 0.9,
-        co2EmissionsKg: 0.7,
-        costRupees: 6,
-        isOverLimit: false,
-        loggedAt: now.subtract(const Duration(days: 2)),
-      ),
-    ]);
-  }
-
   Future<LoggedDeviceResult> logHours({
     required String deviceCatalogId,
     required double operatingHours,
     double? thermostatTemp,
   }) async {
-    LoggedDeviceResult? result;
-
-    try {
-      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/devices/log-hours');
-      final req = await _http.postUrl(uri);
-      req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({
-        'deviceCatalogId': deviceCatalogId,
-        'operatingHours': operatingHours,
-        if (thermostatTemp != null) 'thermostatTemp': thermostatTemp,
-      }));
-      final res = await req.close();
-      if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        result = LoggedDeviceResult.fromJson(jsonDecode(body) as Map<String, dynamic>);
-      }
-    } catch (_) {}
-
-    if (result == null) {
-      // Offline fallback calculation
-      double kw = 1.45;
-      double ecoLimit = 5.0;
-      String name = 'Inverter Split AC (1.5 Ton)';
-      String icon = '❄️';
-      if (deviceCatalogId == 'geyser') {
-        kw = 2.0;
-        ecoLimit = 1.5;
-        name = 'Storage Water Geyser';
-        icon = '🚿';
-      } else if (deviceCatalogId == 'pump') {
-        kw = 1.1;
-        ecoLimit = 1.0;
-        name = 'Sump Water Pump';
-        icon = '💧';
-      } else if (deviceCatalogId == 'refrigerator') {
-        kw = 0.16;
-        ecoLimit = 14.0;
-        name = 'Frost-Free Refrigerator';
-        icon = '🧊';
-      } else if (deviceCatalogId == 'induction') {
-        kw = 1.5;
-        ecoLimit = 2.0;
-        name = 'Smart Induction Cooktop';
-        icon = '🥘';
-      } else if (deviceCatalogId == 'ev_charger') {
-        kw = 0.75;
-        ecoLimit = 4.0;
-        name = 'EV 2-Wheeler Home Charger';
-        icon = '🛵';
-      }
-
-      final kwh = double.parse((kw * operatingHours).toStringAsFixed(1));
-      final co2 = double.parse((kwh * 0.82).toStringAsFixed(1));
-
-      HighUsageAlertData? alert;
-      if (operatingHours > ecoLimit) {
-        final excess = double.parse((operatingHours - ecoLimit).toStringAsFixed(1));
-        final monthlyExcess = excess * kw * 30;
-        final monthlyInr = (monthlyExcess * 6.5).round();
-        final monthlyCo2 = (monthlyExcess * 0.82).round();
-
-        alert = HighUsageAlertData(
-          triggered: true,
-          alertTitle: '⚠️ High Hours Alert: $name',
-          alertMessage: '$name ran for $operatingHours hrs today ($excess hrs above eco threshold of $ecoLimit hrs).',
-          excessHours: excess,
-          potentialSavingsRupeesMonthly: monthlyInr,
-          potentialCo2ReductionKgMonthly: monthlyCo2,
-          recommendation: deviceCatalogId == 'ac'
-              ? 'Set AC sleep timer to 4 hours and thermostat to 24°C to save ₹$monthlyInr & $monthlyCo2 kg CO₂e monthly.'
-              : 'Turn off after morning use to prevent standby reheat losses.',
-        );
-      }
-
-      result = LoggedDeviceResult(
-        deviceId: deviceCatalogId,
-        deviceName: name,
-        icon: icon,
-        operatingHours: operatingHours,
-        ratedPowerKw: kw,
-        energyConsumedKwh: kwh,
-        co2EmissionsKg: co2,
-        highUsageAlert: alert,
-      );
-    }
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) throw Exception('Sign in to save appliance logs.');
+    final uri = Uri.parse('${AuthConfig.apiBaseUrl}/devices/log-hours');
+    final req = await _http.postUrl(uri);
+    req.headers.contentType = ContentType.json;
+    req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    req.write(jsonEncode({
+      'deviceCatalogId': deviceCatalogId,
+      'operatingHours': operatingHours,
+      if (thermostatTemp != null) 'thermostatTemp': thermostatTemp,
+    }));
+    final res = await req.close();
+    final body = await res.transform(utf8.decoder).join();
+    if (res.statusCode != 200) throw HttpException('Could not save log (${res.statusCode}): $body');
+    final result = LoggedDeviceResult.fromJson(jsonDecode(body) as Map<String, dynamic>);
 
     // 1. Add to persistent history log
     final newEntry = ApplianceLogEntry(
@@ -296,6 +171,10 @@ class DeviceTimeLogService {
       isOverLimit: result.highUsageAlert?.triggered ?? false,
       loggedAt: DateTime.now(),
     );
+    _history.removeWhere((entry) => entry.deviceId == newEntry.deviceId &&
+        entry.loggedAt.year == newEntry.loggedAt.year &&
+        entry.loggedAt.month == newEntry.loggedAt.month &&
+        entry.loggedAt.day == newEntry.loggedAt.day);
     _history.insert(0, newEntry);
 
     // 2. Trigger REAL Android System Notification if high usage alert is active!
@@ -312,26 +191,14 @@ class DeviceTimeLogService {
   }
 
   Future<Map<String, dynamic>> getSummary() async {
-    try {
-      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/devices/summary');
-      final req = await _http.getUrl(uri);
-      final res = await req.close();
-      if (res.statusCode == 200) {
-        final body = await res.transform(utf8.decoder).join();
-        return jsonDecode(body) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-
-    return {
-      'devices': [
-        {'deviceId': 'ac', 'name': 'Inverter Split AC (1.5 Ton)', 'category': 'Cooling', 'icon': '❄️', 'ratedPowerKw': 1.45, 'totalWeeklyHours': 45.5, 'avgDailyHours': 6.5, 'status': 'HIGH_USAGE', 'recommendation': 'High daily usage! Consider scheduling off-peak.'},
-        {'deviceId': 'refrigerator', 'name': 'Frost-Free Refrigerator', 'category': 'Refrigeration', 'icon': '🧊', 'ratedPowerKw': 0.16, 'totalWeeklyHours': 98.0, 'avgDailyHours': 14.0, 'status': 'OPTIMAL', 'recommendation': 'Operating within eco-optimal range.'},
-        {'deviceId': 'geyser', 'name': 'Storage Water Geyser', 'category': 'Water Heating', 'icon': '🚿', 'ratedPowerKw': 2.0, 'totalWeeklyHours': 8.4, 'avgDailyHours': 1.2, 'status': 'OPTIMAL', 'recommendation': 'Operating within eco-optimal range.'},
-      ],
-      'highHourWarnings': [
-        '⚠️ Inverter Split AC is running 6.5h/day. Eco threshold is 5.0h.',
-      ],
-      'monthlyProjectedBillRupees': 2140,
-    };
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) throw Exception('Sign in to view appliance summary.');
+    final uri = Uri.parse('${AuthConfig.apiBaseUrl}/devices/summary');
+    final req = await _http.getUrl(uri);
+    req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final res = await req.close();
+    final body = await res.transform(utf8.decoder).join();
+    if (res.statusCode != 200) throw HttpException('Could not load appliance summary (${res.statusCode}).');
+    return jsonDecode(body) as Map<String, dynamic>;
   }
 }

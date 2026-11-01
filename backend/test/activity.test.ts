@@ -7,6 +7,7 @@ import { ActivityService } from '../src/modules/activity/activity.service';
 describe('Activity Feed Module (Event Stream & Notifications)', () => {
   let app: FastifyInstance;
   let citizenToken: string;
+  let citizenId: string;
 
   beforeAll(async () => {
     app = buildApp({ logger: false });
@@ -28,9 +29,10 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
     });
     const body = JSON.parse(login.body);
     citizenToken = body.accessToken;
+    citizenId = body.user.id;
   });
 
-  it('1. GET /api/v1/activity auto-seeds welcome + community Gujarat eco-events', async () => {
+  it('1. GET /api/v1/activity starts empty instead of inventing welcome rewards or community events', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/v1/activity',
@@ -40,17 +42,14 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
 
-    expect(body.activities.length).toBeGreaterThanOrEqual(4);
-    expect(body.unreadCount).toBeGreaterThanOrEqual(4);
-    expect(body.totalCount).toBeGreaterThanOrEqual(4);
-
-    // Verify presence of welcome event
-    const welcome = body.activities.find((a: { title: string }) => a.title.includes('Welcome'));
-    expect(welcome).toBeDefined();
-    expect(welcome.coinsEarned).toBe(50);
+    expect(body.activities).toEqual([]);
+    expect(body.unreadCount).toBe(0);
+    expect(body.totalCount).toBe(0);
   });
 
-  it('2. Filter activity by category (e.g. HABIT, COMMUNITY, ALERT)', async () => {
+  it('2. Filters real activity by category', async () => {
+    ActivityService.postActivity({ userId: citizenId, category: 'COMMUNITY', title: 'Verified community update', message: 'Community update from the test fixture.', icon: 'leaf' });
+    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Verified habit', message: 'Self-reported test action.', icon: 'zap' });
     const res = await app.inject({
       method: 'GET',
       url: '/api/v1/activity?category=COMMUNITY',
@@ -59,13 +58,14 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.activities.length).toBeGreaterThanOrEqual(1);
+    expect(body.activities.length).toBe(1);
     for (const act of body.activities) {
       expect(act.category).toBe('COMMUNITY');
     }
   });
 
   it('3. POST /api/v1/activity/:id/read marks single notification as read', async () => {
+    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Test action', message: 'A real test event.', icon: 'leaf' });
     // 1. Fetch initial feed
     const feedRes = await app.inject({
       method: 'GET',
@@ -89,6 +89,8 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
   });
 
   it('4. POST /api/v1/activity/read-all marks all notifications as read', async () => {
+    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Action one', message: 'Test event one.', icon: 'leaf' });
+    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Action two', message: 'Test event two.', icon: 'zap' });
     const readAllRes = await app.inject({
       method: 'POST',
       url: '/api/v1/activity/read-all',

@@ -6,19 +6,17 @@ export class DevicesController {
   private service = DevicesService.getInstance();
 
   public logHours = async (
-    request: FastifyRequest<{ Body: LogHoursBody }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> => {
-    const user = request.user as { id?: string } | undefined;
-    const userId = user?.id || 'guest_citizen';
-    const result = this.service.logDeviceHours(userId, request.body);
+    const user = request.user as { id: string };
+    const result = this.service.logDeviceHours(user.id, request.body as LogHoursBody);
     return reply.status(200).send(result);
   };
 
   public getSummary = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const user = request.user as { id?: string } | undefined;
-    const userId = user?.id || 'guest_citizen';
-    const result = this.service.getDeviceSummary(userId);
+    const user = request.user as { id: string };
+    const result = this.service.getDeviceSummary(user.id);
     return reply.status(200).send(result);
   };
 }

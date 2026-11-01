@@ -9,6 +9,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/dashboard',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Analytics & Energy'],
         summary: 'Get 24h load curve, appliance power breakdown, and multi-domain CO2e ledger',

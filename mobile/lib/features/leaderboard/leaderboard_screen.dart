@@ -15,6 +15,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   Map<String, dynamic>? _leagueData;
   Map<String, dynamic>? _globalData;
   bool _isLoading = true;
+  String? _loadError;
 
   @override
   void initState() {
@@ -30,14 +31,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   }
 
   Future<void> _loadData() async {
-    final league = await LeaderboardClientService.instance.getLeague();
-    final global = await LeaderboardClientService.instance.getGlobal();
-    if (mounted) {
-      setState(() {
-        _leagueData = league;
-        _globalData = global;
-        _isLoading = false;
-      });
+    setState(() { _isLoading = true; _loadError = null; });
+    try {
+      final league = await LeaderboardClientService.instance.getLeague();
+      final global = await LeaderboardClientService.instance.getGlobal();
+      if (!mounted) return;
+      setState(() { _leagueData = league; _globalData = global; _isLoading = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _loadError = error.toString().replaceFirst('Exception: ', ''); _isLoading = false; });
     }
   }
 
@@ -96,7 +98,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ADE80)))
-          : TabBarView(
+          : _loadError != null
+              ? Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off_rounded, color: Color(0xFF86EFAC), size: 44), const SizedBox(height: 12), Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)), const SizedBox(height: 14), FilledButton.icon(onPressed: _loadData, icon: const Icon(Icons.refresh_rounded), label: const Text('Try again'))])))
+              : TabBarView(
               controller: _tabController,
               children: [
                 _buildLeagueTab(),
@@ -108,8 +112,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
 
   // ================= 1. DUOLINGO-STYLE WEEKLY LEAGUE TAB =================
   Widget _buildLeagueTab() {
-    final leagueName = _leagueData?['league'] as String? ?? 'GOLD';
-    final seasonTimer = _leagueData?['seasonEndsAt'] as String? ?? 'Sunday 23:59 IST';
+    final leagueName = _leagueData?['league'] as String? ?? 'BRONZE';
+    final seasonTimer = _leagueData?['seasonEndsAt'] as String? ?? '';
     final rawMembers = (_leagueData?['members'] as List<dynamic>?) ?? [];
     final members = rawMembers.map((m) => LeagueMemberData.fromJson(m as Map<String, dynamic>)).toList();
 
@@ -189,6 +193,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
           ),
           const SizedBox(height: 16),
 
+          if (members.isEmpty)
+            _emptyLeaderboard('No verified league members yet', 'Your weekly league appears when the backend has real member activity.')
+          else ...[
           // Promotion Zone Marker (Duolingo style)
           _buildZoneHeader('🟢 PROMOTION ZONE (TOP 3 ADVANCE)', const Color(0xFF22C55E)),
           const SizedBox(height: 6),
@@ -207,6 +214,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             ],
             _buildMemberRow(members[i]),
             const SizedBox(height: 6),
+          ],
           ],
         ],
       ),
@@ -236,6 +244,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       ],
     );
   }
+
+  Widget _emptyLeaderboard(String title, String message) => Container(
+        margin: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(color: const Color(0xFF143522), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white12)),
+        child: Column(children: [const Icon(Icons.eco_rounded, color: Color(0xFF86EFAC), size: 34), const SizedBox(height: 10), Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)), const SizedBox(height: 6), Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4))]),
+      );
 
   Widget _buildMemberRow(LeagueMemberData member) {
     final isTop3 = member.rank <= 3;
@@ -412,6 +427,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         ),
         const SizedBox(height: 10),
 
+        if (districts.isEmpty && topCitizens.isEmpty)
+          _emptyLeaderboard('No verified rankings yet', 'Rankings appear here after real citizen activity is collected by the backend.'),
         for (final dist in districts) ...[
           _buildDistrictCard(dist),
           const SizedBox(height: 8),

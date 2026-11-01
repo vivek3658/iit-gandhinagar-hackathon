@@ -128,220 +128,300 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget build(BuildContext context) {
     final disableAnimations = MediaQuery.of(context).disableAnimations;
 
-    // Distinct soft, organic background themes matching visual artwork
-    final bgGradients = [
-      const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFDFF0FE), Color(0xFFF1F8F5)],
-      ),
-      const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFEAF1E7), Color(0xFFF7F5EE)],
-      ),
-      const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFFDF0E5), Color(0xFFFAF6F0)],
-      ),
-    ];
-
     return Scaffold(
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        decoration: BoxDecoration(gradient: bgGradients[_currentPage]),
-        child: SafeArea(
-          child: Column(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxHeight < 700;
+          return Stack(
+            fit: StackFit.expand,
             children: [
-              // -------------------------------------------------------------
-              // 1. TOP BAR: Branding Badge + Skip Action
-              // -------------------------------------------------------------
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Brand Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0x221B6B44)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('🌿', style: TextStyle(fontSize: 13)),
-                          SizedBox(width: 4),
-                          Text(
-                            'URJA',
-                            style: TextStyle(
-                              color: Color(0xFF1B6B44),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Skip Button
-                    AnimatedOpacity(
-                      opacity: _currentPage == 2 ? 0.0 : 1.0,
-                      duration: const Duration(milliseconds: 250),
-                      child: IgnorePointer(
-                        ignoring: _currentPage == 2,
-                        child: TextButton(
-                          onPressed: _navigateToLogin,
-                          style: TextButton.styleFrom(
-                            foregroundColor: UrjaColors.textSub,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          ),
-                          child: const Text(
-                            'Skip',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: _ambientController,
+                  builder: (context, _) {
+                    final shift = disableAnimations ? 0.0 : (_ambientController.value - 0.5) * 5;
+                    return Transform.translate(
+                      offset: Offset(shift, 0),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 480),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: Image.asset(
+                          'assets/images/onboarding/adventure_${_currentPage + 1}.png',
+                          key: ValueKey(_currentPage),
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
                         ),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-
-              // -------------------------------------------------------------
-              // 2. PAGE VIEW CAROUSEL
-              // -------------------------------------------------------------
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: _onPageChanged,
-                  physics: const BouncingScrollPhysics(),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.18),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.18),
+                      const Color(0xE6122015),
+                    ],
+                    stops: const [0, 0.34, 0.58, 1],
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: Column(
                   children: [
-                    _buildScreen1(disableAnimations),
-                    _buildScreen2(disableAnimations),
-                    _buildScreen3(disableAnimations),
-                  ],
-                ),
-              ),
-
-              // -------------------------------------------------------------
-              // 3. BOTTOM CONTROLS: Back Button + Expandable Dots + Next
-              // -------------------------------------------------------------
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-                child: _currentPage == 2
-                    ? SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _navigateToLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F3E2E),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                            elevation: 4,
-                            shadowColor: const Color(0x330F3E2E),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Get Started',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(Icons.arrow_forward_rounded, size: 20),
-                            ],
-                          ),
-                        ),
-                      )
-                    : Row(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Circular Back Button
-                          if (_currentPage > 0)
-                            Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 2,
-                              shadowColor: Colors.black12,
-                              child: InkWell(
-                                onTap: _onBack,
-                                customBorder: const CircleBorder(),
-                                child: const SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: Icon(
-                                    Icons.arrow_back_rounded,
-                                    color: Color(0xFF0F3E2E),
-                                    size: 22,
-                                  ),
-                                ),
-                              ),
-                            )
-                          else
-                            const SizedBox(width: 50),
-
-                          // Expanding Pill Page Indicators
-                          Row(
-                            children: List.generate(3, (idx) {
-                              final isActive = idx == _currentPage;
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                width: isActive ? 26 : 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? const Color(0xFF0F3E2E)
-                                      : const Color(0x330F3E2E),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              );
-                            }),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                            ),
+                            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text('🌿', style: TextStyle(fontSize: 13)),
+                              SizedBox(width: 4),
+                              Text('URJA', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                            ]),
                           ),
-
-                          // Circular Forward Button
-                          Material(
-                            color: const Color(0xFF0F3E2E),
-                            shape: const CircleBorder(),
-                            elevation: 3,
-                            shadowColor: const Color(0x330F3E2E),
-                            child: InkWell(
-                              onTap: _onNext,
-                              customBorder: const CircleBorder(),
-                              child: const SizedBox(
-                                width: 50,
-                                height: 50,
-                                child: Icon(
-                                  Icons.arrow_forward_rounded,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
+                          AnimatedOpacity(
+                            opacity: _currentPage == 2 ? 0 : 1,
+                            duration: const Duration(milliseconds: 250),
+                            child: IgnorePointer(
+                              ignoring: _currentPage == 2,
+                              child: TextButton(
+                                onPressed: _navigateToLogin,
+                                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                                child: const Text('Skip', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                               ),
                             ),
                           ),
                         ],
                       ),
+                    ),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: _onPageChanged,
+                        physics: const BouncingScrollPhysics(),
+                        children: List.generate(
+                          3,
+                          (index) => _buildAdventurePage(index, disableAnimations, isCompact),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(20, isCompact ? 6 : 10, 20, isCompact ? 8 : 16),
+                      child: _currentPage == 2
+                          ? SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                onPressed: _navigateToLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF087B3B),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                                  elevation: 10,
+                                  shadowColor: const Color(0xAA0F3E2E),
+                                ),
+                                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                  Text('Begin your adventure', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.arrow_forward_rounded, size: 20),
+                                ]),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (_currentPage > 0)
+                                  Material(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      onTap: _onBack,
+                                      customBorder: const CircleBorder(),
+                                      child: const SizedBox(width: 50, height: 50, child: Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22)),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(width: 50),
+                                Row(children: List.generate(3, (idx) {
+                                  final active = idx == _currentPage;
+                                  return AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                    width: active ? 26 : 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: active ? Colors.white : Colors.white.withValues(alpha: 0.48),
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                                    ),
+                                  );
+                                })),
+                                Material(
+                                  color: const Color(0xFF087B3B),
+                                  shape: const CircleBorder(),
+                                  elevation: 8,
+                                  child: InkWell(
+                                    onTap: _onNext,
+                                    customBorder: const CircleBorder(),
+                                    child: const SizedBox(width: 50, height: 50, child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
               ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAdventurePage(int index, bool disableAnimations, bool isCompact) {
+    const messages = [
+      ('A GREENER WORLD STARTS AT HOME', 'Small choices at home can make a big difference.'),
+      ('MEET YOUR ENERGY', 'Discover what your everyday devices are using.'),
+      ('GROW YOUR IMPACT', 'Make greener choices, earn rewards, and grow your companion.'),
+    ];
+    final (eyebrow, message) = messages[index];
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(26, 16, 26, isCompact ? 4 : 16),
+          child: Column(
+            children: [
+              const Spacer(flex: 7),
+              if (index == 0) ...[
+                const Text(
+                  'URJA ONE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                    shadows: [Shadow(color: Colors.black87, blurRadius: 18)],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (index == 1) _applianceStatus(disableAnimations, isCompact),
+              if (index == 2) _impactRewards(disableAnimations),
+              SizedBox(height: isCompact ? 8 : 16),
+              Text(
+                eyebrow,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.96),
+                  fontSize: 12,
+                  letterSpacing: 1.4,
+                  fontWeight: FontWeight.w900,
+                  shadows: const [Shadow(color: Colors.black87, blurRadius: 12)],
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                    shadows: [Shadow(color: Colors.black87, blurRadius: 14)],
+                  ),
+                ),
+              ),
+              const Spacer(flex: 2),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _gameGlass({required Widget child, EdgeInsets padding = const EdgeInsets.all(12)}) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: const Color(0xEAF8F4DF),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86), width: 1.4),
+        boxShadow: const [
+          BoxShadow(color: Color(0x66071C0E), blurRadius: 20, offset: Offset(0, 8)),
+          BoxShadow(color: Colors.white70, blurRadius: 0, offset: Offset(0, 1)),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _applianceStatus(bool disableAnimations, bool isCompact) {
+    const appliances = [
+      ('❄️', 'Air conditioning', Color(0xFF22C55E)),
+      ('🧊', 'Refrigerator', Color(0xFF22C55E)),
+      ('📺', 'Television', Color(0xFFFBBF24)),
+      ('🍲', 'Kitchen', Color(0xFFFB6A57)),
+    ];
+    return _gameGlass(padding: EdgeInsets.symmetric(horizontal: 12, vertical: isCompact ? 4 : 7), child: Column(
+      children: appliances.map((item) => Padding(
+        padding: EdgeInsets.symmetric(vertical: isCompact ? 2 : 5),
+        child: Row(children: [
+          Text(item.$1, style: const TextStyle(fontSize: 23)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(item.$2, style: const TextStyle(color: Color(0xFF244233), fontSize: 13, fontWeight: FontWeight.w700))),
+          AnimatedBuilder(animation: _pulseController, builder: (context, _) => Transform.scale(
+            scale: disableAnimations ? 1 : 0.88 + _pulseController.value * 0.18,
+            child: Container(width: 11, height: 11, decoration: BoxDecoration(color: item.$3, shape: BoxShape.circle, boxShadow: [BoxShadow(color: item.$3.withValues(alpha: 0.6), blurRadius: 8)])),
+          )),
+        ]),
+      )).toList(),
+    ));
+  }
+
+  Widget _impactRewards(bool disableAnimations) {
+    return Column(children: [
+      _gameGlass(child: Row(children: [
+        const Text('🌱', style: TextStyle(fontSize: 25)),
+        const SizedBox(width: 8),
+        Expanded(child: AnimatedBuilder(animation: _progressAnimation, builder: (_, __) => ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(value: disableAnimations ? 0.7 : _progressAnimation.value, minHeight: 12, backgroundColor: const Color(0xFFCCD1B2), color: const Color(0xFF08A83C)),
+        ))),
+        const SizedBox(width: 8),
+        const Text('70%', style: TextStyle(color: Color(0xFF20633B), fontWeight: FontWeight.w900)),
+      ])),
+      const SizedBox(height: 10),
+      Row(children: [
+        for (final reward in [('🪙', 'COINS'), ('☁️', 'CARBON'), ('⭐', 'STREAK')])
+          Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: _gameGlass(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Column(children: [
+              Text(reward.$1, style: const TextStyle(fontSize: 23)),
+              Text(reward.$2, style: const TextStyle(fontSize: 9, letterSpacing: 0.8, color: Color(0xFF46604B), fontWeight: FontWeight.w900)),
+            ]),
+          ))),
+      ]),
+    ]);
   }
 
   // ===========================================================================

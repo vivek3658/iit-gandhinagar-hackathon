@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/game_state_service.dart';
 import '../activity/activity_feed_notifications_screen.dart';
 import '../game/mascot_sanctuary_screen.dart';
@@ -129,36 +130,37 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
           ),
 
           // Floating Edge Game Universe Navigation Indicators (Right edge in Center Hub)
-          if (_horizontalPage == 1)
+          if (_horizontalPage == 1 && _verticalPage == 0)
             Positioned(
-              right: 8,
-              top: 0,
-              bottom: 0,
+              left: 16,
+              right: 16,
+              bottom: 88,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildIndicator(
-                        isActive: _verticalPage == 0,
-                        emoji: '🐥',
-                        tooltip: 'Mascot Sanctuary',
-                        onTap: _scrollToSanctuary,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildIndicator(
-                        isActive: _verticalPage == 1,
-                        emoji: '🏝️',
-                        tooltip: 'Floating Island',
-                        onTap: _scrollToGarden,
-                      ),
+                    color: const Color(0xFFF9F0DE).withValues(alpha: 0.96),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white, width: 1.3),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x66321D10), blurRadius: 14, offset: Offset(0, 4)),
                     ],
                   ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    _buildIndicator(
+                      isActive: _verticalPage == 0,
+                      emoji: '🐥',
+                      tooltip: 'Mascot Sanctuary',
+                      onTap: _scrollToSanctuary,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildIndicator(
+                      isActive: _verticalPage == 1,
+                      emoji: '🏝️',
+                      tooltip: 'Floating Island',
+                      onTap: _scrollToGarden,
+                    ),
+                  ]),
                 ),
               ),
             ),
@@ -174,7 +176,10 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: Tooltip(
         message: tooltip,
         child: AnimatedContainer(
@@ -182,19 +187,14 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
           width: isActive ? 28 : 22,
           height: isActive ? 28 : 22,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF22C55E) : Colors.white24,
+            color: isActive ? const Color(0xFF84AD4A) : const Color(0xFFE9DFC9),
             shape: BoxShape.circle,
             border: Border.all(
-              color: isActive ? Colors.white : Colors.transparent,
+              color: isActive ? const Color(0xFF567C2C) : Colors.white,
               width: 1.5,
             ),
           ),
-          child: Center(
-            child: Text(
-              emoji,
-              style: TextStyle(fontSize: isActive ? 13 : 10),
-            ),
-          ),
+          child: Center(child: Text(emoji, style: TextStyle(fontSize: isActive ? 16 : 13))),
         ),
       ),
     );

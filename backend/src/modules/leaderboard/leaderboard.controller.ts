@@ -5,9 +5,10 @@ export class LeaderboardController {
   private service = LeaderboardService.getInstance();
 
   public getLeagueLeaderboard = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const user = request.user as { id?: string; name?: string } | undefined;
-    const userId = user?.id || 'guest_citizen';
-    const result = this.service.getLeagueLeaderboard(userId, user?.name);
+    const user = request.user as { id?: string } | undefined;
+    if (!user?.id) return reply.unauthorized('Sign in to view your weekly league.');
+    const userId = user.id;
+    const result = this.service.getLeagueLeaderboard(userId);
     return reply.status(200).send(result);
   };
 
@@ -17,10 +18,10 @@ export class LeaderboardController {
   };
 
   public visitGarden = async (
-    request: FastifyRequest<{ Params: { citizenId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> => {
-    const { citizenId } = request.params;
+    const { citizenId } = request.params as { citizenId: string };
     const result = this.service.getVisitorGarden(citizenId);
     if (!result) {
       return reply.status(404).send({
@@ -33,13 +34,16 @@ export class LeaderboardController {
   };
 
   public cheerCitizen = async (
-    request: FastifyRequest<{ Params: { citizenId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> => {
-    const user = request.user as { id?: string } | undefined;
-    const visitorId = user?.id || 'guest_visitor';
-    const { citizenId } = request.params;
+    const user = request.user as { id: string };
+    const visitorId = user.id;
+    const { citizenId } = request.params as { citizenId: string };
     const result = this.service.cheerCitizen(visitorId, citizenId);
+    if (!result) {
+      return reply.status(404).send({ statusCode: 404, error: 'NotFound', message: 'Citizen not found' });
+    }
     return reply.status(200).send(result);
   };
 }

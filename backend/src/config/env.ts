@@ -1,21 +1,10 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 export const EnvSchema = Type.Object({
-  PORT: Type.Number({ default: 3000 }),
+  PORT: Type.Union([Type.Number(), Type.String()], { default: 3000 }),
   HOST: Type.String({ default: '0.0.0.0' }),
-  NODE_ENV: Type.Union([
-    Type.Literal('development'),
-    Type.Literal('production'),
-    Type.Literal('test'),
-  ], { default: 'development' }),
-  LOG_LEVEL: Type.Union([
-    Type.Literal('fatal'),
-    Type.Literal('error'),
-    Type.Literal('warn'),
-    Type.Literal('info'),
-    Type.Literal('debug'),
-    Type.Literal('trace'),
-  ], { default: 'info' }),
+  NODE_ENV: Type.String({ default: 'development' }),
+  LOG_LEVEL: Type.String({ default: 'info' }),
   CORS_ORIGIN: Type.String({ default: '*' }),
   JWT_SECRET: Type.String({ default: 'dev-jwt-secret-key-must-be-at-least-32-characters-long' }),
   GOOGLE_CLIENT_ID: Type.String({ default: 'mock-google-client-id.apps.googleusercontent.com' }),
@@ -31,11 +20,32 @@ export const EnvSchema = Type.Object({
 
 export type EnvConfig = Static<typeof EnvSchema>;
 
+function cleanEnv(raw: Record<string, string | undefined>): Record<string, unknown> {
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val === undefined || val === '') continue;
+    let trimmed = val.trim();
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
+    cleaned[key] = trimmed;
+  }
+  if (!cleaned.PORT || cleaned.PORT === '') {
+    cleaned.PORT = 3000;
+  } else if (!isNaN(Number(cleaned.PORT))) {
+    cleaned.PORT = Number(cleaned.PORT);
+  }
+  return cleaned;
+}
+
 export const envOptions = {
   confKey: 'config',
   schema: EnvSchema,
   dotenv: process.env.NODE_ENV === 'production' ? false : true,
-  data: process.env,
+  data: cleanEnv(process.env),
 };
 
 declare module 'fastify' {

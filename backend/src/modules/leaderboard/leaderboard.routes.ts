@@ -15,6 +15,7 @@ export const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/league',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Leaderboard'],
         summary: 'Get weekly Duolingo-style competitive league cohort (Bronze to Diamond)',
@@ -30,6 +31,7 @@ export const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/global',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Leaderboard'],
         summary: 'Get Gujarat municipal city rankings and top 100 all-time eco citizens',
@@ -45,6 +47,7 @@ export const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/visit/:citizenId',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Leaderboard'],
         summary: 'View public snapshot of another citizen 3D island, layout and mascot',
@@ -63,6 +66,7 @@ export const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/cheer/:citizenId',
     {
+      preHandler: [fastify.authenticate],
       schema: {
         tags: ['Leaderboard'],
         summary: 'Send applause to a citizen and receive Urja Mudra coins',
