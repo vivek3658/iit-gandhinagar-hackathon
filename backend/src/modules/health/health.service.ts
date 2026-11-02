@@ -7,7 +7,7 @@ export class HealthService {
 
     const services = fastify
       ? {
-          database: fastify.db ? 'connected' : 'in-memory-fallback',
+          database: fastify.db ? 'connected' : fastify.supabase ? 'connected (via supabase)' : 'in-memory-fallback',
           supabase: fastify.supabase ? 'connected' : 'unconfigured',
           redis: fastify.redis
             ? fastify.redis.status === 'ready'

@@ -69,12 +69,21 @@ function cleanEnv(raw: Record<string, string | undefined>): Record<string, unkno
     cleaned[key] = trimmed;
   }
 
-  // Auto-alias SUPABASE_URL to DATABASE_URL if DATABASE_URL is not explicitly configured
-  if (!cleaned.DATABASE_URL && cleaned.SUPABASE_URL) {
+  // Auto-alias only if the protocol format matches expectations
+  if (
+    !cleaned.DATABASE_URL &&
+    cleaned.SUPABASE_URL &&
+    (typeof cleaned.SUPABASE_URL === 'string') &&
+    (cleaned.SUPABASE_URL.startsWith('postgres://') || cleaned.SUPABASE_URL.startsWith('postgresql://'))
+  ) {
     cleaned.DATABASE_URL = cleaned.SUPABASE_URL;
   }
-  // And vice-versa
-  if (!cleaned.SUPABASE_URL && cleaned.DATABASE_URL) {
+  if (
+    !cleaned.SUPABASE_URL &&
+    cleaned.DATABASE_URL &&
+    (typeof cleaned.DATABASE_URL === 'string') &&
+    cleaned.DATABASE_URL.startsWith('https://')
+  ) {
     cleaned.SUPABASE_URL = cleaned.DATABASE_URL;
   }
 

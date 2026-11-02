@@ -45,7 +45,7 @@ export class AuthController {
 
     try {
       const body = request.body as CompleteProfileBody;
-      const user = AuthService.completeProfile(userId, body);
+      const user = await AuthService.completeProfile(userId, body);
       return {
         success: true,
         isProfileComplete: user.isProfileComplete,
@@ -67,7 +67,7 @@ export class AuthController {
     }
 
     try {
-      const user = AuthService.getMe(userId);
+      const user = await AuthService.getMe(userId);
       return { user };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'User not found';
@@ -85,7 +85,7 @@ export class AuthController {
       };
 
       const body = request.body as RefreshTokenBody;
-      return AuthService.refreshTokens(body.refreshToken, jwtSignFn);
+      return await AuthService.refreshTokens(body.refreshToken, jwtSignFn);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid or expired refresh token';
       return reply.unauthorized(msg);
@@ -100,7 +100,7 @@ export class AuthController {
     const refreshToken = body?.refreshToken;
     const userId = request.user?.id;
 
-    AuthService.logout(refreshToken, userId);
+    await AuthService.logout(refreshToken, userId);
 
     return {
       success: true,
@@ -117,7 +117,7 @@ export class AuthController {
       return reply.unauthorized('User identity not verified');
     }
 
-    AuthService.deleteAccount(userId);
+    await AuthService.deleteAccount(userId);
 
     return {
       success: true,

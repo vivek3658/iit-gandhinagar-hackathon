@@ -77,8 +77,12 @@ export default fp(async (fastify) => {
   fastify.decorate('db', pool);
   fastify.decorate('supabase', supabaseClient);
 
-  // Wire persistent DB clients to AuthService
-  AuthService.setDbClients({ supabase: supabaseClient, db: pool });
+  // Wire persistent DB clients to AuthService (isolated in-memory in tests)
+  if (config?.NODE_ENV !== 'test') {
+    await AuthService.setDbClients({ supabase: supabaseClient, db: pool });
+  } else {
+    await AuthService.setDbClients({ supabase: null, db: null });
+  }
 
   fastify.addHook('onClose', async () => {
     if (pool) {

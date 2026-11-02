@@ -57,15 +57,24 @@ export class AuthRepository {
   private supabase: SupabaseClient | null = null;
   private db: Pool | null = null;
 
-  public setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): void {
+  public async setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): Promise<void> {
     if (clients.supabase !== undefined) this.supabase = clients.supabase;
     if (clients.db !== undefined) this.db = clients.db;
 
     if (this.db || this.supabase) {
-      this.ensureSchema()
-        .then(() => this.loadUsersFromDb())
-        .catch(() => {});
+      try {
+        await this.ensureSchema();
+        await this.loadUsersFromDb();
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] Initial DB schema/sync non-fatal warning:', err);
+      }
     }
+  }
+
+  public cacheUser(user: UserRecord): void {
+    this.users.set(user.id, user);
+    this.googleIdIndex.set(user.googleId, user.id);
+    this.emailIndex.set(user.email.toLowerCase(), user.id);
   }
 
   public findById(id: string): UserRecord | null {
@@ -74,16 +83,145 @@ export class AuthRepository {
     return { ...user };
   }
 
+  public async findByIdAsync(id: string): Promise<UserRecord | null> {
+    const cached = this.findById(id);
+    if (cached) return cached;
+
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .eq('id', id)
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[AuthRepository] Supabase findById error:', error.message);
+        } else if (data) {
+          const user = this.mapDbRowToUser(data as Record<string, unknown>);
+          this.cacheUser(user);
+          return user;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] Supabase findById exception:', err);
+      }
+    }
+
+    if (this.db) {
+      try {
+        const res = await this.db.query('SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1', [id]);
+        if (res.rows[0]) {
+          const user = this.mapDbRowToUser(res.rows[0]);
+          this.cacheUser(user);
+          return user;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] PostgreSQL findById exception:', err);
+      }
+    }
+
+    return null;
+  }
+
   public findByGoogleId(googleId: string): UserRecord | null {
     const id = this.googleIdIndex.get(googleId);
     if (!id) return null;
     return this.findById(id);
   }
 
+  public async findByGoogleIdAsync(googleId: string): Promise<UserRecord | null> {
+    const cachedId = this.googleIdIndex.get(googleId);
+    if (cachedId) {
+      const u = this.findById(cachedId);
+      if (u) return u;
+    }
+
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .eq('google_id', googleId)
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[AuthRepository] Supabase findByGoogleId error:', error.message);
+        } else if (data) {
+          const user = this.mapDbRowToUser(data as Record<string, unknown>);
+          this.cacheUser(user);
+          return user;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] Supabase findByGoogleId exception:', err);
+      }
+    }
+
+    if (this.db) {
+      try {
+        const res = await this.db.query('SELECT * FROM users WHERE google_id = $1 AND deleted_at IS NULL LIMIT 1', [googleId]);
+        if (res.rows[0]) {
+          const user = this.mapDbRowToUser(res.rows[0]);
+          this.cacheUser(user);
+          return user;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] PostgreSQL findByGoogleId exception:', err);
+      }
+    }
+
+    return null;
+  }
+
   public findByEmail(email: string): UserRecord | null {
     const id = this.emailIndex.get(email.toLowerCase());
     if (!id) return null;
     return this.findById(id);
+  }
+
+  public async findByEmailAsync(email: string): Promise<UserRecord | null> {
+    const cachedId = this.emailIndex.get(email.toLowerCase());
+    if (cachedId) {
+      const u = this.findById(cachedId);
+      if (u) return u;
+    }
+
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .eq('email', email.toLowerCase())
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[AuthRepository] Supabase findByEmail error:', error.message);
+        } else if (data) {
+          const user = this.mapDbRowToUser(data as Record<string, unknown>);
+          this.cacheUser(user);
+          return user;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] Supabase findByEmail exception:', err);
+      }
+    }
+
+    if (this.db) {
+      try {
+        const res = await this.db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1', [email]);
+        if (res.rows[0]) {
+          const user = this.mapDbRowToUser(res.rows[0]);
+          this.cacheUser(user);
+          return user;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] PostgreSQL findByEmail exception:', err);
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -109,17 +247,43 @@ export class AuthRepository {
     };
 
     // Commit memory cache
-    this.users.set(id, newUser);
-    this.googleIdIndex.set(record.googleId, id);
-    this.emailIndex.set(record.email.toLowerCase(), id);
+    this.cacheUser(newUser);
 
-    // Write-through to Supabase / PostgreSQL
+    // Non-blocking write-through (backward compatibility)
     this.persistUser(newUser).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
       if (process.env.NODE_ENV !== 'test') {
         console.warn('[AuthRepository] Async DB write warning:', msg);
       }
     });
+
+    return { ...newUser };
+  }
+
+  public async createUserAsync(record: Omit<UserRecord, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>): Promise<UserRecord> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    if (this.googleIdIndex.has(record.googleId)) {
+      throw new Error('User with this Google ID already exists');
+    }
+    if (this.emailIndex.has(record.email.toLowerCase())) {
+      throw new Error('User with this email already exists');
+    }
+
+    const newUser: UserRecord = {
+      ...record,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+
+    // Commit memory cache
+    this.cacheUser(newUser);
+
+    // Await persistence for serverless safety
+    await this.persistUser(newUser);
 
     return { ...newUser };
   }
@@ -136,7 +300,7 @@ export class AuthRepository {
       updatedAt: new Date().toISOString(),
     };
 
-    this.users.set(id, updated);
+    this.cacheUser(updated);
 
     // Write-through update to DB
     this.persistUser(updated).catch((err: unknown) => {
@@ -145,6 +309,26 @@ export class AuthRepository {
         console.warn('[AuthRepository] Async DB update warning:', msg);
       }
     });
+
+    return { ...updated };
+  }
+
+  public async updateUserAsync(id: string, updates: Partial<UserRecord>): Promise<UserRecord> {
+    const existing = await this.findByIdAsync(id);
+    if (!existing) {
+      throw new Error('User not found');
+    }
+
+    const updated: UserRecord = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.cacheUser(updated);
+
+    // Await persistence for serverless safety
+    await this.persistUser(updated);
 
     return { ...updated };
   }
@@ -162,9 +346,72 @@ export class AuthRepository {
     this.persistRefreshToken(record).catch(() => {});
   }
 
+  public async saveRefreshTokenAsync(userId: string, token: string, ttlMs = 30 * 24 * 60 * 60 * 1000): Promise<void> {
+    const tokenHash = this.hashToken(token);
+    const record: RefreshTokenRecord = {
+      tokenHash,
+      userId,
+      expiresAt: Date.now() + ttlMs,
+      revokedAt: null,
+    };
+    this.refreshTokens.set(tokenHash, record);
+
+    await this.persistRefreshToken(record);
+  }
+
   public getRefreshToken(token: string): RefreshTokenRecord | null {
     const tokenHash = this.hashToken(token);
     return this.refreshTokens.get(tokenHash) || null;
+  }
+
+  public async getRefreshTokenAsync(token: string): Promise<RefreshTokenRecord | null> {
+    const tokenHash = this.hashToken(token);
+    const cached = this.refreshTokens.get(tokenHash);
+    if (cached) return cached;
+
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('refresh_tokens')
+          .select('*')
+          .eq('token_hash', tokenHash)
+          .maybeSingle();
+
+        if (!error && data) {
+          const rec: RefreshTokenRecord = {
+            tokenHash: String(data.token_hash),
+            userId: String(data.user_id),
+            expiresAt: Number(data.expires_at),
+            revokedAt: data.revoked_at ? Number(data.revoked_at) : null,
+          };
+          this.refreshTokens.set(tokenHash, rec);
+          return rec;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] Supabase getRefreshToken exception:', err);
+      }
+    }
+
+    if (this.db) {
+      try {
+        const res = await this.db.query('SELECT * FROM refresh_tokens WHERE token_hash = $1 LIMIT 1', [tokenHash]);
+        if (res.rows[0]) {
+          const row = res.rows[0];
+          const rec: RefreshTokenRecord = {
+            tokenHash: String(row.token_hash),
+            userId: String(row.user_id),
+            expiresAt: Number(row.expires_at),
+            revokedAt: row.revoked_at ? Number(row.revoked_at) : null,
+          };
+          this.refreshTokens.set(tokenHash, rec);
+          return rec;
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] PostgreSQL getRefreshToken exception:', err);
+      }
+    }
+
+    return null;
   }
 
   public rotateRefreshToken(oldToken: string, newToken: string, ttlMs = 30 * 24 * 60 * 60 * 1000): string {
@@ -192,6 +439,30 @@ export class AuthRepository {
     return existing.userId;
   }
 
+  public async rotateRefreshTokenAsync(oldToken: string, newToken: string, ttlMs = 30 * 24 * 60 * 60 * 1000): Promise<string> {
+    const existing = await this.getRefreshTokenAsync(oldToken);
+
+    if (!existing) {
+      throw new Error('Invalid refresh token');
+    }
+
+    if (existing.revokedAt) {
+      await this.revokeAllUserTokensAsync(existing.userId);
+      throw new Error('Refresh token reuse detected. All sessions revoked for security.');
+    }
+
+    if (existing.expiresAt < Date.now()) {
+      throw new Error('Refresh token has expired');
+    }
+
+    existing.revokedAt = Date.now();
+    await this.persistRefreshToken(existing);
+
+    await this.saveRefreshTokenAsync(existing.userId, newToken, ttlMs);
+
+    return existing.userId;
+  }
+
   public revokeToken(token: string): void {
     const hash = this.hashToken(token);
     const existing = this.refreshTokens.get(hash);
@@ -201,11 +472,28 @@ export class AuthRepository {
     }
   }
 
+  public async revokeTokenAsync(token: string): Promise<void> {
+    const existing = await this.getRefreshTokenAsync(token);
+    if (existing) {
+      existing.revokedAt = Date.now();
+      await this.persistRefreshToken(existing);
+    }
+  }
+
   public revokeAllUserTokens(userId: string): void {
     for (const record of this.refreshTokens.values()) {
       if (record.userId === userId) {
         record.revokedAt = Date.now();
         this.persistRefreshToken(record).catch(() => {});
+      }
+    }
+  }
+
+  public async revokeAllUserTokensAsync(userId: string): Promise<void> {
+    for (const record of this.refreshTokens.values()) {
+      if (record.userId === userId) {
+        record.revokedAt = Date.now();
+        await this.persistRefreshToken(record);
       }
     }
   }
@@ -230,6 +518,28 @@ export class AuthRepository {
 
     this.users.set(id, anonymized);
     this.persistUser(anonymized).catch(() => {});
+  }
+
+  public async softDeleteUserAsync(id: string): Promise<void> {
+    const user = await this.findByIdAsync(id);
+    if (!user) return;
+
+    await this.revokeAllUserTokensAsync(id);
+    this.googleIdIndex.delete(user.googleId);
+    this.emailIndex.delete(user.email.toLowerCase());
+
+    const now = new Date().toISOString();
+    const anonymized: UserRecord = {
+      ...user,
+      email: `deleted_${id}@anon.urjavatika`,
+      name: 'Anonymized Citizen',
+      avatarUrl: null,
+      deletedAt: now,
+      updatedAt: now,
+    };
+
+    this.users.set(id, anonymized);
+    await this.persistUser(anonymized);
   }
 
   public clear(): void {
@@ -288,7 +598,7 @@ export class AuthRepository {
   private async persistUser(user: UserRecord): Promise<void> {
     if (this.supabase) {
       try {
-        await this.supabase.from('users').upsert({
+        const payload = {
           id: user.id,
           google_id: user.googleId,
           email: user.email,
@@ -302,8 +612,8 @@ export class AuthRepository {
           monthly_bill_rupees: user.monthlyBillRupees,
           water_supply_type: user.waterSupplyType,
           water_storage_type: user.waterStorageType,
-          device_catalog_ids: user.deviceCatalogIds,
-          vehicle_catalog_ids: user.vehicleCatalogIds,
+          device_catalog_ids: user.deviceCatalogIds || [],
+          vehicle_catalog_ids: user.vehicleCatalogIds || [],
           mascot_name: user.mascotName,
           role: user.role,
           is_profile_complete: user.isProfileComplete,
@@ -311,9 +621,20 @@ export class AuthRepository {
           created_at: user.createdAt,
           updated_at: user.updatedAt,
           deleted_at: user.deletedAt,
-        });
-      } catch {
-        // Fallback or ignore non-fatal
+        };
+
+        const { error } = await this.supabase
+          .from('users')
+          .upsert(payload, { onConflict: 'id' });
+
+        if (error) {
+          console.error('[AuthRepository] Supabase user upsert error:', error.message, error.details || '');
+        } else if (process.env.NODE_ENV !== 'test') {
+          console.info(`[AuthRepository] User ${user.id} (${user.email}) persisted to Supabase successfully`);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[AuthRepository] Failed to persist user to Supabase:', msg);
       }
     }
 
@@ -371,8 +692,9 @@ export class AuthRepository {
             user.deletedAt,
           ]
         );
-      } catch {
-        // Non-fatal
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[AuthRepository] PostgreSQL persistUser error:', msg);
       }
     }
   }
@@ -380,14 +702,20 @@ export class AuthRepository {
   private async persistRefreshToken(record: RefreshTokenRecord): Promise<void> {
     if (this.supabase) {
       try {
-        await this.supabase.from('refresh_tokens').upsert({
-          token_hash: record.tokenHash,
-          user_id: record.userId,
-          expires_at: record.expiresAt,
-          revoked_at: record.revokedAt,
-        });
-      } catch {
-        // Non-fatal
+        const { error } = await this.supabase
+          .from('refresh_tokens')
+          .upsert({
+            token_hash: record.tokenHash,
+            user_id: record.userId,
+            expires_at: record.expiresAt,
+            revoked_at: record.revokedAt,
+          }, { onConflict: 'token_hash' });
+
+        if (error) {
+          console.error('[AuthRepository] Supabase persistRefreshToken error:', error.message);
+        }
+      } catch (err: unknown) {
+        console.error('[AuthRepository] Failed to persist refresh token to Supabase:', err);
       }
     }
 
@@ -399,8 +727,8 @@ export class AuthRepository {
            ON CONFLICT (token_hash) DO UPDATE SET revoked_at = EXCLUDED.revoked_at`,
           [record.tokenHash, record.userId, record.expiresAt, record.revokedAt]
         );
-      } catch {
-        // Non-fatal
+      } catch (err: unknown) {
+        console.error('[AuthRepository] PostgreSQL persistRefreshToken error:', err);
       }
     }
   }
@@ -408,29 +736,37 @@ export class AuthRepository {
   private async loadUsersFromDb(): Promise<void> {
     if (this.supabase) {
       try {
-        const { data, error } = await this.supabase.from('users').select('*');
-        if (!error && Array.isArray(data)) {
+        const { data, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .is('deleted_at', null);
+
+        if (error) {
+          console.warn('[AuthRepository] Supabase loadUsersFromDb error:', error.message);
+        } else if (Array.isArray(data)) {
           for (const row of data) {
             const rec = this.mapDbRowToUser(row as Record<string, unknown>);
-            this.users.set(rec.id, rec);
-            this.googleIdIndex.set(rec.googleId, rec.id);
-            this.emailIndex.set(rec.email.toLowerCase(), rec.id);
+            this.cacheUser(rec);
+          }
+          if (process.env.NODE_ENV !== 'test') {
+            console.info(`[AuthRepository] Pre-loaded ${data.length} users from Supabase into memory cache`);
           }
         }
-      } catch {
-        // Non-fatal
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] Supabase loadUsersFromDb exception:', err);
       }
     } else if (this.db) {
       try {
         const res = await this.db.query('SELECT * FROM users WHERE deleted_at IS NULL');
         for (const row of res.rows) {
           const rec = this.mapDbRowToUser(row as Record<string, unknown>);
-          this.users.set(rec.id, rec);
-          this.googleIdIndex.set(rec.googleId, rec.id);
-          this.emailIndex.set(rec.email.toLowerCase(), rec.id);
+          this.cacheUser(rec);
         }
-      } catch {
-        // Non-fatal
+        if (process.env.NODE_ENV !== 'test') {
+          console.info(`[AuthRepository] Pre-loaded ${res.rows.length} users from PostgreSQL into memory cache`);
+        }
+      } catch (err: unknown) {
+        console.warn('[AuthRepository] PostgreSQL loadUsersFromDb exception:', err);
       }
     }
   }
@@ -474,8 +810,8 @@ export class AuthService {
     return this.repository;
   }
 
-  public static setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): void {
-    this.repository.setDbClients(clients);
+  public static async setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): Promise<void> {
+    await this.repository.setDbClients(clients);
   }
 
   /**
@@ -488,18 +824,18 @@ export class AuthService {
   ): Promise<GoogleAuthResponse> {
     const profile = await this.verifyGoogleIdToken(idToken, googleClientId);
 
-    let user = this.repository.findByGoogleId(profile.sub);
+    let user = await this.repository.findByGoogleIdAsync(profile.sub);
     let isNewUser = false;
 
     if (!user) {
-      const existingEmailUser = this.repository.findByEmail(profile.email);
+      const existingEmailUser = await this.repository.findByEmailAsync(profile.email);
       if (existingEmailUser) {
-        user = this.repository.updateUser(existingEmailUser.id, {
+        user = await this.repository.updateUserAsync(existingEmailUser.id, {
           googleId: profile.sub,
           avatarUrl: existingEmailUser.avatarUrl || profile.picture || null,
         });
       } else {
-        user = this.repository.createUser({
+        user = await this.repository.createUserAsync({
           googleId: profile.sub,
           email: profile.email,
           name: profile.name,
@@ -521,7 +857,7 @@ export class AuthService {
     });
 
     const refreshToken = crypto.randomBytes(32).toString('hex');
-    this.repository.saveRefreshToken(user.id, refreshToken);
+    await this.repository.saveRefreshTokenAsync(user.id, refreshToken);
 
     return {
       isNewUser,
@@ -532,13 +868,13 @@ export class AuthService {
     };
   }
 
-  public static completeProfile(userId: string, body: CompleteProfileBody): UserDto {
-    const user = this.repository.findById(userId);
+  public static async completeProfile(userId: string, body: CompleteProfileBody): Promise<UserDto> {
+    const user = await this.repository.findByIdAsync(userId);
     if (!user) {
       throw new Error('Citizen profile not found');
     }
 
-    const updated = this.repository.updateUser(userId, {
+    const updated = await this.repository.updateUserAsync(userId, {
       dob: body.dob !== undefined ? body.dob : user.dob,
       district: body.district,
       ward: body.ward !== undefined ? body.ward : user.ward,
@@ -571,22 +907,22 @@ export class AuthService {
     return this.toDto(updated);
   }
 
-  public static getMe(userId: string): UserDto {
-    const user = this.repository.findById(userId);
+  public static async getMe(userId: string): Promise<UserDto> {
+    const user = await this.repository.findByIdAsync(userId);
     if (!user) {
       throw new Error('Citizen not found or account has been deleted');
     }
     return this.toDto(user);
   }
 
-  public static refreshTokens(
+  public static async refreshTokens(
     refreshToken: string,
     jwtSignFn: (payload: { id: string; email: string; role: 'CITIZEN' | 'ADMIN' }) => string,
-  ): RefreshTokenResponse {
+  ): Promise<RefreshTokenResponse> {
     const newRefreshToken = crypto.randomBytes(32).toString('hex');
-    const userId = this.repository.rotateRefreshToken(refreshToken, newRefreshToken);
+    const userId = await this.repository.rotateRefreshTokenAsync(refreshToken, newRefreshToken);
 
-    const user = this.repository.findById(userId);
+    const user = await this.repository.findByIdAsync(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -603,16 +939,16 @@ export class AuthService {
     };
   }
 
-  public static logout(refreshToken?: string, userId?: string): void {
+  public static async logout(refreshToken?: string, userId?: string): Promise<void> {
     if (refreshToken) {
-      this.repository.revokeToken(refreshToken);
+      await this.repository.revokeTokenAsync(refreshToken);
     } else if (userId) {
-      this.repository.revokeAllUserTokens(userId);
+      await this.repository.revokeAllUserTokensAsync(userId);
     }
   }
 
-  public static deleteAccount(userId: string): void {
-    this.repository.softDeleteUser(userId);
+  public static async deleteAccount(userId: string): Promise<void> {
+    await this.repository.softDeleteUserAsync(userId);
   }
 
   private static async verifyGoogleIdToken(

@@ -33,11 +33,30 @@ export default fp(async (fastify) => {
   const config = fastify.config;
   const rabbitUrl = config?.RABBITMQ_URL;
 
-  let client: RabbitMQClient | null = null;
   let connection: amqp.ChannelModel | null = null;
   let channel: amqp.Channel | null = null;
 
   const TASK_QUEUE = 'urja_large_tasks';
+
+  const client: RabbitMQClient = {
+    connection: null,
+    channel: null,
+    publish: (queue, content) => {
+      if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
+        fastify.log.debug({ queue, content: content.toString() }, '[RabbitMQ Mock] Emitted message');
+      }
+      return true;
+    },
+    enqueueTask: (taskName, payload) => {
+      if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
+        fastify.log.debug({ taskName, payload }, '[RabbitMQ Mock] Enqueued task');
+      }
+      return true;
+    },
+  };
+
+  fastify.decorate('rabbitmq', client);
+  RabbitMQService.setClient(client);
 
   if (rabbitUrl && rabbitUrl.trim() !== '') {
     try {
@@ -63,23 +82,18 @@ export default fp(async (fastify) => {
             }
           });
 
-          client = {
-            connection,
-            channel,
-            publish: (queueOrExchange, content, options) => {
-              if (!channel) return false;
-              const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
-              return channel.sendToQueue(queueOrExchange, buffer, options);
-            },
-            enqueueTask: (taskName, payload) => {
-              if (!channel) return false;
-              const message = JSON.stringify({ taskName, payload, timestamp: new Date().toISOString() });
-              return channel.sendToQueue(TASK_QUEUE, Buffer.from(message), { persistent: true });
-            },
+          client.connection = connection;
+          client.channel = channel;
+          client.publish = (queueOrExchange: string, content: Buffer | string, options?: amqp.Options.Publish) => {
+            if (!channel) return false;
+            const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
+            return channel.sendToQueue(queueOrExchange, buffer, options);
           };
-
-          fastify.rabbitmq = client;
-          RabbitMQService.setClient(client);
+          client.enqueueTask = (taskName: string, payload: unknown) => {
+            if (!channel) return false;
+            const message = JSON.stringify({ taskName, payload, timestamp: new Date().toISOString() });
+            return channel.sendToQueue(TASK_QUEUE, Buffer.from(message), { persistent: true });
+          };
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
@@ -92,26 +106,6 @@ export default fp(async (fastify) => {
   } else {
     fastify.log.info('[RabbitMQ] RABBITMQ_URL not configured. Operating in fallback memory mode.');
   }
-
-  client = {
-    connection: null,
-    channel: null,
-    publish: (queue, content) => {
-      if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
-        fastify.log.debug({ queue, content: content.toString() }, '[RabbitMQ Mock] Emitted message');
-      }
-      return true;
-    },
-    enqueueTask: (taskName, payload) => {
-      if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
-        fastify.log.debug({ taskName, payload }, '[RabbitMQ Mock] Enqueued task');
-      }
-      return true;
-    },
-  };
-
-  fastify.decorate('rabbitmq', client);
-  RabbitMQService.setClient(client);
 
   fastify.addHook('onClose', async () => {
     if (channel) {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import crypto from 'node:crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildApp } from '../src/app';
 import { AuthService } from '../src/modules/auth/auth.service';
 
@@ -228,5 +229,74 @@ describe('Auth & Media Modules (ACID + Security Tests)', () => {
       .digest('hex');
 
     expect(body.signature).toBe(expectedSignature);
+  });
+
+  it('8. Serverless cold-start recovery: Supabase fallback rehydrates citizen on cache wipe', async () => {
+    const repo = AuthService.getRepository();
+    const mockSupabaseStore = new Map<string, Record<string, unknown>>();
+
+    const mockSupabase = {
+      from: (_table: string) => ({
+        upsert: async (payload: Record<string, unknown>) => {
+          mockSupabaseStore.set(String(payload.id), payload);
+          return { data: payload, error: null };
+        },
+        select: () => ({
+          eq: (col: string, val: string) => ({
+            is: () => ({
+              maybeSingle: async () => {
+                for (const row of mockSupabaseStore.values()) {
+                  if (row[col] === val && !row.deleted_at) {
+                    return { data: row, error: null };
+                  }
+                }
+                return { data: null, error: null };
+              },
+            }),
+            maybeSingle: async () => {
+              for (const row of mockSupabaseStore.values()) {
+                if (row[col] === val && !row.deleted_at) {
+                  return { data: row, error: null };
+                }
+              }
+              return { data: null, error: null };
+            },
+          }),
+          is: () => ({
+            data: Array.from(mockSupabaseStore.values()),
+            error: null,
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    await repo.setDbClients({ supabase: mockSupabase });
+
+    const citizen = await repo.createUserAsync({
+      googleId: 'cold_start_google_sub_999',
+      email: 'coldstart@example.com',
+      name: 'Cold Start Citizen',
+      avatarUrl: null,
+      dob: null,
+      district: 'Ahmedabad',
+      role: 'CITIZEN',
+      isProfileComplete: false,
+      points: 100,
+    });
+
+    expect(mockSupabaseStore.has(citizen.id)).toBe(true);
+
+    repo.clear();
+    expect(repo.findById(citizen.id)).toBeNull();
+
+    const recovered = await repo.findByGoogleIdAsync('cold_start_google_sub_999');
+    expect(recovered).not.toBeNull();
+    expect(recovered?.id).toBe(citizen.id);
+    expect(recovered?.email).toBe('coldstart@example.com');
+    expect(recovered?.points).toBe(100);
+
+    expect(repo.findById(citizen.id)).not.toBeNull();
+
+    await repo.setDbClients({ supabase: null, db: null });
   });
 });
