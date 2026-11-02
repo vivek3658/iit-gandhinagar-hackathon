@@ -16,6 +16,21 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = AuthService.instance;
+      if (auth.isLoggedIn && auth.isProfileComplete) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const MainTwoScreenShell()),
+          );
+        }
+      }
+    });
+  }
+
   String _googleErrorText(String? error) {
     final detail = error?.toLowerCase() ?? '';
     if (detail.contains('network') || detail.contains('socket')) {

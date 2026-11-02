@@ -2,6 +2,10 @@ import fastifyEnv from '@fastify/env';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import fastify, { FastifyError, FastifyInstance, FastifyServerOptions, type FastifyReply, type FastifyRequest } from 'fastify';
 import { envOptions } from './config/env';
+import dbPlugin from './plugins/db';
+import redisPlugin from './plugins/redis';
+import mongoPlugin from './plugins/mongodb';
+import rabbitmqPlugin from './plugins/rabbitmq';
 import compressPlugin from './plugins/compress';
 import corsPlugin from './plugins/cors';
 import helmetPlugin from './plugins/helmet';
@@ -43,7 +47,13 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   // 1. Environment Parsing & Validation
   app.register(fastifyEnv, envOptions);
 
-  // 2. Core Security & Performance Plugins
+  // 2. Persistence & Messaging Infrastructure Plugins
+  app.register(dbPlugin);
+  app.register(redisPlugin);
+  app.register(mongoPlugin);
+  app.register(rabbitmqPlugin);
+
+  // 3. Core Security & Performance Plugins
   app.register(sensiblePlugin);
   app.register(helmetPlugin);
   app.register(corsPlugin);
@@ -51,7 +61,7 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.register(authPlugin);
   app.register(swaggerPlugin);
 
-  // 3. Centralized Standard Error Handler
+  // 4. Centralized Standard Error Handler
   app.setErrorHandler((error: FastifyError, request, reply) => {
     const statusCode = error.statusCode || 500;
     const errorName = error.name || 'InternalServerError';
@@ -74,7 +84,7 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
     });
   });
 
-  // 4. Root & Documentation Aliases
+  // 5. Root & Documentation Aliases
   const handleRoot = async (request: FastifyRequest, reply: FastifyReply) => {
     const accept = request.headers.accept || '';
     if (accept.includes('text/html')) {
@@ -96,7 +106,7 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.get('/swagger', async (_, reply) => reply.redirect('/docs'));
   app.get('/api/docs', async (_, reply) => reply.redirect('/docs'));
 
-  // 5. Centralized 404 Handler
+  // 6. Centralized 404 Handler
   app.setNotFoundHandler((request, reply) => {
     reply.status(404).send({
       statusCode: 404,
@@ -105,7 +115,7 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
     });
   });
 
-  // 6. Feature & System Routes
+  // 7. Feature & System Routes
   app.register(healthRoutes);
   app.register(healthRoutes, { prefix: '/api/v1' });
   app.register(authRoutes, { prefix: '/api/v1/auth' });

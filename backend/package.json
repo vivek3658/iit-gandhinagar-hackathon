@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "lint": "eslint src/ test/",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "check:services": "tsx scripts/check-connectivity.ts"
   },
   "keywords": [
     "fastify",
@@ -32,10 +33,17 @@
     "@fastify/swagger-ui": "^6.1.2",
     "@fastify/type-provider-typebox": "^5.1.0",
     "@sinclair/typebox": "^0.34.14",
+    "@supabase/supabase-js": "^2.118.0",
+    "@types/amqplib": "^0.10.8",
     "@types/node": "^22.13.4",
+    "@types/pg": "^8.23.1",
+    "amqplib": "^2.2.1",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
     "google-auth-library": "^11.3.2",
+    "ioredis": "^6.0.0",
+    "mongodb": "^7.8.0",
+    "pg": "^8.23.1",
     "typescript": "^5.7.3"
   },
   "devDependencies": {

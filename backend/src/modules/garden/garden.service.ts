@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { RabbitMQService } from '../../plugins/rabbitmq';
 import { AuthService } from '../auth/auth.service';
 import { MascotService } from '../mascot/mascot.service';
 import type {
@@ -687,7 +688,7 @@ export class GardenService {
    * Asynchronous event publisher for batch-insert worker into PostgreSQL
    */
   private static emitWriteBehindEvent(eventType: string, payload: Record<string, unknown>): void {
-    // In production cluster, pushes to RabbitMQ channel 'amqp://rabbitmq:5672/garden_events'
+    RabbitMQService.enqueueTask(eventType, payload);
     // For unit tests and single-node mode, this is logged or queued non-blockingly
     if (process.env.NODE_ENV === 'debug') {
       console.log(`[RabbitMQ Write-Behind] ${eventType}:`, JSON.stringify(payload));

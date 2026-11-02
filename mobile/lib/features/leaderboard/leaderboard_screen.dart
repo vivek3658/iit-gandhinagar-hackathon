@@ -46,9 +46,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F261A), // Clay nature dark backdrop
+      backgroundColor: const Color(0xFFF8FAFC), // Clay nature dark backdrop
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F261A),
+        backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         centerTitle: true,
         title: const Row(
@@ -58,7 +58,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             Text(
               'Leaderboard & Leagues',
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF0F172A),
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
               ),
@@ -71,22 +71,22 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: const Color(0xFF143522),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                color: const Color(0xFF22C55E),
+                color: const Color(0xFF16A34A),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: const [
                   BoxShadow(color: Color(0xFF14532D), offset: Offset(0, 2)),
                 ],
               ),
               indicatorSize: TabBarIndicatorSize.tab,
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.white70,
+              labelColor: Colors.white,
+              unselectedLabelColor: const Color(0xFF64748B),
               labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               tabs: const [
                 Tab(text: '🛡️ Weekly League'),
@@ -119,7 +119,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
 
     return RefreshIndicator(
       color: const Color(0xFF4ADE80),
-      backgroundColor: const Color(0xFF143522),
+      backgroundColor: Colors.white,
       onRefresh: _loadData,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -248,8 +248,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   Widget _emptyLeaderboard(String title, String message) => Container(
         margin: const EdgeInsets.symmetric(vertical: 18),
         padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: const Color(0xFF143522), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white12)),
-        child: Column(children: [const Icon(Icons.eco_rounded, color: Color(0xFF86EFAC), size: 34), const SizedBox(height: 10), Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)), const SizedBox(height: 6), Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4))]),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E8F0))),
+        child: Column(children: [const Icon(Icons.eco_rounded, color: Color(0xFF16A34A), size: 34), const SizedBox(height: 10), Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w900, fontSize: 15)), const SizedBox(height: 6), Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, height: 1.4))]),
       );
 
   Widget _buildMemberRow(LeagueMemberData member) {
@@ -259,14 +259,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isYou
-            ? const Color(0xFF1E4C33)
-            : (isTop3 ? const Color(0xFF153B25) : const Color(0xFF10281C)),
+        color: isYou ? const Color(0xFFF0FDF4) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isYou
-              ? const Color(0xFF4ADE80)
-              : (isTop3 ? const Color(0x6622C55E) : Colors.white12),
+              ? const Color(0xFF22C55E)
+              : (isTop3 ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0)),
           width: isYou ? 1.8 : 1.0,
         ),
       ),
@@ -278,7 +276,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             child: Text(
               '#${member.rank}',
               style: TextStyle(
-                color: isTop3 ? const Color(0xFFFCD34D) : Colors.white60,
+                color: isTop3 ? const Color(0xFFD97706) : const Color(0xFF64748B),
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
@@ -290,15 +288,29 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A3D2A),
+              color: isYou ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white24),
+              border: Border.all(color: isYou ? const Color(0xFF86EFAC) : const Color(0xFFCBD5E1)),
             ),
-            child: Center(
-              child: Text(
-                member.gardenSnapshot['previewEmoji'] as String? ?? '🕊️',
-                style: const TextStyle(fontSize: 20),
-              ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: (member.avatarUrl != null && member.avatarUrl!.isNotEmpty)
+                  ? Image.network(
+                      member.avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          member.gardenSnapshot['previewEmoji'] as String? ?? '🕊️',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        member.gardenSnapshot['previewEmoji'] as String? ?? '🕊️',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 12),
@@ -316,7 +328,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isYou ? const Color(0xFF86EFAC) : Colors.white,
+                          color: isYou ? const Color(0xFF166534) : const Color(0xFF0F172A),
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
                         ),
@@ -327,12 +339,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E),
+                          color: const Color(0xFF16A34A),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
                           'YOU',
-                          style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w900),
+                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
                         ),
                       ),
                     ],
@@ -343,7 +355,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                   children: [
                     Text(
                       member.district,
-                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -363,7 +375,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
               Text(
                 '${member.weeklyExp} XP',
                 style: const TextStyle(
-                  color: Color(0xFFFDE68A),
+                  color: Color(0xFF15803D),
                   fontWeight: FontWeight.w900,
                   fontSize: 14,
                 ),
@@ -458,9 +470,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF143522),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
@@ -489,12 +501,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
               children: [
                 Text(
                   dist.district,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 15, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${dist.activeCitizens} citizens • ${dist.primaryEnergyMode}',
-                  style: const TextStyle(color: Colors.white60, fontSize: 11),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
                 ),
               ],
             ),
@@ -504,11 +516,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             children: [
               Text(
                 '${dist.totalCo2SavedTonnes} T',
-                style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 15, fontWeight: FontWeight.w900),
+                style: const TextStyle(color: Color(0xFF16A34A), fontSize: 15, fontWeight: FontWeight.w900),
               ),
               const Text(
                 'CO₂e avoided',
-                style: TextStyle(color: Colors.white54, fontSize: 10),
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -523,13 +535,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     final district = cit['district'] as String? ?? 'Gujarat';
     final co2 = (cit['totalCo2SavedKg'] as num?)?.toDouble() ?? 100.0;
     final badge = cit['badgeTitle'] as String? ?? 'Eco Guardian';
+    final avatarUrl = cit['avatarUrl'] as String?;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF10281C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
+        ],
       ),
       child: Row(
         children: [
@@ -537,25 +553,38 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             rank == 1 ? '🥇' : (rank == 2 ? '🥈' : '🥉'),
             style: const TextStyle(fontSize: 22),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+          if (avatarUrl != null && avatarUrl.isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                avatarUrl,
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 14),
                 ),
                 Text(
                   '$district • $badge',
-                  style: const TextStyle(color: Color(0xFFFCD34D), fontSize: 11),
+                  style: const TextStyle(color: Color(0xFFB45309), fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
           Text(
             '$co2 kg CO₂e',
-            style: const TextStyle(color: Color(0xFF4ADE80), fontWeight: FontWeight.w800, fontSize: 13),
+            style: const TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.w800, fontSize: 13),
           ),
         ],
       ),

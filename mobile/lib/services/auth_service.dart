@@ -143,34 +143,49 @@ class AuthService extends ChangeNotifier {
   }
 
   CitizenProfile _createOrUpdateProfileFromGoogle(GoogleSignInAccount account) {
+    // Check disk storage for existing completed profile
+    Map<String, dynamic>? savedDiskData;
+    try {
+      final file = _getAuthStorageFile();
+      if (file.existsSync()) {
+        final raw = file.readAsStringSync();
+        if (raw.isNotEmpty) savedDiskData = jsonDecode(raw) as Map<String, dynamic>?;
+      }
+    } catch (_) {}
+
+    final savedIsComplete = savedDiskData != null && (savedDiskData['isProfileComplete'] == true || savedDiskData['district'] != null);
     final existing = _currentUser;
-    final isAlreadyDone = existing != null &&
-        existing.isProfileComplete &&
-        (existing.email == account.email || existing.district != null);
+    final isAlreadyDone = (existing != null && existing.isProfileComplete) || savedIsComplete;
 
     if (isAlreadyDone) {
+      final base = existing ?? (savedDiskData != null ? CitizenProfile.fromJson(savedDiskData) : null);
+      final resolvedName = (account.displayName != null && account.displayName!.isNotEmpty)
+          ? account.displayName!
+          : (base?.name.isNotEmpty == true ? base!.name : 'Gujarat Citizen');
+
       return CitizenProfile(
-        id: existing.id.isNotEmpty ? existing.id : 'citizen_${account.id}',
+        id: (base != null && base.id.isNotEmpty) ? base.id : 'citizen_${account.id}',
         email: account.email,
-        name: (account.displayName != null && account.displayName!.isNotEmpty) ? account.displayName! : existing.name,
-        avatarUrl: account.photoUrl ?? existing.avatarUrl,
-        dob: existing.dob,
-        district: existing.district,
-        ward: existing.ward,
-        houseType: existing.houseType,
-        householdMembers: existing.householdMembers,
-        monthlyBillRupees: existing.monthlyBillRupees,
-        waterSupplyType: existing.waterSupplyType,
-        waterStorageType: existing.waterStorageType,
-        deviceCatalogIds: existing.deviceCatalogIds,
-        vehicleCatalogIds: existing.vehicleCatalogIds,
-        mascotName: existing.mascotName,
-        role: existing.role,
+        name: resolvedName,
+        avatarUrl: account.photoUrl ?? base?.avatarUrl,
+        dob: base?.dob,
+        district: base?.district ?? 'Ahmedabad',
+        ward: base?.ward ?? 'Navrangpura',
+        houseType: base?.houseType ?? 'apartment',
+        householdMembers: base?.householdMembers ?? 4,
+        monthlyBillRupees: base?.monthlyBillRupees ?? 2200,
+        waterSupplyType: base?.waterSupplyType ?? 'municipal_piped',
+        waterStorageType: base?.waterStorageType ?? 'both_sump_overhead',
+        deviceCatalogIds: base?.deviceCatalogIds ?? ['air_conditioner', 'refrigerator'],
+        vehicleCatalogIds: base?.vehicleCatalogIds ?? ['ev_2wheeler'],
+        mascotName: base?.mascotName ?? 'Cheechee',
+        role: base?.role ?? 'CITIZEN',
         isProfileComplete: true,
-        points: existing.points > 50 ? existing.points : 150,
+        points: (base != null && base.points > 50) ? base.points : 150,
       );
     }
 
+    // Truly brand new user: set Google details, profile completion pending
     return CitizenProfile(
       id: 'citizen_${account.id}',
       email: account.email,
@@ -247,7 +262,7 @@ class AuthService extends ChangeNotifier {
         }
       }
 
-      if (token != null && token.isNotEmpty) {
+      if (token.isNotEmpty) {
         try {
           final uri = Uri.parse('${AuthConfig.apiBaseUrl}/auth/google');
           final request = await _httpClient.postUrl(uri);

@@ -884,30 +884,48 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           ),
           const SizedBox(width: 6),
 
-          // Wireframe USER Profile Button
-          InkWell(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => const UserSettingsSheet(),
+          // Wireframe USER Profile Button (Displays Google profile image if available)
+          Builder(
+            builder: (context) {
+              final user = AuthService.instance.currentUser;
+              final avatar = user?.avatarUrl;
+
+              return InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const UserSettingsSheet(),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: (avatar != null && avatar.isNotEmpty)
+                        ? Image.network(
+                            avatar,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Icon(Icons.person_rounded, color: Color(0xFF16A34A), size: 18),
+                            ),
+                          )
+                        : const Center(
+                            child: Icon(Icons.person_rounded, color: Color(0xFF16A34A), size: 18),
+                          ),
+                  ),
+                ),
               );
             },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF86EFAC)),
-              ),
-              child: const Center(
-                child: Icon(Icons.person_rounded, color: Color(0xFF16A34A), size: 18),
-              ),
-            ),
           ),
         ],
       ),

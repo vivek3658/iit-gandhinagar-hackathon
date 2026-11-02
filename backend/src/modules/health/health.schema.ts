@@ -10,6 +10,15 @@ export const HealthResponseSchema = Type.Object({
     heapUsedMB: Type.Number(),
     rssMB: Type.Number(),
   }),
+  services: Type.Optional(
+    Type.Object({
+      database: Type.String(),
+      supabase: Type.String(),
+      redis: Type.String(),
+      mongodb: Type.String(),
+      rabbitmq: Type.String(),
+    })
+  ),
 });
 
 export type HealthResponse = Static<typeof HealthResponseSchema>;

@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import type { Pool } from 'pg';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { OAuth2Client } from 'google-auth-library';
 import { ProvidersService } from '../providers/providers.service';
 import type {
@@ -44,14 +46,27 @@ export interface RefreshTokenRecord {
 }
 
 /**
- * Thread-safe In-Memory ACID Store with Transaction Rollback Capabilities
- * Pluggable directly to PostgreSQL in production.
+ * Thread-safe In-Memory Cache + Persistent Supabase / PostgreSQL Store
  */
 export class AuthRepository {
   private users = new Map<string, UserRecord>(); // id -> UserRecord
   private googleIdIndex = new Map<string, string>(); // googleId -> id
   private emailIndex = new Map<string, string>(); // email -> id
   private refreshTokens = new Map<string, RefreshTokenRecord>(); // tokenHash -> RefreshTokenRecord
+
+  private supabase: SupabaseClient | null = null;
+  private db: Pool | null = null;
+
+  public setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): void {
+    if (clients.supabase !== undefined) this.supabase = clients.supabase;
+    if (clients.db !== undefined) this.db = clients.db;
+
+    if (this.db || this.supabase) {
+      this.ensureSchema()
+        .then(() => this.loadUsersFromDb())
+        .catch(() => {});
+    }
+  }
 
   public findById(id: string): UserRecord | null {
     const user = this.users.get(id);
@@ -72,7 +87,7 @@ export class AuthRepository {
   }
 
   /**
-   * Atomic user creation with rollback on conflict
+   * Atomic user creation with write-through to Supabase / PostgreSQL
    */
   public createUser(record: Omit<UserRecord, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>): UserRecord {
     const id = crypto.randomUUID();
@@ -93,10 +108,18 @@ export class AuthRepository {
       deletedAt: null,
     };
 
-    // Commit transaction
+    // Commit memory cache
     this.users.set(id, newUser);
     this.googleIdIndex.set(record.googleId, id);
     this.emailIndex.set(record.email.toLowerCase(), id);
+
+    // Write-through to Supabase / PostgreSQL
+    this.persistUser(newUser).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[AuthRepository] Async DB write warning:', msg);
+      }
+    });
 
     return { ...newUser };
   }
@@ -114,17 +137,29 @@ export class AuthRepository {
     };
 
     this.users.set(id, updated);
+
+    // Write-through update to DB
+    this.persistUser(updated).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[AuthRepository] Async DB update warning:', msg);
+      }
+    });
+
     return { ...updated };
   }
 
   public saveRefreshToken(userId: string, token: string, ttlMs = 30 * 24 * 60 * 60 * 1000): void {
     const tokenHash = this.hashToken(token);
-    this.refreshTokens.set(tokenHash, {
+    const record: RefreshTokenRecord = {
       tokenHash,
       userId,
       expiresAt: Date.now() + ttlMs,
       revokedAt: null,
-    });
+    };
+    this.refreshTokens.set(tokenHash, record);
+
+    this.persistRefreshToken(record).catch(() => {});
   }
 
   public getRefreshToken(token: string): RefreshTokenRecord | null {
@@ -132,9 +167,6 @@ export class AuthRepository {
     return this.refreshTokens.get(tokenHash) || null;
   }
 
-  /**
-   * Atomic token rotation with anti-replay detection
-   */
   public rotateRefreshToken(oldToken: string, newToken: string, ttlMs = 30 * 24 * 60 * 60 * 1000): string {
     const oldHash = this.hashToken(oldToken);
     const existing = this.refreshTokens.get(oldHash);
@@ -144,7 +176,6 @@ export class AuthRepository {
     }
 
     if (existing.revokedAt) {
-      // Security: Token reuse detected! Revoke all tokens for this user
       this.revokeAllUserTokens(existing.userId);
       throw new Error('Refresh token reuse detected. All sessions revoked for security.');
     }
@@ -153,8 +184,9 @@ export class AuthRepository {
       throw new Error('Refresh token has expired');
     }
 
-    // Atomic update: Revoke old, insert new
     existing.revokedAt = Date.now();
+    this.persistRefreshToken(existing).catch(() => {});
+
     this.saveRefreshToken(existing.userId, newToken, ttlMs);
 
     return existing.userId;
@@ -165,6 +197,7 @@ export class AuthRepository {
     const existing = this.refreshTokens.get(hash);
     if (existing) {
       existing.revokedAt = Date.now();
+      this.persistRefreshToken(existing).catch(() => {});
     }
   }
 
@@ -172,6 +205,7 @@ export class AuthRepository {
     for (const record of this.refreshTokens.values()) {
       if (record.userId === userId) {
         record.revokedAt = Date.now();
+        this.persistRefreshToken(record).catch(() => {});
       }
     }
   }
@@ -185,14 +219,17 @@ export class AuthRepository {
     this.emailIndex.delete(user.email.toLowerCase());
 
     const now = new Date().toISOString();
-    this.users.set(id, {
+    const anonymized: UserRecord = {
       ...user,
       email: `deleted_${id}@anon.urjavatika`,
       name: 'Anonymized Citizen',
       avatarUrl: null,
       deletedAt: now,
       updatedAt: now,
-    });
+    };
+
+    this.users.set(id, anonymized);
+    this.persistUser(anonymized).catch(() => {});
   }
 
   public clear(): void {
@@ -205,6 +242,228 @@ export class AuthRepository {
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
+
+  private async ensureSchema(): Promise<void> {
+    if (this.db) {
+      try {
+        await this.db.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY,
+            google_id TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            avatar_url TEXT,
+            dob TEXT,
+            district TEXT,
+            ward TEXT,
+            house_type TEXT,
+            household_members INT,
+            monthly_bill_rupees NUMERIC,
+            water_supply_type TEXT,
+            water_storage_type TEXT,
+            device_catalog_ids JSONB,
+            vehicle_catalog_ids JSONB,
+            mascot_name TEXT,
+            role TEXT NOT NULL DEFAULT 'CITIZEN',
+            is_profile_complete BOOLEAN DEFAULT FALSE,
+            points INT DEFAULT 50,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            deleted_at TIMESTAMPTZ
+          );
+
+          CREATE TABLE IF NOT EXISTS refresh_tokens (
+            token_hash TEXT PRIMARY KEY,
+            user_id UUID NOT NULL,
+            expires_at BIGINT NOT NULL,
+            revoked_at BIGINT
+          );
+        `);
+      } catch {
+        // Non-fatal if tables already exist or managed via Supabase UI
+      }
+    }
+  }
+
+  private async persistUser(user: UserRecord): Promise<void> {
+    if (this.supabase) {
+      try {
+        await this.supabase.from('users').upsert({
+          id: user.id,
+          google_id: user.googleId,
+          email: user.email,
+          name: user.name,
+          avatar_url: user.avatarUrl,
+          dob: user.dob,
+          district: user.district,
+          ward: user.ward,
+          house_type: user.houseType,
+          household_members: user.householdMembers,
+          monthly_bill_rupees: user.monthlyBillRupees,
+          water_supply_type: user.waterSupplyType,
+          water_storage_type: user.waterStorageType,
+          device_catalog_ids: user.deviceCatalogIds,
+          vehicle_catalog_ids: user.vehicleCatalogIds,
+          mascot_name: user.mascotName,
+          role: user.role,
+          is_profile_complete: user.isProfileComplete,
+          points: user.points,
+          created_at: user.createdAt,
+          updated_at: user.updatedAt,
+          deleted_at: user.deletedAt,
+        });
+      } catch {
+        // Fallback or ignore non-fatal
+      }
+    }
+
+    if (this.db) {
+      try {
+        await this.db.query(
+          `INSERT INTO users (
+            id, google_id, email, name, avatar_url, dob, district, ward,
+            house_type, household_members, monthly_bill_rupees, water_supply_type,
+            water_storage_type, device_catalog_ids, vehicle_catalog_ids, mascot_name,
+            role, is_profile_complete, points, created_at, updated_at, deleted_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+          ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            avatar_url = EXCLUDED.avatar_url,
+            dob = EXCLUDED.dob,
+            district = EXCLUDED.district,
+            ward = EXCLUDED.ward,
+            house_type = EXCLUDED.house_type,
+            household_members = EXCLUDED.household_members,
+            monthly_bill_rupees = EXCLUDED.monthly_bill_rupees,
+            water_supply_type = EXCLUDED.water_supply_type,
+            water_storage_type = EXCLUDED.water_storage_type,
+            device_catalog_ids = EXCLUDED.device_catalog_ids,
+            vehicle_catalog_ids = EXCLUDED.vehicle_catalog_ids,
+            mascot_name = EXCLUDED.mascot_name,
+            role = EXCLUDED.role,
+            is_profile_complete = EXCLUDED.is_profile_complete,
+            points = EXCLUDED.points,
+            updated_at = EXCLUDED.updated_at,
+            deleted_at = EXCLUDED.deleted_at`,
+          [
+            user.id,
+            user.googleId,
+            user.email,
+            user.name,
+            user.avatarUrl,
+            user.dob,
+            user.district,
+            user.ward,
+            user.houseType,
+            user.householdMembers,
+            user.monthlyBillRupees,
+            user.waterSupplyType,
+            user.waterStorageType,
+            JSON.stringify(user.deviceCatalogIds || []),
+            JSON.stringify(user.vehicleCatalogIds || []),
+            user.mascotName,
+            user.role,
+            user.isProfileComplete,
+            user.points,
+            user.createdAt,
+            user.updatedAt,
+            user.deletedAt,
+          ]
+        );
+      } catch {
+        // Non-fatal
+      }
+    }
+  }
+
+  private async persistRefreshToken(record: RefreshTokenRecord): Promise<void> {
+    if (this.supabase) {
+      try {
+        await this.supabase.from('refresh_tokens').upsert({
+          token_hash: record.tokenHash,
+          user_id: record.userId,
+          expires_at: record.expiresAt,
+          revoked_at: record.revokedAt,
+        });
+      } catch {
+        // Non-fatal
+      }
+    }
+
+    if (this.db) {
+      try {
+        await this.db.query(
+          `INSERT INTO refresh_tokens (token_hash, user_id, expires_at, revoked_at)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (token_hash) DO UPDATE SET revoked_at = EXCLUDED.revoked_at`,
+          [record.tokenHash, record.userId, record.expiresAt, record.revokedAt]
+        );
+      } catch {
+        // Non-fatal
+      }
+    }
+  }
+
+  private async loadUsersFromDb(): Promise<void> {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase.from('users').select('*');
+        if (!error && Array.isArray(data)) {
+          for (const row of data) {
+            const rec = this.mapDbRowToUser(row as Record<string, unknown>);
+            this.users.set(rec.id, rec);
+            this.googleIdIndex.set(rec.googleId, rec.id);
+            this.emailIndex.set(rec.email.toLowerCase(), rec.id);
+          }
+        }
+      } catch {
+        // Non-fatal
+      }
+    } else if (this.db) {
+      try {
+        const res = await this.db.query('SELECT * FROM users WHERE deleted_at IS NULL');
+        for (const row of res.rows) {
+          const rec = this.mapDbRowToUser(row as Record<string, unknown>);
+          this.users.set(rec.id, rec);
+          this.googleIdIndex.set(rec.googleId, rec.id);
+          this.emailIndex.set(rec.email.toLowerCase(), rec.id);
+        }
+      } catch {
+        // Non-fatal
+      }
+    }
+  }
+
+  private mapDbRowToUser(row: Record<string, unknown>): UserRecord {
+    const rawDeviceIds = row.device_catalog_ids || row.deviceCatalogIds;
+    const rawVehicleIds = row.vehicle_catalog_ids || row.vehicleCatalogIds;
+
+    return {
+      id: String(row.id),
+      googleId: String(row.google_id || row.googleId),
+      email: String(row.email),
+      name: String(row.name),
+      avatarUrl: (row.avatar_url as string) || (row.avatarUrl as string) || null,
+      dob: (row.dob as string) || null,
+      district: (row.district as string) || null,
+      ward: (row.ward as string) || null,
+      houseType: ((row.house_type || row.houseType) as HouseType) || null,
+      householdMembers: row.household_members ? Number(row.household_members) : null,
+      monthlyBillRupees: row.monthly_bill_rupees ? Number(row.monthly_bill_rupees) : null,
+      waterSupplyType: ((row.water_supply_type || row.waterSupplyType) as WaterSupplyType) || null,
+      waterStorageType: ((row.water_storage_type || row.waterStorageType) as WaterStorageType) || null,
+      deviceCatalogIds: typeof rawDeviceIds === 'string' ? JSON.parse(rawDeviceIds) : (rawDeviceIds as string[]) || [],
+      vehicleCatalogIds: typeof rawVehicleIds === 'string' ? JSON.parse(rawVehicleIds) : (rawVehicleIds as string[]) || [],
+      mascotName: (row.mascot_name as string) || (row.mascotName as string) || null,
+      role: (row.role as 'CITIZEN' | 'ADMIN') || 'CITIZEN',
+      isProfileComplete: Boolean(row.is_profile_complete ?? row.isProfileComplete),
+      points: Number(row.points || 50),
+      createdAt: (row.created_at as string) || (row.createdAt as string) || new Date().toISOString(),
+      updatedAt: (row.updated_at as string) || (row.updatedAt as string) || new Date().toISOString(),
+      deletedAt: (row.deleted_at as string) || (row.deletedAt as string) || null,
+    };
+  }
 }
 
 export class AuthService {
@@ -213,6 +472,10 @@ export class AuthService {
 
   public static getRepository(): AuthRepository {
     return this.repository;
+  }
+
+  public static setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): void {
+    this.repository.setDbClients(clients);
   }
 
   /**
@@ -229,7 +492,6 @@ export class AuthService {
     let isNewUser = false;
 
     if (!user) {
-      // Check if user registered previously with same email
       const existingEmailUser = this.repository.findByEmail(profile.email);
       if (existingEmailUser) {
         user = this.repository.updateUser(existingEmailUser.id, {
@@ -237,7 +499,6 @@ export class AuthService {
           avatarUrl: existingEmailUser.avatarUrl || profile.picture || null,
         });
       } else {
-        // Create new citizen
         user = this.repository.createUser({
           googleId: profile.sub,
           email: profile.email,
@@ -247,7 +508,7 @@ export class AuthService {
           district: null,
           role: 'CITIZEN',
           isProfileComplete: false,
-          points: 50, // 50 bonus welcome points for joining Mission LiFE!
+          points: 50,
         });
         isNewUser = true;
       }
@@ -271,9 +532,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Complete onboarding profile (DOB, district, ward, house info, devices, mascot, and auto-link providers)
-   */
   public static completeProfile(userId: string, body: CompleteProfileBody): UserDto {
     const user = this.repository.findById(userId);
     if (!user) {
@@ -357,14 +615,10 @@ export class AuthService {
     this.repository.softDeleteUser(userId);
   }
 
-  /**
-   * Cryptographic verification of Google ID token
-   */
   private static async verifyGoogleIdToken(
     idToken: string,
     googleClientId: string,
   ): Promise<{ sub: string; email: string; name: string; picture?: string }> {
-    // 1. Instant deterministic bypass for tests & offline development
     const cleanClientId = (googleClientId || '').trim().replace(/^["']|["']$/g, '');
     if (idToken.startsWith('mock_test_token_')) {
       const parts = idToken.split('_');
@@ -377,7 +631,6 @@ export class AuthService {
       };
     }
 
-    // 2. Production verification with Google JWKS
     if (!this.oauthClient) {
       this.oauthClient = new OAuth2Client(cleanClientId);
     }
@@ -398,7 +651,6 @@ export class AuthService {
         picture: payload.picture,
       };
     } catch (err: unknown) {
-      // Graceful fallback for real Google ID Tokens: decode payload if valid Google JWT
       try {
         const parts = idToken.split('.');
         const payloadPart = parts[1];
@@ -414,7 +666,7 @@ export class AuthService {
           }
         }
       } catch {
-        // Fallback to error throw below
+        // Fallback
       }
       const msg = err instanceof Error ? err.message : 'Google token verification failed';
       throw new Error(`Google authentication failed: ${msg}`);

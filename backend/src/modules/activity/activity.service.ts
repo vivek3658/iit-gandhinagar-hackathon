@@ -1,8 +1,18 @@
 import crypto from 'node:crypto';
+import type { MongoClient } from 'mongodb';
 import type { ActivityCategory, ActivityFeedResponse, ActivityItem } from './activity.schema';
 
 export class ActivityRepository {
   private activities: ActivityItem[] = [];
+  private mongo: MongoClient | null = null;
+  private readonly collectionName = 'citizen_activities';
+
+  public setMongoClient(client: MongoClient | null): void {
+    this.mongo = client;
+    if (this.mongo) {
+      this.syncFromMongo().catch(() => {});
+    }
+  }
 
   public getAll(): ActivityItem[] {
     return this.activities.map((a) => ({ ...a }));
@@ -16,6 +26,7 @@ export class ActivityRepository {
 
   public add(item: ActivityItem): ActivityItem {
     this.activities.unshift({ ...item });
+    this.persistActivity(item).catch(() => {});
     return item;
   }
 
@@ -23,6 +34,7 @@ export class ActivityRepository {
     const item = this.activities.find((a) => a.id === id && (a.userId === userId || a.userId === null));
     if (item) {
       item.isRead = true;
+      this.updateReadInMongo(id, userId).catch(() => {});
       return true;
     }
     return false;
@@ -36,11 +48,87 @@ export class ActivityRepository {
         count++;
       }
     }
+    this.updateAllReadInMongo(userId).catch(() => {});
     return count;
   }
 
   public clear(): void {
     this.activities = [];
+  }
+
+  private async syncFromMongo(): Promise<void> {
+    if (!this.mongo) return;
+    try {
+      const docs = await this.mongo
+        .db('urjavatika')
+        .collection<ActivityItem>(this.collectionName)
+        .find()
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .toArray();
+
+      for (const doc of docs) {
+        if (!this.activities.some((a) => a.id === doc.id)) {
+          this.activities.push({
+            id: doc.id,
+            userId: doc.userId,
+            title: doc.title,
+            message: doc.message,
+            category: doc.category,
+            icon: doc.icon,
+            coinsEarned: doc.coinsEarned,
+            co2SavedKg: doc.co2SavedKg,
+            district: doc.district,
+            isRead: Boolean(doc.isRead),
+            createdAt: doc.createdAt,
+          });
+        }
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  private async persistActivity(item: ActivityItem): Promise<void> {
+    if (!this.mongo) return;
+    try {
+      await this.mongo
+        .db('urjavatika')
+        .collection(this.collectionName)
+        .insertOne({ ...item });
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  private async updateReadInMongo(id: string, userId: string): Promise<void> {
+    if (!this.mongo) return;
+    try {
+      await this.mongo
+        .db('urjavatika')
+        .collection(this.collectionName)
+        .updateOne(
+          { id, $or: [{ userId }, { userId: null }] },
+          { $set: { isRead: true } }
+        );
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  private async updateAllReadInMongo(userId: string): Promise<void> {
+    if (!this.mongo) return;
+    try {
+      await this.mongo
+        .db('urjavatika')
+        .collection(this.collectionName)
+        .updateMany(
+          { $or: [{ userId }, { userId: null }], isRead: false },
+          { $set: { isRead: true } }
+        );
+    } catch {
+      // Non-fatal
+    }
   }
 }
 
@@ -51,19 +139,15 @@ export class ActivityService {
     return this.repository;
   }
 
-  /**
-   * Seed initial activities for a new citizen so feed is lively immediately
-   */
+  public static setMongoClient(client: MongoClient | null): void {
+    this.repository.setMongoClient(client);
+  }
+
   public static ensureInitialActivities(userId: string, district = 'Ahmedabad'): void {
-    // New accounts start with a truthful, empty feed. Events are added by
-    // completed server actions, not fabricated onboarding rewards.
     void userId;
     void district;
   }
 
-  /**
-   * Get paginated activity feed
-   */
   public static getFeed(
     userId: string,
     options?: { category?: ActivityCategory; page?: number; limit?: number }
@@ -95,9 +179,6 @@ export class ActivityService {
     };
   }
 
-  /**
-   * Post a new activity event (called from habit/garden/mascot)
-   */
   public static postActivity(event: Omit<ActivityItem, 'id' | 'isRead' | 'createdAt'>): ActivityItem {
     const item: ActivityItem = {
       ...event,
@@ -108,9 +189,6 @@ export class ActivityService {
     return this.repository.add(item);
   }
 
-  /**
-   * Mark single activity as read
-   */
   public static markAsRead(id: string, userId: string): { success: boolean; unreadCount: number } {
     this.ensureInitialActivities(userId);
     this.repository.markRead(id, userId);
@@ -119,9 +197,6 @@ export class ActivityService {
     return { success: true, unreadCount };
   }
 
-  /**
-   * Mark all activities as read
-   */
   public static markAllAsRead(userId: string): { success: boolean; unreadCount: number } {
     this.ensureInitialActivities(userId);
     this.repository.markAllRead(userId);

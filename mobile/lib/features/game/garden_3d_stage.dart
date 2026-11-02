@@ -86,6 +86,8 @@ class Garden3DStageState extends State<Garden3DStage> {
               try {
                 final currentSlots = GameStateService.instance.gardenGridSlots;
                 setIslandState(currentSlots);
+                final lvl = GameStateService.instance.mascotLevel;
+                setMascotLevel(lvl);
               } catch (_) {}
             }
           },
@@ -97,6 +99,13 @@ class Garden3DStageState extends State<Garden3DStage> {
       ..loadFlutterAsset('assets/web/garden.html');
 
     _controller = controller;
+  }
+
+  /// Updates the island grid expansion based on the sparrow companion level.
+  void setMascotLevel(int level) {
+    _controller?.runJavaScript(
+      "if (window.Garden && window.Garden.setMascotLevel) window.Garden.setMascotLevel($level);",
+    );
   }
 
   /// Toggles build mode visual state in the 3D scene.

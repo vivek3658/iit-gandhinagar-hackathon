@@ -1,3 +1,4 @@
+import type Redis from 'ioredis';
 import type {
   CheerResponse,
   GardenVisitorResponse,
@@ -47,6 +48,7 @@ interface CitizenSocialRecord {
 export class LeaderboardService {
   private static instance: LeaderboardService;
   private citizens = new Map<string, CitizenSocialRecord>();
+  private redis: Redis | null = null;
 
   private constructor() {}
 
@@ -57,6 +59,33 @@ export class LeaderboardService {
     return LeaderboardService.instance;
   }
 
+  public setRedisClient(client: Redis | null): void {
+    this.redis = client;
+    if (this.redis) {
+      this.syncToRedis().catch(() => {});
+    }
+  }
+
+  private async syncToRedis(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      const pipeline = this.redis.pipeline();
+      for (const c of this.citizens.values()) {
+        pipeline.zadd(`urja:leaderboard:league:${c.league}`, c.weeklyExp, c.id);
+        pipeline.zadd('urja:leaderboard:global', c.totalCo2SavedKg, c.id);
+        pipeline.hset(`urja:citizen:social:${c.id}`, {
+          name: c.name,
+          cheersReceived: String(c.cheersReceived),
+          totalCo2SavedKg: String(c.totalCo2SavedKg),
+          weeklyExp: String(c.weeklyExp),
+        });
+      }
+      await pipeline.exec();
+    } catch {
+      // Non-fatal
+    }
+  }
+
   public getLeagueLeaderboard(userId: string): LeagueLeaderboardResponse {
     const currentUser = this.citizens.get(userId);
     if (!currentUser) {
@@ -65,7 +94,6 @@ export class LeaderboardService {
 
     // Filter to current league tier
     const cohort = Array.from(this.citizens.values()).filter((c) => c.league === currentUser.league);
-    // Sort descending by weeklyExp
     cohort.sort((a, b) => b.weeklyExp - a.weeklyExp);
 
     const total = cohort.length;
@@ -110,7 +138,6 @@ export class LeaderboardService {
       };
     });
 
-    // End of weekly season: next Sunday midnight
     return {
       league: currentUser.league,
       seasonEndsAt: this.getSeasonEnd(),
@@ -177,7 +204,14 @@ export class LeaderboardService {
   public cheerCitizen(_visitorId: string, hostCitizenId: string): CheerResponse | null {
     const host = this.citizens.get(hostCitizenId);
     if (!host) return null;
+
     host.cheersReceived += 1;
+
+    // Atomic increment in Redis for instant synchronization
+    if (this.redis) {
+      this.redis.hincrby(`urja:citizen:social:${hostCitizenId}`, 'cheersReceived', 1).catch(() => {});
+    }
+
     return {
       success: true,
       message: `👏 Cheered ${host.name}!`,

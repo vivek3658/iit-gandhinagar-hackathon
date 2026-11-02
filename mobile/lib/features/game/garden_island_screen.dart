@@ -840,11 +840,17 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
   }
 
   Widget _buildTacticalPlotMatrix() {
-    const coords = [
-      [-1, -1], [0, -1], [1, -1],
-      [-1,  0], [0,  0], [1,  0],
-      [-1,  1], [0,  1], [1,  1],
-    ];
+    final lvl = _state.mascotLevel;
+    final int radius = lvl >= 10 ? 3 : (lvl >= 5 ? 2 : 1);
+    final int gridSize = radius * 2 + 1; // 3, 5, or 7
+    final List<List<int>> coords = [];
+    for (int z = -radius; z <= radius; z++) {
+      for (int x = -radius; x <= radius; x++) {
+        coords.add([x, z]);
+      }
+    }
+
+    final double boxDimension = gridSize == 7 ? 126 : (gridSize == 5 ? 108 : 86);
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -860,11 +866,11 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 2, bottom: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 4),
             child: Text(
-              '3×3 GRID MATRIX',
-              style: TextStyle(
+              '$gridSize×$gridSize GRID (LVL $lvl)',
+              style: const TextStyle(
                 color: Color(0xFF86EFAC),
                 fontWeight: FontWeight.w900,
                 fontSize: 9,
@@ -873,17 +879,17 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
             ),
           ),
           SizedBox(
-            width: 86,
-            height: 86,
+            width: boxDimension,
+            height: boxDimension,
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: gridSize,
+                crossAxisSpacing: gridSize > 3 ? 2.5 : 4,
+                mainAxisSpacing: gridSize > 3 ? 2.5 : 4,
               ),
-              itemCount: 9,
+              itemCount: coords.length,
               itemBuilder: (ctx, idx) {
                 final x = coords[idx][0];
                 final z = coords[idx][1];
@@ -930,7 +936,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                       child: Text(
                         icon,
                         style: TextStyle(
-                          fontSize: isOccupied ? 12 : 11,
+                          fontSize: gridSize > 3 ? (isOccupied ? 9 : 8) : (isOccupied ? 12 : 11),
                           color: isTarget
                               ? Colors.black
                               : (isOccupied ? Colors.white : Colors.white38),

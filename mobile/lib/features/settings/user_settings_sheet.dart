@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
 import '../../services/notification_service.dart';
 import '../appliances/appliance_registry_sheet.dart';
@@ -113,7 +114,90 @@ class _UserSettingsSheetState extends State<UserSettingsSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // Citizen Profile Card with Google Avatar photo
+          Builder(
+            builder: (context) {
+              final user = AuthService.instance.currentUser;
+              final avatarUrl = user?.avatarUrl;
+              final citizenName = user?.name ?? 'Gujarat Citizen';
+              final citizenDistrict = user?.district ?? 'Ahmedabad';
+              final citizenEmail = user?.email ?? '';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF163825),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF4ADE80), width: 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                            ? Image.network(
+                                avatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Center(
+                                  child: Text('🌱', style: TextStyle(fontSize: 24)),
+                                ),
+                              )
+                            : const Center(
+                                child: Text('👤', style: TextStyle(fontSize: 24)),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            citizenName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$citizenDistrict • Mission LiFE Citizen',
+                            style: const TextStyle(
+                              color: Color(0xFF86EFAC),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (citizenEmail.isNotEmpty)
+                            Text(
+                              citizenEmail,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 10,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 4),
 
           Expanded(
             child: ListView(

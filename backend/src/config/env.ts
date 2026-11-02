@@ -8,11 +8,15 @@ export const EnvSchema = Type.Object({
   CORS_ORIGIN: Type.String({ default: '*' }),
   JWT_SECRET: Type.String({ default: 'dev-jwt-secret-key-must-be-at-least-32-characters-long' }),
   GOOGLE_CLIENT_ID: Type.String({ default: 'mock-google-client-id.apps.googleusercontent.com' }),
+  GOOGLE_CLIENT_SECRET: Type.Optional(Type.String()),
   IMAGEKIT_PUBLIC_KEY: Type.String({ default: 'public_mock_imagekit_key' }),
   IMAGEKIT_PRIVATE_KEY: Type.String({ default: 'private_mock_imagekit_key_strictly_secret' }),
   IMAGEKIT_URL_ENDPOINT: Type.String({ default: 'https://ik.imagekit.io/urjavatika' }),
   DATABASE_URL: Type.Optional(Type.String()),
   DATABASE_READ_URL: Type.Optional(Type.String()),
+  SUPABASE_URL: Type.Optional(Type.String()),
+  SUPABASE_ANON_KEY: Type.Optional(Type.String()),
+  SUPABASE_SERVICE_ROLE_KEY: Type.Optional(Type.String()),
   MONGODB_URL: Type.Optional(Type.String()),
   REDIS_URL: Type.Optional(Type.String()),
   RABBITMQ_URL: Type.Optional(Type.String()),
@@ -33,6 +37,16 @@ function cleanEnv(raw: Record<string, string | undefined>): Record<string, unkno
     }
     cleaned[key] = trimmed;
   }
+
+  // Auto-alias SUPABASE_URL to DATABASE_URL if DATABASE_URL is not explicitly configured
+  if (!cleaned.DATABASE_URL && cleaned.SUPABASE_URL) {
+    cleaned.DATABASE_URL = cleaned.SUPABASE_URL;
+  }
+  // And vice-versa
+  if (!cleaned.SUPABASE_URL && cleaned.DATABASE_URL) {
+    cleaned.SUPABASE_URL = cleaned.DATABASE_URL;
+  }
+
   if (!cleaned.PORT || cleaned.PORT === '') {
     cleaned.PORT = 3000;
   } else if (!isNaN(Number(cleaned.PORT))) {
