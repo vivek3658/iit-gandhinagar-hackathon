@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { Type, type Static } from '@sinclair/typebox';
 
 export const EnvSchema = Type.Object({
@@ -23,6 +25,35 @@ export const EnvSchema = Type.Object({
 });
 
 export type EnvConfig = Static<typeof EnvSchema>;
+
+function loadExternalEnv(): void {
+  const candidates = [
+    'C:\\Users\\vivek\\Desktop\\env\\.env',
+    path.resolve(process.cwd(), '../env/.env'),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        const raw = fs.readFileSync(candidate, 'utf-8');
+        for (const line of raw.split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          const eq = trimmed.indexOf('=');
+          if (eq !== -1) {
+            const key = trimmed.slice(0, eq).trim();
+            const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+            if (!process.env[key] && val) {
+              process.env[key] = val;
+            }
+          }
+        }
+      }
+    } catch {
+      // In sandbox or production, external file might not exist or be accessible
+    }
+  }
+}
+loadExternalEnv();
 
 function cleanEnv(raw: Record<string, string | undefined>): Record<string, unknown> {
   const cleaned: Record<string, unknown> = {};

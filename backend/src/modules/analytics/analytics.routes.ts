@@ -20,4 +20,20 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     },
     controller.getDashboard,
   );
+
+  // Alias for mobile app (/analytics/carbon)
+  fastify.get(
+    '/carbon',
+    {
+      preHandler: [fastify.authenticate],
+      schema: {
+        tags: ['Analytics & Energy'],
+        summary: 'Get 24h load curve, appliance power breakdown, and multi-domain CO2e ledger (alias)',
+        response: {
+          200: AnalyticsDashboardResponseSchema,
+        },
+      },
+    },
+    controller.getDashboard,
+  );
 };
