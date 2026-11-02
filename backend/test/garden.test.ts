@@ -242,7 +242,7 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
 
   it('5. Dynamic land growth: Leveling up mascot expands grid to 4x4 (16 tiles)', async () => {
     // Award CO2 savings to reach level 10 (needs 81 kg CO2)
-    MascotService.addCo2Savings(citizenId, 100); // 100 kg CO2 = Level 11
+    await MascotService.addCo2Savings(citizenId, 100); // 100 kg CO2 = Level 11
 
     const stateRes = await app.inject({
       method: 'GET',
@@ -271,7 +271,7 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
 
   it('6. Sparrow Home centerpiece is protected and cannot be removed to inventory', async () => {
     // Force place SPARROW_HOME at (0, 0)
-    const garden = GardenService.getOrCreateGarden(citizenId);
+    const garden = await GardenService.getOrCreateGarden(citizenId);
     garden.placedTiles.push({
       instanceId: 'sparrow_manor_inst',
       tileId: 'SPARROW_HOME',

@@ -1,13 +1,10 @@
-import crypto from 'node:crypto';
-import { ActivityService } from '../activity/activity.service';
 import type {
   CitizenProviderLinks,
   LinkProvidersBody,
-  ProviderBroadcastBody,
-  ProviderBroadcastResponse,
   ProviderCategory,
   UtilityProvider,
 } from './providers.schema';
+import type { Pool } from 'pg';
 
 export interface CitizenLinkRecord {
   userId: string;
@@ -20,6 +17,7 @@ export interface CitizenLinkRecord {
 }
 
 export class ProvidersService {
+  private static schemaReady = new WeakMap<Pool, Promise<void>>();
   // Master Directory of Gujarat Utility Providers
   private static providers: UtilityProvider[] = [
     // --- 1. Electricity DISCOMs ---
@@ -67,7 +65,17 @@ export class ProvidersService {
       id: 'pgvcl',
       name: 'Paschim Gujarat Vij Company Ltd (PGVCL)',
       category: 'ELECTRICITY',
-      districts: ['Rajkot', 'Jamnagar', 'Bhavnagar', 'Junagadh', 'Amreli', 'Porbandar', 'Kutch', 'Surendranagar', 'Morbi'],
+      districts: [
+        'Rajkot',
+        'Jamnagar',
+        'Bhavnagar',
+        'Junagadh',
+        'Amreli',
+        'Porbandar',
+        'Kutch',
+        'Surendranagar',
+        'Morbi',
+      ],
       code: 'PGVCL',
       contactPhone: '19122',
       peakHours: '18:00 - 21:30',
@@ -88,7 +96,16 @@ export class ProvidersService {
       id: 'gujarat_gas',
       name: 'Gujarat Gas Ltd (GGL Piped Natural Gas)',
       category: 'GAS',
-      districts: ['Surat', 'Bharuch', 'Ankleshwar', 'Valsad', 'Navsari', 'Rajkot', 'Bhavnagar', 'Jamnagar'],
+      districts: [
+        'Surat',
+        'Bharuch',
+        'Ankleshwar',
+        'Valsad',
+        'Navsari',
+        'Rajkot',
+        'Bhavnagar',
+        'Jamnagar',
+      ],
       code: 'GUJGAS',
       contactPhone: '1800-103-5001',
       activeAlertCount: 0,
@@ -97,7 +114,17 @@ export class ProvidersService {
       id: 'indane_lpg',
       name: 'Indane LPG (Indian Oil Corporation Ltd)',
       category: 'GAS',
-      districts: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Gandhinagar', 'Bhavnagar', 'Jamnagar', 'Junagadh', 'Kutch'],
+      districts: [
+        'Ahmedabad',
+        'Surat',
+        'Vadodara',
+        'Rajkot',
+        'Gandhinagar',
+        'Bhavnagar',
+        'Jamnagar',
+        'Junagadh',
+        'Kutch',
+      ],
       code: 'INDANE',
       contactPhone: '1906',
       activeAlertCount: 0,
@@ -166,7 +193,15 @@ export class ProvidersService {
       id: 'gwssb',
       name: 'Gujarat Water Supply & Sewerage Board (GWSSB)',
       category: 'WATER',
-      districts: ['Gandhinagar', 'Mehsana', 'Patan', 'Banaskantha', 'Kutch', 'Surendranagar', 'Bhavnagar'],
+      districts: [
+        'Gandhinagar',
+        'Mehsana',
+        'Patan',
+        'Banaskantha',
+        'Kutch',
+        'Surendranagar',
+        'Bhavnagar',
+      ],
       code: 'GWSSB',
       contactPhone: '079-23253501',
       supplyWindow: 'Rotational 2-Hour Sump Supply',
@@ -205,7 +240,17 @@ export class ProvidersService {
       id: 'gsrtc_bus',
       name: 'GSRTC (Gujarat State Road Transport Corporation)',
       category: 'TRANSIT',
-      districts: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Gandhinagar', 'Bhavnagar', 'Jamnagar', 'Junagadh', 'Kutch'],
+      districts: [
+        'Ahmedabad',
+        'Surat',
+        'Vadodara',
+        'Rajkot',
+        'Gandhinagar',
+        'Bhavnagar',
+        'Jamnagar',
+        'Junagadh',
+        'Kutch',
+      ],
       code: 'GSRTC',
       contactPhone: '1800-233-6655',
       activeAlertCount: 0,
@@ -216,11 +261,14 @@ export class ProvidersService {
   private static userLinks = new Map<string, CitizenLinkRecord>();
 
   public static listProviders(category?: ProviderCategory, district?: string): UtilityProvider[] {
-    return this.providers.filter((p) => {
-      if (category && p.category !== category) return false;
-      if (district && !p.districts.some((d) => d.toLowerCase() === district.toLowerCase())) return false;
-      return true;
-    });
+    return this.providers
+      .filter((p) => {
+        if (category && p.category !== category) return false;
+        if (district && !p.districts.some((d) => d.toLowerCase() === district.toLowerCase()))
+          return false;
+        return true;
+      })
+      .map((provider) => ({ ...provider, activeAlertCount: null }));
   }
 
   public static getProviderById(id: string): UtilityProvider | null {
@@ -228,20 +276,55 @@ export class ProvidersService {
     return found ? { ...found } : null;
   }
 
-  public static getCitizenLinks(userId: string): CitizenProviderLinks {
-    const record = this.userLinks.get(userId) || {
+  public static async getCitizenLinks(
+    userId: string,
+    db: Pool | null,
+    allowTestMemory: boolean,
+  ): Promise<CitizenProviderLinks> {
+    let record = db ? undefined : this.userLinks.get(userId);
+    if (db) {
+      await this.ensureSchema(db);
+      const result = await db.query(
+        `SELECT electricity_provider_id, gas_provider_id, water_provider_id,
+                transit_provider_ids, consumer_numbers, linked_at
+         FROM citizen_provider_links WHERE user_id = $1`,
+        [userId],
+      );
+      const row = result.rows[0];
+      if (row) {
+        record = {
+          userId,
+          electricityProviderId: row.electricity_provider_id,
+          gasProviderId: row.gas_provider_id,
+          waterProviderId: row.water_provider_id,
+          transitProviderIds: row.transit_provider_ids || [],
+          consumerNumbers: row.consumer_numbers || {},
+          linkedAt: new Date(String(row.linked_at)).toISOString(),
+        };
+      }
+    } else if (!allowTestMemory) {
+      throw new Error('PostgreSQL is required for provider-link data.');
+    }
+
+    record ??= {
       userId,
-      electricityProviderId: 'torrent_power', // smart defaults
-      gasProviderId: 'adani_png',
-      waterProviderId: 'amc_water',
-      transitProviderIds: ['gmrc_metro', 'amts_bus'],
+      electricityProviderId: null,
+      gasProviderId: null,
+      waterProviderId: null,
+      transitProviderIds: [],
       consumerNumbers: {},
       linkedAt: new Date().toISOString(),
     };
 
+    return this.toCitizenLinks(record);
+  }
+
+  private static toCitizenLinks(record: CitizenLinkRecord): CitizenProviderLinks {
     return {
-      userId,
-      electricityProvider: record.electricityProviderId ? this.getProviderById(record.electricityProviderId) : null,
+      userId: record.userId,
+      electricityProvider: record.electricityProviderId
+        ? this.getProviderById(record.electricityProviderId)
+        : null,
       gasProvider: record.gasProviderId ? this.getProviderById(record.gasProviderId) : null,
       waterProvider: record.waterProviderId ? this.getProviderById(record.waterProviderId) : null,
       transitProviders: record.transitProviderIds
@@ -252,106 +335,112 @@ export class ProvidersService {
     };
   }
 
-  public static linkCitizenProviders(userId: string, body: LinkProvidersBody): CitizenProviderLinks {
-    const existing = this.userLinks.get(userId);
+  public static async linkCitizenProviders(
+    userId: string,
+    body: LinkProvidersBody,
+    db: Pool | null,
+    allowTestMemory: boolean,
+  ): Promise<CitizenProviderLinks> {
+    const linked = await this.getCitizenLinks(userId, db, allowTestMemory);
+    const existing: CitizenLinkRecord = {
+      userId,
+      electricityProviderId: linked.electricityProvider?.id ?? null,
+      gasProviderId: linked.gasProvider?.id ?? null,
+      waterProviderId: linked.waterProvider?.id ?? null,
+      transitProviderIds: linked.transitProviders.map((provider) => provider.id),
+      consumerNumbers: linked.consumerNumbers,
+      linkedAt: linked.linkedAt,
+    };
     const updated: CitizenLinkRecord = {
       userId,
-      electricityProviderId: body.electricityProviderId !== undefined ? body.electricityProviderId : existing?.electricityProviderId || null,
-      gasProviderId: body.gasProviderId !== undefined ? body.gasProviderId : existing?.gasProviderId || null,
-      waterProviderId: body.waterProviderId !== undefined ? body.waterProviderId : existing?.waterProviderId || null,
-      transitProviderIds: body.transitProviderIds !== undefined ? body.transitProviderIds : existing?.transitProviderIds || [],
+      electricityProviderId:
+        body.electricityProviderId !== undefined
+          ? body.electricityProviderId
+          : existing.electricityProviderId,
+      gasProviderId: body.gasProviderId !== undefined ? body.gasProviderId : existing.gasProviderId,
+      waterProviderId:
+        body.waterProviderId !== undefined ? body.waterProviderId : existing.waterProviderId,
+      transitProviderIds:
+        body.transitProviderIds !== undefined
+          ? body.transitProviderIds
+          : existing.transitProviderIds,
       consumerNumbers: {
-        ...(existing?.consumerNumbers || {}),
+        ...existing.consumerNumbers,
         ...(body.consumerNumbers || {}),
       },
       linkedAt: new Date().toISOString(),
     };
 
-    this.userLinks.set(userId, updated);
-    return this.getCitizenLinks(userId);
-  }
-
-  /**
-   * Broadcast an alert from a provider directly into matching citizens' in-app notification center!
-   */
-  public static broadcastAlert(providerId: string, body: ProviderBroadcastBody): ProviderBroadcastResponse {
-    const provider = this.getProviderById(providerId);
-    if (!provider) {
-      throw new Error(`Provider with id "${providerId}" not found`);
+    this.validateProviderCategory(updated.electricityProviderId, 'ELECTRICITY');
+    this.validateProviderCategory(updated.gasProviderId, 'GAS');
+    this.validateProviderCategory(updated.waterProviderId, 'WATER');
+    for (const id of updated.transitProviderIds) {
+      this.validateProviderCategory(id, 'TRANSIT');
     }
 
-    const notificationId = crypto.randomUUID();
-    const activityRepo = ActivityService.getRepository();
-
-    // Determine matching citizens
-    let matchCount = 0;
-    for (const [userId, record] of this.userLinks.entries()) {
-      const isLinked =
-        record.electricityProviderId === providerId ||
-        record.gasProviderId === providerId ||
-        record.waterProviderId === providerId ||
-        record.transitProviderIds.includes(providerId);
-
-      if (isLinked) {
-        matchCount++;
-        activityRepo.add({
-          id: crypto.randomUUID(),
+    if (db) {
+      await this.ensureSchema(db);
+      await db.query(
+        `INSERT INTO citizen_provider_links
+           (user_id, electricity_provider_id, gas_provider_id, water_provider_id,
+            transit_provider_ids, consumer_numbers, linked_at)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           electricity_provider_id = EXCLUDED.electricity_provider_id,
+           gas_provider_id = EXCLUDED.gas_provider_id,
+           water_provider_id = EXCLUDED.water_provider_id,
+           transit_provider_ids = EXCLUDED.transit_provider_ids,
+           consumer_numbers = EXCLUDED.consumer_numbers,
+           linked_at = NOW()`,
+        [
           userId,
-          category: body.category || 'ALERT',
-          title: `${provider.name}: ${body.title}`,
-          message: body.message,
-          icon: provider.category === 'ELECTRICITY' ? 'zap' : provider.category === 'WATER' ? 'water' : 'spark',
-          coinsEarned: body.incentiveCoins || 0,
-          district: body.targetDistrict || provider.districts[0] || 'Gujarat',
-          isRead: false,
-          createdAt: new Date().toISOString(),
-        });
-      }
+          updated.electricityProviderId,
+          updated.gasProviderId,
+          updated.waterProviderId,
+          JSON.stringify(updated.transitProviderIds),
+          JSON.stringify(updated.consumerNumbers),
+        ],
+      );
+    } else if (allowTestMemory) {
+      this.userLinks.set(userId, updated);
+    } else {
+      throw new Error('PostgreSQL is required for provider-link data.');
     }
-
-    // Also add to global community feed if target is general
-    activityRepo.add({
-      id: notificationId,
-      userId: null, // Broadcast to all
-      category: body.category || 'ALERT',
-      title: `${provider.name}: ${body.title}`,
-      message: body.message,
-      icon: provider.category === 'ELECTRICITY' ? 'zap' : provider.category === 'WATER' ? 'water' : 'spark',
-      coinsEarned: body.incentiveCoins || 0,
-      district: body.targetDistrict || provider.districts[0] || 'Gujarat',
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    });
-
-    return {
-      success: true,
-      notificationId,
-      dispatchedToCount: Math.max(matchCount, 1),
-      message: `Alert successfully dispatched to citizens linked to ${provider.name}`,
-    };
+    return this.toCitizenLinks(updated);
   }
 
-  public static getProviderSubscriberCounts(): Record<string, number> {
-    const counts: Record<string, number> = {};
-    for (const provider of this.providers) {
-      counts[provider.id] = 0;
+  private static validateProviderCategory(id: string | null, category: ProviderCategory): void {
+    if (!id) return;
+    const provider = this.getProviderById(id);
+    if (!provider || provider.category !== category) {
+      throw new Error(`Provider "${id}" is not a valid ${category} provider.`);
     }
+  }
 
-    for (const record of this.userLinks.values()) {
-      if (record.electricityProviderId) {
-        counts[record.electricityProviderId] = (counts[record.electricityProviderId] ?? 0) + 1;
-      }
-      if (record.gasProviderId) {
-        counts[record.gasProviderId] = (counts[record.gasProviderId] ?? 0) + 1;
-      }
-      if (record.waterProviderId) {
-        counts[record.waterProviderId] = (counts[record.waterProviderId] ?? 0) + 1;
-      }
-      for (const tId of record.transitProviderIds) {
-        counts[tId] = (counts[tId] ?? 0) + 1;
-      }
+  private static async ensureSchema(db: Pool): Promise<void> {
+    let ready = this.schemaReady.get(db);
+    if (!ready) {
+      ready = db
+        .query(
+          `
+          CREATE TABLE IF NOT EXISTS citizen_provider_links (
+            user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            electricity_provider_id TEXT,
+            gas_provider_id TEXT,
+            water_provider_id TEXT,
+            transit_provider_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+            consumer_numbers JSONB NOT NULL DEFAULT '{}'::jsonb,
+            linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `,
+        )
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          this.schemaReady.delete(db);
+          throw error;
+        });
+      this.schemaReady.set(db, ready);
     }
-
-    return counts;
+    await ready;
   }
 }

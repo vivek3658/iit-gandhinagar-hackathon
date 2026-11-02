@@ -4,7 +4,7 @@ export const LogHoursBodySchema = Type.Object({
   deviceCatalogId: Type.String(),
   operatingHours: Type.Number({ minimum: 0.1, maximum: 24 }),
   thermostatTemp: Type.Optional(Type.Number({ minimum: 16, maximum: 30 })),
-  date: Type.Optional(Type.String()),
+  date: Type.Optional(Type.String({ format: 'date' })),
 });
 
 export type LogHoursBody = Static<typeof LogHoursBodySchema>;
@@ -14,8 +14,8 @@ export const HighUsageAlertSchema = Type.Object({
   alertTitle: Type.String(),
   alertMessage: Type.String(),
   excessHours: Type.Number(),
-  potentialSavingsRupeesMonthly: Type.Number(),
-  potentialCo2ReductionKgMonthly: Type.Number(),
+  potentialSavingsRupeesMonthly: Type.Union([Type.Number(), Type.Null()]),
+  potentialCo2ReductionKgMonthly: Type.Union([Type.Number(), Type.Null()]),
   recommendation: Type.String(),
 });
 
@@ -27,7 +27,8 @@ export const DeviceTimeLogResponseSchema = Type.Object({
     operatingHours: Type.Number(),
     ratedPowerKw: Type.Number(),
     energyConsumedKwh: Type.Number(),
-    co2EmissionsKg: Type.Number(),
+    energyEvidence: Type.Literal('RATED_POWER_ESTIMATE'),
+    co2EmissionsKg: Type.Null(),
   }),
   highUsageAlert: Type.Union([HighUsageAlertSchema, Type.Null()]),
   totalDailyEnergyKwh: Type.Number(),
@@ -50,7 +51,7 @@ export const DeviceSummaryItemSchema = Type.Object({
 export const DeviceSummaryResponseSchema = Type.Object({
   devices: Type.Array(DeviceSummaryItemSchema),
   highHourWarnings: Type.Array(Type.String()),
-  monthlyProjectedBillRupees: Type.Number(),
+  monthlyProjectedBillRupees: Type.Null(),
 });
 
 export type DeviceSummaryResponse = Static<typeof DeviceSummaryResponseSchema>;

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { DevicesController } from './devices.controller';
+import { DevicesService } from './devices.service';
 import {
   DeviceSummaryResponseSchema,
   DeviceTimeLogResponseSchema,
@@ -7,7 +8,8 @@ import {
 } from './devices.schema';
 
 export const devicesRoutes: FastifyPluginAsync = async (fastify) => {
-  const controller = new DevicesController();
+  const service = new DevicesService(fastify.db, fastify.config.NODE_ENV !== 'production');
+  const controller = new DevicesController(service);
 
   // 1. Log appliance runtime hours and check for high-hour threshold alerts
   fastify.post(
@@ -16,7 +18,8 @@ export const devicesRoutes: FastifyPluginAsync = async (fastify) => {
       preHandler: [fastify.authenticate],
       schema: {
         tags: ['Devices & Appliances'],
-        summary: 'Log appliance runtime hours and receive high-usage warnings and rupee savings',
+        security: [{ bearerAuth: [] }],
+        summary: 'Log appliance runtime hours and receive high-usage guidance',
         body: LogHoursBodySchema,
         response: {
           200: DeviceTimeLogResponseSchema,
@@ -33,7 +36,8 @@ export const devicesRoutes: FastifyPluginAsync = async (fastify) => {
       preHandler: [fastify.authenticate],
       schema: {
         tags: ['Devices & Appliances'],
-        summary: 'Get household device runtime summary, monthly projected bill, and active warnings',
+        security: [{ bearerAuth: [] }],
+        summary: 'Get saved appliance runtime summaries and active warnings',
         response: {
           200: DeviceSummaryResponseSchema,
         },

@@ -6,6 +6,7 @@ import {
   ListProvidersResponseSchema,
   MyProvidersResponseSchema,
   ProviderBroadcastBodySchema,
+  ProviderServiceUnavailableSchema,
   ProviderBroadcastResponseSchema,
 } from './providers.schema';
 
@@ -23,7 +24,7 @@ export const providersRoutes: FastifyPluginAsync = async (app) => {
         },
       },
     },
-    ProvidersController.listProviders
+    ProvidersController.listProviders,
   );
 
   // Get active citizen's linked providers
@@ -37,8 +38,9 @@ export const providersRoutes: FastifyPluginAsync = async (app) => {
           200: MyProvidersResponseSchema,
         },
       },
+      preHandler: [app.authenticate],
     },
-    ProvidersController.getMyProviders
+    ProvidersController.getMyProviders,
   );
 
   // Link citizen providers
@@ -53,23 +55,27 @@ export const providersRoutes: FastifyPluginAsync = async (app) => {
           200: MyProvidersResponseSchema,
         },
       },
+      preHandler: [app.authenticate],
     },
-    ProvidersController.linkProviders
+    ProvidersController.linkProviders,
   );
 
-  // Provider broadcast alert (sends in-app notification to linked citizens)
   app.post(
     '/:providerId/broadcast',
     {
       schema: {
-        description: 'Provider operator broadcasts alert/notification to linked citizens',
+        description:
+          'Creates a consent-filtered in-app campaign for opted-in citizens linked to this provider',
         tags: ['Providers'],
         body: ProviderBroadcastBodySchema,
         response: {
-          200: ProviderBroadcastResponseSchema,
+          201: ProviderBroadcastResponseSchema,
+          400: ProviderServiceUnavailableSchema,
+          503: ProviderServiceUnavailableSchema,
         },
       },
+      preHandler: [app.authenticate],
     },
-    ProvidersController.broadcastProviderAlert
+    ProvidersController.broadcastProviderAlert,
   );
 };

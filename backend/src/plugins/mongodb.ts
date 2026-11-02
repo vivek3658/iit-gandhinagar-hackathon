@@ -1,6 +1,5 @@
 import { MongoClient } from 'mongodb';
 import fp from 'fastify-plugin';
-import { ActivityService } from '../modules/activity/activity.service';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -25,7 +24,6 @@ export default fp(async (fastify) => {
       mongoClient.connect()
         .then(() => {
           fastify.log.info('[MongoDB] Connected successfully to MongoDB');
-          ActivityService.setMongoClient(mongoClient);
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
@@ -40,7 +38,6 @@ export default fp(async (fastify) => {
   }
 
   fastify.decorate('mongo', mongoClient);
-  ActivityService.setMongoClient(mongoClient);
 
   fastify.addHook('onClose', async () => {
     if (mongoClient) {

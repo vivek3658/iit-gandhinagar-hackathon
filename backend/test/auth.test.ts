@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import crypto from 'node:crypto';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Pool } from 'pg';
 import { buildApp } from '../src/app';
-import { AuthService } from '../src/modules/auth/auth.service';
+import { AuthPersistenceError, AuthService } from '../src/modules/auth/auth.service';
 
 describe('Auth & Media Modules (ACID + Security Tests)', () => {
   let app: FastifyInstance;
@@ -38,6 +38,39 @@ describe('Auth & Media Modules (ACID + Security Tests)', () => {
     expect(body.user.email).toBe('citizen1@example.com');
     expect(body.user.points).toBe(50); // 50 bonus Mission LiFE points
     expect(body.user.role).toBe('CITIZEN');
+  });
+
+  it('rejects unsigned Google token payloads instead of trusting decoded claims', async () => {
+    const unsignedToken =
+      'eyJhbGciOiJub25lIn0.eyJzdWIiOiJhdHRhY2tlciIsImVtYWlsIjoiYXR0YWNrZXJAZXhhbXBsZS5jb20ifQ.';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/google',
+      payload: { idToken: unsignedToken },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).message).toContain(
+      'Google authentication failed',
+    );
+  });
+
+  it('returns a server error when Google auth persistence fails', async () => {
+    const authenticate = vi
+      .spyOn(AuthService, 'authenticateWithGoogle')
+      .mockRejectedValueOnce(new AuthPersistenceError('Failed to persist user', new Error('database unavailable')));
+
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/google',
+        payload: { idToken: 'mock_test_token_persistence_failure' },
+      });
+
+      expect(res.statusCode).toBe(500);
+    } finally {
+      authenticate.mockRestore();
+    }
   });
 
   it('2. Complete Profile updates onboarding data and sets isProfileComplete to true', async () => {
@@ -231,46 +264,60 @@ describe('Auth & Media Modules (ACID + Security Tests)', () => {
     expect(body.signature).toBe(expectedSignature);
   });
 
-  it('8. Serverless cold-start recovery: Supabase fallback rehydrates citizen on cache wipe', async () => {
+  it('8. Serverless cold-start recovery: PostgreSQL rehydrates citizen on cache wipe', async () => {
     const repo = AuthService.getRepository();
-    const mockSupabaseStore = new Map<string, Record<string, unknown>>();
+    const postgresStore = new Map<string, Record<string, unknown>>();
+    const db = {
+      query: async (sql: string, values: unknown[] = []) => {
+        if (sql.includes('INSERT INTO users')) {
+          const [
+            id, googleId, email, name, avatarUrl, dob, district, ward, houseType,
+            householdMembers, monthlyBillRupees, waterSupplyType, waterStorageType,
+            deviceCatalogIds, vehicleCatalogIds, mascotName, role, isProfileComplete,
+            points, createdAt, updatedAt, deletedAt,
+          ] = values;
+          postgresStore.set(String(id), {
+            id,
+            google_id: googleId,
+            email,
+            name,
+            avatar_url: avatarUrl,
+            dob,
+            district,
+            ward,
+            house_type: houseType,
+            household_members: householdMembers,
+            monthly_bill_rupees: monthlyBillRupees,
+            water_supply_type: waterSupplyType,
+            water_storage_type: waterStorageType,
+            device_catalog_ids: deviceCatalogIds,
+            vehicle_catalog_ids: vehicleCatalogIds,
+            mascot_name: mascotName,
+            role,
+            is_profile_complete: isProfileComplete,
+            points,
+            created_at: createdAt,
+            updated_at: updatedAt,
+            deleted_at: deletedAt,
+          });
+          return { rows: [] };
+        }
 
-    const mockSupabase = {
-      from: (_table: string) => ({
-        upsert: async (payload: Record<string, unknown>) => {
-          mockSupabaseStore.set(String(payload.id), payload);
-          return { data: payload, error: null };
-        },
-        select: () => ({
-          eq: (col: string, val: string) => ({
-            is: () => ({
-              maybeSingle: async () => {
-                for (const row of mockSupabaseStore.values()) {
-                  if (row[col] === val && !row.deleted_at) {
-                    return { data: row, error: null };
-                  }
-                }
-                return { data: null, error: null };
-              },
-            }),
-            maybeSingle: async () => {
-              for (const row of mockSupabaseStore.values()) {
-                if (row[col] === val && !row.deleted_at) {
-                  return { data: row, error: null };
-                }
-              }
-              return { data: null, error: null };
-            },
-          }),
-          is: () => ({
-            data: Array.from(mockSupabaseStore.values()),
-            error: null,
-          }),
-        }),
-      }),
-    } as unknown as SupabaseClient;
+        if (sql.includes('SELECT * FROM users')) {
+          const matchingRows = Array.from(postgresStore.values()).filter((row) => {
+            if (sql.includes('google_id = $1')) return row.google_id === values[0] && !row.deleted_at;
+            if (sql.includes('LOWER(email)')) return String(row.email).toLowerCase() === String(values[0]).toLowerCase() && !row.deleted_at;
+            if (sql.includes('id = $1')) return row.id === values[0] && !row.deleted_at;
+            return !row.deleted_at;
+          });
+          return { rows: matchingRows };
+        }
 
-    await repo.setDbClients({ supabase: mockSupabase });
+        return { rows: [] };
+      },
+    } as unknown as Pool;
+
+    await repo.setDbClients({ db });
 
     const citizen = await repo.createUserAsync({
       googleId: 'cold_start_google_sub_999',
@@ -284,7 +331,7 @@ describe('Auth & Media Modules (ACID + Security Tests)', () => {
       points: 100,
     });
 
-    expect(mockSupabaseStore.has(citizen.id)).toBe(true);
+    expect(postgresStore.has(citizen.id)).toBe(true);
 
     repo.clear();
     expect(repo.findById(citizen.id)).toBeNull();
@@ -297,6 +344,6 @@ describe('Auth & Media Modules (ACID + Security Tests)', () => {
 
     expect(repo.findById(citizen.id)).not.toBeNull();
 
-    await repo.setDbClients({ supabase: null, db: null });
+    await repo.setDbClients({ db: null });
   });
 });

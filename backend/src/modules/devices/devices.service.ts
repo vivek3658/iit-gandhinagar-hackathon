@@ -6,6 +6,7 @@ import type {
 } from './devices.schema';
 import type { Static } from '@sinclair/typebox';
 import { ActivityService } from '../activity/activity.service';
+import type { Pool } from 'pg';
 
 type HighUsageAlert = Static<typeof HighUsageAlertSchema>;
 
@@ -73,23 +74,53 @@ interface DeviceRuntimeLog {
   date: string;
   operatingHours: number;
   energyConsumedKwh: number;
-  co2EmissionsKg: number;
   effectiveKw: number;
+  deviceId: string;
 }
 
 export class DevicesService {
-  private static instance: DevicesService;
+  private static schemaReady = new WeakMap<Pool, Promise<void>>();
   private userLogs = new Map<string, Map<string, DeviceRuntimeLog[]>>();
 
-  public static getInstance(): DevicesService {
-    if (!DevicesService.instance) {
-      DevicesService.instance = new DevicesService();
+  public constructor(
+    private readonly db: Pool | null,
+    private readonly allowTestMemory: boolean,
+  ) {}
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.db) return;
+    let ready = DevicesService.schemaReady.get(this.db);
+    if (!ready) {
+      ready = this.db.query(`
+        CREATE TABLE IF NOT EXISTS public.device_runtime_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+          device_id TEXT NOT NULL,
+          log_date DATE NOT NULL,
+          operating_hours NUMERIC NOT NULL CHECK (operating_hours > 0 AND operating_hours <= 24),
+          rated_power_kw NUMERIC NOT NULL CHECK (rated_power_kw > 0),
+          energy_consumed_kwh NUMERIC NOT NULL CHECK (energy_consumed_kwh >= 0),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE (user_id, device_id, log_date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_device_runtime_logs_owner_date
+          ON public.device_runtime_logs(user_id, log_date DESC);
+      `).then(() => undefined);
+      DevicesService.schemaReady.set(this.db, ready);
     }
-    return DevicesService.instance;
+    await ready;
   }
 
-  public logDeviceHours(userId: string, body: LogHoursBody): DeviceTimeLogResponse {
-    const rawKey = body.deviceCatalogId.toLowerCase().split('_')[0] || 'ac';
+  private requireTestMemory(): void {
+    if (!this.allowTestMemory) {
+      throw new Error('PostgreSQL is required for persistent device runtime logs.');
+    }
+  }
+
+  public async logDeviceHours(userId: string, body: LogHoursBody): Promise<DeviceTimeLogResponse> {
+    const catalogId = body.deviceCatalogId.toLowerCase();
+    const rawKey = APPLIANCE_SPECS[catalogId] ? catalogId : catalogId.split('_')[0] || 'ac';
     const spec = APPLIANCE_SPECS[rawKey] || {
       id: body.deviceCatalogId,
       name: 'Household Appliance',
@@ -111,28 +142,42 @@ export class DevicesService {
     }
 
     const energyKwh = Math.round(effectiveKw * body.operatingHours * 10) / 10;
-    const co2Kg = Math.round(energyKwh * 0.82 * 10) / 10;
-
-    let userMap = this.userLogs.get(userId);
-    if (!userMap) {
-      userMap = new Map<string, DeviceRuntimeLog[]>();
-      this.userLogs.set(userId, userMap);
-    }
-    const deviceLogs = userMap.get(spec.id) ?? [];
     const date = body.date ?? new Date().toISOString().slice(0, 10);
-    const existingIndex = deviceLogs.findIndex((entry) => entry.date === date);
-    const newEntry: DeviceRuntimeLog = {
-      date,
-      operatingHours: body.operatingHours,
-      energyConsumedKwh: energyKwh,
-      co2EmissionsKg: co2Kg,
-      effectiveKw,
-    };
-    if (existingIndex >= 0) deviceLogs[existingIndex] = newEntry;
-    else deviceLogs.push(newEntry);
-    userMap.set(spec.id, deviceLogs);
+    if (this.db) {
+      await this.ensureSchema();
+      await this.db.query(
+        `INSERT INTO public.device_runtime_logs
+           (user_id, device_id, log_date, operating_hours, rated_power_kw, energy_consumed_kwh)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id, device_id, log_date) DO UPDATE SET
+           operating_hours = EXCLUDED.operating_hours,
+           rated_power_kw = EXCLUDED.rated_power_kw,
+           energy_consumed_kwh = EXCLUDED.energy_consumed_kwh,
+           updated_at = NOW()`,
+        [userId, spec.id, date, body.operatingHours, effectiveKw, energyKwh],
+      );
+    } else {
+      this.requireTestMemory();
+      let userMap = this.userLogs.get(userId);
+      if (!userMap) {
+        userMap = new Map<string, DeviceRuntimeLog[]>();
+        this.userLogs.set(userId, userMap);
+      }
+      const deviceLogs = userMap.get(spec.id) ?? [];
+      const entry: DeviceRuntimeLog = {
+        deviceId: spec.id,
+        date,
+        operatingHours: body.operatingHours,
+        energyConsumedKwh: energyKwh,
+        effectiveKw,
+      };
+      const existingIndex = deviceLogs.findIndex((log) => log.date === date);
+      if (existingIndex >= 0) deviceLogs[existingIndex] = entry;
+      else deviceLogs.push(entry);
+      userMap.set(spec.id, deviceLogs);
+    }
 
-    ActivityService.postActivity({
+    await ActivityService.postActivity({
       userId,
       category: 'HABIT',
       title: `${spec.name} runtime logged`,
@@ -144,28 +189,22 @@ export class DevicesService {
 
     if (body.operatingHours > spec.normalMaxDailyHours) {
       const excess = Math.round((body.operatingHours - spec.normalMaxDailyHours) * 10) / 10;
-      const monthlyExcessUnits = excess * effectiveKw * 30;
-      const monthlySavingsRupees = Math.round(monthlyExcessUnits * 6.5);
-      const monthlyCo2Kg = Math.round(monthlyExcessUnits * 0.82);
-
-      let recommendation = `Reducing daily runtime by ${excess} hours saves ~₹${monthlySavingsRupees}/month.`;
+      let recommendation = `Reducing daily runtime by ${excess} hours may reduce energy use.`;
       if (spec.id === 'ac') {
-        recommendation =
-          `Setting AC sleep timer to 4 hours and thermostat to 24°C saves ₹${monthlySavingsRupees} & ${monthlyCo2Kg} kg CO₂e monthly.`;
+        recommendation = 'Consider using a sleep timer and a comfortable thermostat setting.';
       } else if (spec.id === 'geyser') {
-        recommendation = `Switching geyser OFF after 30 minutes prevents standby reheat losses of ₹${monthlySavingsRupees}/month.`;
+        recommendation = 'Consider turning the geyser off when hot water is no longer needed.';
       } else if (spec.id === 'pump') {
-        recommendation =
-          'Installing a low-cost ₹400 automatic water tank level controller prevents pump dry-runs and water overflows.';
+        recommendation = 'Consider a tank-level controller to reduce unnecessary pump runtime.';
       }
 
       highUsageAlert = {
         triggered: true,
         alertTitle: `⚠️ High Hours Alert: ${spec.name}`,
-        alertMessage: `${spec.name} ran for ${body.operatingHours} hrs today (${excess} hrs above eco threshold of ${spec.normalMaxDailyHours} hrs).`,
+        alertMessage: `${spec.name} ran for ${body.operatingHours} hrs on ${date} (${excess} hrs above the reference threshold of ${spec.normalMaxDailyHours} hrs).`,
         excessHours: excess,
-        potentialSavingsRupeesMonthly: monthlySavingsRupees,
-        potentialCo2ReductionKgMonthly: monthlyCo2Kg,
+        potentialSavingsRupeesMonthly: null,
+        potentialCo2ReductionKgMonthly: null,
         recommendation,
       };
     }
@@ -178,25 +217,48 @@ export class DevicesService {
         operatingHours: body.operatingHours,
         ratedPowerKw: effectiveKw,
         energyConsumedKwh: energyKwh,
-        co2EmissionsKg: co2Kg,
+        energyEvidence: 'RATED_POWER_ESTIMATE',
+        co2EmissionsKg: null,
       },
       highUsageAlert,
       totalDailyEnergyKwh: energyKwh,
     };
   }
 
-  public getDeviceSummary(userId: string): DeviceSummaryResponse {
-    const userMap = this.userLogs.get(userId) || new Map<string, DeviceRuntimeLog[]>();
+  public async getDeviceSummary(userId: string): Promise<DeviceSummaryResponse> {
+    let userMap = this.userLogs.get(userId) || new Map<string, DeviceRuntimeLog[]>();
+    if (this.db) {
+      await this.ensureSchema();
+      const result = await this.db.query(
+        `SELECT device_id, log_date, operating_hours, rated_power_kw, energy_consumed_kwh
+         FROM public.device_runtime_logs
+         WHERE user_id = $1 AND log_date >= CURRENT_DATE - INTERVAL '6 days'
+         ORDER BY log_date DESC`,
+        [userId],
+      );
+      userMap = new Map<string, DeviceRuntimeLog[]>();
+      for (const row of result.rows) {
+        const logs = userMap.get(row.device_id) ?? [];
+        logs.push({
+          deviceId: row.device_id,
+          date: new Date(row.log_date).toISOString().slice(0, 10),
+          operatingHours: Number(row.operating_hours),
+          effectiveKw: Number(row.rated_power_kw),
+          energyConsumedKwh: Number(row.energy_consumed_kwh),
+        });
+        userMap.set(row.device_id, logs);
+      }
+    } else {
+      this.requireTestMemory();
+    }
 
     const warnings: string[] = [];
-    let monthlyProjectedKwh = 0;
 
     const devices = Object.values(APPLIANCE_SPECS).map((spec) => {
       const logs = userMap.get(spec.id) ?? [];
       const recentLogs = logs.slice(-7);
       const weeklyHours = Math.round(recentLogs.reduce((sum, entry) => sum + entry.operatingHours, 0) * 10) / 10;
       const dailyHours = recentLogs.length ? Math.round((weeklyHours / recentLogs.length) * 10) / 10 : 0;
-      monthlyProjectedKwh += recentLogs.reduce((sum, entry) => sum + entry.energyConsumedKwh, 0);
 
       let status: 'OPTIMAL' | 'MODERATE' | 'HIGH_USAGE' = 'OPTIMAL';
       let rec = 'Operating within eco-optimal range.';
@@ -223,12 +285,10 @@ export class DevicesService {
       };
     });
 
-    const monthlyProjectedBillRupees = Math.round(monthlyProjectedKwh * 6.5);
-
     return {
       devices,
       highHourWarnings: warnings,
-      monthlyProjectedBillRupees,
+      monthlyProjectedBillRupees: null,
     };
   }
 }

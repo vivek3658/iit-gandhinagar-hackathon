@@ -4,7 +4,7 @@ import { QuestsController } from './quests.controller';
 import { ClaimQuestResponseSchema, DailyQuestsResponseSchema } from './quests.schema';
 
 export const questsRoutes: FastifyPluginAsync = async (fastify) => {
-  const controller = new QuestsController();
+  const controller = new QuestsController(fastify.db);
 
   // 1. Get today's active rotating daily quests
   fastify.get(
@@ -13,6 +13,7 @@ export const questsRoutes: FastifyPluginAsync = async (fastify) => {
       preHandler: [fastify.authenticate],
       schema: {
         tags: ['Daily Quests'],
+        security: [{ bearerAuth: [] }],
         summary: 'Get active rotating Mission LiFE daily tasks and streak progress',
         response: {
           200: DailyQuestsResponseSchema,
@@ -29,7 +30,8 @@ export const questsRoutes: FastifyPluginAsync = async (fastify) => {
       preHandler: [fastify.authenticate],
       schema: {
         tags: ['Daily Quests'],
-        summary: 'Claim coins, XP, and mascot vitality for completed quest',
+        security: [{ bearerAuth: [] }],
+        summary: 'Claim a self-reported task coin reward and update the once-daily streak',
         params: Type.Object({
           questId: Type.String(),
         }),

@@ -2,18 +2,22 @@ import 'dart:convert';
 import 'dart:io';
 
 class WeatherData {
-  final double temperature;
+  final double? temperature;
   final String condition;
   final String icon;
-  final String? weatherFx; // 'rain', 'leaves', 'snow', 'petals', null
+  final String? weatherFx;
+  final String? companionMood;
   final String district;
+  final bool isLive;
 
   const WeatherData({
     required this.temperature,
     required this.condition,
     required this.icon,
     required this.weatherFx,
+    required this.companionMood,
     required this.district,
+    required this.isLive,
   });
 }
 
@@ -28,67 +32,50 @@ class WeatherService {
     double longitude = _defaultLon,
     String district = _defaultDistrict,
   }) async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 4)
+      ..idleTimeout = const Duration(seconds: 4);
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 4);
       final uri = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,weather_code,wind_speed_10m',
+        'https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto',
       );
-      final request = await client.getUrl(uri);
-      final response = await request.close();
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 5));
+      final response = await request.close().timeout(
+        const Duration(seconds: 5),
+      );
 
       if (response.statusCode == 200) {
-        final body = await response.transform(utf8.decoder).join();
+        final body = await response
+            .transform(utf8.decoder)
+            .join()
+            .timeout(const Duration(seconds: 5));
         final json = jsonDecode(body) as Map<String, dynamic>;
         final current = json['current'] as Map<String, dynamic>?;
+        final temp = (current?['temperature_2m'] as num?)?.toDouble();
+        final code = (current?['weather_code'] as num?)?.toInt();
+        final wind = (current?['wind_speed_10m'] as num?)?.toDouble();
 
-        if (current != null) {
-          final temp = (current['temperature_2m'] as num?)?.toDouble() ?? 32.0;
-          final code = (current['weather_code'] as num?)?.toInt() ?? 0;
-          final wind = (current['wind_speed_10m'] as num?)?.toDouble() ?? 10.0;
-
+        if (temp != null && code != null && wind != null) {
           return _mapWeatherCode(code, temp, wind, district);
         }
       }
-    } catch (_) {
-      // Offline fallback: Use seasonal default for Gujarat
+    } on Object {
+      // Weather is optional; the companion remains usable without a live forecast.
+    } finally {
+      client.close(force: true);
     }
 
-    // Default seasonal weather: warm monsoon/clear
-    final month = DateTime.now().month;
-    if (month >= 6 && month <= 9) {
-      return const WeatherData(
-        temperature: 31.5,
-        condition: 'Monsoon Rain & Breezy',
-        icon: '🌧️',
-        weatherFx: 'rain',
-        district: _defaultDistrict,
-      );
-    } else if (month >= 11 || month <= 2) {
-      return const WeatherData(
-        temperature: 24.0,
-        condition: 'Mild Winter Morning',
-        icon: '⛅',
-        weatherFx: 'snow',
-        district: _defaultDistrict,
-      );
-    } else if (month >= 3 && month <= 5) {
-      return const WeatherData(
-        temperature: 38.0,
-        condition: 'Gujarat Summer Sun',
-        icon: '☀️',
-        weatherFx: 'petals',
-        district: _defaultDistrict,
-      );
-    } else {
-      return const WeatherData(
-        temperature: 29.0,
-        condition: 'Autumn Gentle Breeze',
-        icon: '🍂',
-        weatherFx: 'leaves',
-        district: _defaultDistrict,
-      );
-    }
+    return WeatherData(
+      temperature: null,
+      condition: 'Weather unavailable',
+      icon: '☁️',
+      weatherFx: null,
+      companionMood: null,
+      district: district,
+      isLive: false,
+    );
   }
 
   static WeatherData _mapWeatherCode(
@@ -98,13 +85,17 @@ class WeatherService {
     String district,
   ) {
     // Rain, Drizzle, Thunderstorms (codes 51-67, 80-82, 95-99)
-    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) {
+    if ((code >= 51 && code <= 67) ||
+        (code >= 80 && code <= 82) ||
+        code >= 95) {
       return WeatherData(
         temperature: temp,
         condition: 'Rain & Showers',
         icon: '🌧️',
         weatherFx: 'rain',
+        companionMood: 'rain',
         district: district,
+        isLive: true,
       );
     }
 
@@ -115,7 +106,9 @@ class WeatherService {
         condition: 'Chilly Flurries',
         icon: '❄️',
         weatherFx: 'snow',
+        companionMood: 'cold',
         district: district,
+        isLive: true,
       );
     }
 
@@ -126,17 +119,33 @@ class WeatherService {
         condition: 'Windy Breeze',
         icon: '🍂',
         weatherFx: 'leaves',
+        companionMood: 'windy',
         district: district,
+        isLive: true,
+      );
+    }
+
+    if (temp >= 35.0) {
+      return WeatherData(
+        temperature: temp,
+        condition: 'Hot & Sunny',
+        icon: '☀️',
+        weatherFx: 'butterflies',
+        companionMood: 'hot',
+        district: district,
+        isLive: true,
       );
     }
 
     // Clear or Sunny (codes 0-3)
     return WeatherData(
       temperature: temp,
-      condition: temp > 35 ? 'Warm Sun (40°C Peak)' : 'Clear & Breezy',
-      icon: temp > 35 ? '☀️' : '🌤️',
+      condition: code <= 3 ? 'Clear & Breezy' : 'Cloudy & Calm',
+      icon: code <= 3 ? '🌤️' : '☁️',
       weatherFx: 'petals',
+      companionMood: 'clear',
       district: district,
+      isLive: true,
     );
   }
 }

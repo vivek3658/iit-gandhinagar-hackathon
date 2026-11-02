@@ -10,6 +10,7 @@ import type {
   RefreshTokenBody,
   RefreshTokenResponse,
 } from './auth.schema';
+import { AuthPersistenceError } from './auth.service';
 
 export class AuthController {
   public static async googleAuth(
@@ -29,6 +30,10 @@ export class AuthController {
       const body = request.body as GoogleAuthBody;
       return await AuthService.authenticateWithGoogle(body.idToken, jwtSignFn, googleClientId);
     } catch (err: unknown) {
+      if (err instanceof AuthPersistenceError) {
+        request.log.error({ err }, 'Authentication persistence failed');
+        return reply.internalServerError('Authentication service is temporarily unavailable');
+      }
       const msg = err instanceof Error ? err.message : 'Google authentication failed';
       return reply.badRequest(msg);
     }
@@ -52,6 +57,10 @@ export class AuthController {
         user,
       };
     } catch (err: unknown) {
+      if (err instanceof AuthPersistenceError) {
+        request.log.error({ err }, 'Profile persistence failed');
+        return reply.internalServerError('Profile service is temporarily unavailable');
+      }
       const msg = err instanceof Error ? err.message : 'Failed to update profile';
       return reply.badRequest(msg);
     }
@@ -87,6 +96,10 @@ export class AuthController {
       const body = request.body as RefreshTokenBody;
       return await AuthService.refreshTokens(body.refreshToken, jwtSignFn);
     } catch (err: unknown) {
+      if (err instanceof AuthPersistenceError) {
+        request.log.error({ err }, 'Refresh-token persistence failed');
+        return reply.internalServerError('Authentication service is temporarily unavailable');
+      }
       const msg = err instanceof Error ? err.message : 'Invalid or expired refresh token';
       return reply.unauthorized(msg);
     }

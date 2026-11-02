@@ -10,6 +10,11 @@ import {
 import { GardenController } from './garden.controller';
 
 export const gardenRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('onRoute', (routeOptions) => {
+    if (routeOptions.schema) {
+      routeOptions.schema.security = [{ bearerAuth: [] }];
+    }
+  });
   // All garden interactions require authenticated citizen identity
   fastify.addHook('preHandler', fastify.authenticate);
 

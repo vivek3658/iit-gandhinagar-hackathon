@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { LeaderboardService } from './leaderboard.service';
+import type { CheerResponse } from './leaderboard.schema';
 
 export class LeaderboardController {
   private service = LeaderboardService.getInstance();
@@ -8,12 +9,12 @@ export class LeaderboardController {
     const user = request.user as { id?: string } | undefined;
     if (!user?.id) return reply.unauthorized('Sign in to view your weekly league.');
     const userId = user.id;
-    const result = this.service.getLeagueLeaderboard(userId);
+    const result = await this.service.getLeagueLeaderboard(userId);
     return reply.status(200).send(result);
   };
 
   public getGlobalLeaderboard = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const result = this.service.getGlobalLeaderboard();
+    const result = await this.service.getGlobalLeaderboard();
     return reply.status(200).send(result);
   };
 
@@ -22,7 +23,7 @@ export class LeaderboardController {
     reply: FastifyReply,
   ): Promise<void> => {
     const { citizenId } = request.params as { citizenId: string };
-    const result = this.service.getVisitorGarden(citizenId);
+    const result = await this.service.getVisitorGarden(citizenId);
     if (!result) {
       return reply.status(404).send({
         statusCode: 404,
@@ -40,7 +41,13 @@ export class LeaderboardController {
     const user = request.user as { id: string };
     const visitorId = user.id;
     const { citizenId } = request.params as { citizenId: string };
-    const result = this.service.cheerCitizen(visitorId, citizenId);
+    let result: CheerResponse | null;
+    try {
+      result = await this.service.cheerCitizen(visitorId, citizenId);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to send cheer.';
+      return reply.badRequest(message);
+    }
     if (!result) {
       return reply.status(404).send({ statusCode: 404, error: 'NotFound', message: 'Citizen not found' });
     }

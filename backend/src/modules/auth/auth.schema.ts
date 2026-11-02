@@ -129,6 +129,12 @@ export const GenericActionResponseSchema = Type.Object({
 
 export type GenericActionResponse = Static<typeof GenericActionResponseSchema>;
 
+const InternalServerErrorSchema = Type.Object({
+  statusCode: Type.Integer(),
+  error: Type.String(),
+  message: Type.String(),
+});
+
 // --- Fastify Route Definitions ---
 export const GoogleAuthRouteSchema = {
   description: 'One-button Google Sign-In and Registration. Automatically routes new vs returning users.',
@@ -136,6 +142,7 @@ export const GoogleAuthRouteSchema = {
   body: GoogleAuthBodySchema,
   response: {
     200: GoogleAuthResponseSchema,
+    500: InternalServerErrorSchema,
   },
 };
 
@@ -146,6 +153,7 @@ export const CompleteProfileRouteSchema = {
   body: CompleteProfileBodySchema,
   response: {
     200: CompleteProfileResponseSchema,
+    500: InternalServerErrorSchema,
   },
 };
 
@@ -164,6 +172,7 @@ export const RefreshTokenRouteSchema = {
   body: RefreshTokenBodySchema,
   response: {
     200: RefreshTokenResponseSchema,
+    500: InternalServerErrorSchema,
   },
 };
 

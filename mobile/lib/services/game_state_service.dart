@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../constants/auth_config.dart';
+import 'api_client.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 
@@ -27,7 +27,8 @@ class GameStateService extends ChangeNotifier {
         addCoins(5);
         addNotification(
           title: '🔌 Charger Pin Removed!',
-          message: 'Nice job disconnecting! Ensure wall switch is OFF to stop standby vampire drain.',
+          message:
+              'Nice job disconnecting! Ensure wall switch is OFF to stop standby vampire drain.',
           type: 'charger_unplug',
         );
       }
@@ -42,7 +43,8 @@ class GameStateService extends ChangeNotifier {
       );
       addNotification(
         title: '⚡ 300m Departure Verified! (+$coins 🪙)',
-        message: 'Wall switches confirmed off upon leaving home. Saved ~1.20 kg CO₂e from idle phantom load!',
+        message:
+            'Wall switches confirmed off upon leaving home. Saved ~1.20 kg CO₂e from idle phantom load!',
         type: 'departure_verified',
       );
     });
@@ -62,14 +64,19 @@ class GameStateService extends ChangeNotifier {
   // --- Onboarding & Energy Infrastructure Setup ---
   String _electricityProvider = 'Torrent Power (Gujarat)';
   bool _hasSolar = true;
-  double _solarCapacityKw = 3.2; // PM Surya Ghar Muft Bijli Yojana rooftop installation
+  double _solarCapacityKw =
+      3.2; // PM Surya Ghar Muft Bijli Yojana rooftop installation
   bool _hasBatteryStorage = false;
 
   // --- Behavioral Settings ---
   bool _enableChargerReminder = true;
   bool _enableSleepReminder = true;
-  TimeOfDay _sleepTime = const TimeOfDay(hour: 22, minute: 30); // 10:30 PM default
-  String _mascotBehaviorTone = 'Zen Guardian'; // 'Encouraging' | 'Coach' | 'Zen Guardian'
+  TimeOfDay _sleepTime = const TimeOfDay(
+    hour: 22,
+    minute: 30,
+  ); // 10:30 PM default
+  String _mascotBehaviorTone =
+      'Zen Guardian'; // 'Encouraging' | 'Coach' | 'Zen Guardian'
   bool _soundEnabled = true;
   bool _enableNightDimming = true;
   int _idleTimeoutSeconds = 120; // 2 minutes idle sleep
@@ -97,7 +104,8 @@ class GameStateService extends ChangeNotifier {
 
   // --- Garden Stored Inventory (Items stored without selling) ---
   final List<String> _gardenInventory = [];
-  bool _gardenScrollLocked = true; // Prevents accidental page scrolling when in garden
+  bool _gardenScrollLocked =
+      true; // Prevents accidental page scrolling when in garden
 
   // --- Monthly Electricity Consumption Ledger (Units / kWh) ---
   final Map<String, double> _monthlyUnitsLedger = {
@@ -113,7 +121,8 @@ class GameStateService extends ChangeNotifier {
     {
       'id': 'notif_welcome',
       'title': '🕊️ Welcome to URJA ONE',
-      'message': 'Your Level 1 Sparrow Sanctuary companion has hatched! Tap him to pet.',
+      'message':
+          'Your Level 1 Sparrow Sanctuary companion has hatched! Tap him to pet.',
       'type': 'system',
       'timestamp': DateTime.now().subtract(const Duration(hours: 2)),
       'read': true,
@@ -121,7 +130,8 @@ class GameStateService extends ChangeNotifier {
     {
       'id': 'notif_charger',
       'title': '🔌 Charger Unplug Reminder Active',
-      'message': 'Turn off the wall socket whenever your phone is disconnected.',
+      'message':
+          'Turn off the wall socket whenever your phone is disconnected.',
       'type': 'nudge',
       'timestamp': DateTime.now().subtract(const Duration(minutes: 45)),
       'read': false,
@@ -200,9 +210,12 @@ class GameStateService extends ChangeNotifier {
       final json = jsonDecode(raw) as Map<String, dynamic>;
 
       if (json['coins'] is num) _coins = (json['coins'] as num).toInt();
-      if (json['vitality'] is num) _vitality = (json['vitality'] as num).toDouble().clamp(0.0, 1.0);
-      if (json['mascotLevel'] is num) _mascotLevel = (json['mascotLevel'] as num).toInt();
-      if (json['co2eSavedKg'] is num) _co2eSavedKg = (json['co2eSavedKg'] as num).toDouble();
+      if (json['vitality'] is num)
+        _vitality = (json['vitality'] as num).toDouble().clamp(0.0, 1.0);
+      if (json['mascotLevel'] is num)
+        _mascotLevel = (json['mascotLevel'] as num).toInt();
+      if (json['co2eSavedKg'] is num)
+        _co2eSavedKg = (json['co2eSavedKg'] as num).toDouble();
       if (json['ownedItems'] is List) {
         for (final item in json['ownedItems'] as List) {
           _ownedItems.add(item.toString());
@@ -222,7 +235,9 @@ class GameStateService extends ChangeNotifier {
             final z = s['z'];
             final id = s['id'] as String?;
             final r = s['r'] as int? ?? 0;
-            final idx = _gardenGridSlots.indexWhere((g) => g['x'] == x && g['z'] == z);
+            final idx = _gardenGridSlots.indexWhere(
+              (g) => g['x'] == x && g['z'] == z,
+            );
             if (idx != -1) {
               _gardenGridSlots[idx]['id'] = id;
               _gardenGridSlots[idx]['r'] = r;
@@ -297,18 +312,22 @@ class GameStateService extends ChangeNotifier {
   // ==========================================
   // BACKEND SYNC SYSTEM
   // ==========================================
-  Future<void> _sendBackendPost(String endpoint, Map<String, dynamic> data) async {
+  Future<void> _sendBackendPost(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     final token = AuthService.instance.accessToken;
     if (token == null || token.isEmpty) return;
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
-      final request = await client.postUrl(Uri.parse('${AuthConfig.apiBaseUrl}$endpoint'));
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode(data));
-      final response = await request.close();
-      client.close();
-      debugPrint('[GameStateService] Backend POST $endpoint -> ${response.statusCode}');
+      final response = await ApiClient.instance.post(endpoint, body: data);
+      debugPrint(
+        '[GameStateService] Backend POST $endpoint -> ${response.statusCode}',
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException(
+          'Backend POST $endpoint failed (${response.statusCode}): ${response.body}',
+        );
+      }
     } catch (e) {
       debugPrint('[GameStateService] Backend POST $endpoint error: $e');
     }
@@ -318,16 +337,15 @@ class GameStateService extends ChangeNotifier {
     final token = AuthService.instance.accessToken;
     if (token == null || token.isEmpty) return;
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-
       // 1. Fetch remote Mascot State
-      final mascotReq = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/state'));
-      mascotReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      mascotReq.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final mascotResp = await mascotReq.close();
-      final mascotBody = await mascotResp.transform(utf8.decoder).join();
+      final mascotResp = await ApiClient.instance.get('/mascot/state');
+      if (mascotResp.statusCode < 200 || mascotResp.statusCode >= 300) {
+        throw HttpException(
+          'Could not sync mascot state (${mascotResp.statusCode}): ${mascotResp.body}',
+        );
+      }
       if (mascotResp.statusCode == 200) {
-        final decoded = jsonDecode(mascotBody) as Map<String, dynamic>;
+        final decoded = mascotResp.decodeJson();
         final data = decoded['data'] is Map<String, dynamic>
             ? decoded['data'] as Map<String, dynamic>
             : decoded;
@@ -336,41 +354,48 @@ class GameStateService extends ChangeNotifier {
           _vitality = (v > 1 ? v / 100 : v).clamp(0.0, 1.0);
         }
         if (data['level'] is num) _mascotLevel = (data['level'] as num).toInt();
-        if (data['co2eSavedKg'] is num) _co2eSavedKg = (data['co2eSavedKg'] as num).toDouble();
+        if (data['co2eSavedKg'] is num)
+          _co2eSavedKg = (data['co2eSavedKg'] as num).toDouble();
       }
 
       // 2. Fetch remote Wardrobe
-      final wardrobeReq = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/wardrobe'));
-      wardrobeReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      wardrobeReq.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final wardrobeResp = await wardrobeReq.close();
-      final wardrobeBody = await wardrobeResp.transform(utf8.decoder).join();
+      final wardrobeResp = await ApiClient.instance.get('/mascot/wardrobe');
+      if (wardrobeResp.statusCode < 200 || wardrobeResp.statusCode >= 300) {
+        throw HttpException(
+          'Could not sync wardrobe (${wardrobeResp.statusCode}): ${wardrobeResp.body}',
+        );
+      }
       if (wardrobeResp.statusCode == 200) {
-        final decoded = jsonDecode(wardrobeBody) as Map<String, dynamic>;
+        final decoded = wardrobeResp.decodeJson();
         final owned = decoded['owned'] is List
             ? decoded['owned'] as List
             : (decoded['data']?['owned'] as List?);
         if (owned != null) {
           for (final item in owned) {
-            if (item is String) _ownedItems.add(item);
-            else if (item is Map && item['id'] is String) _ownedItems.add(item['id'] as String);
+            if (item is String)
+              _ownedItems.add(item);
+            else if (item is Map && item['id'] is String)
+              _ownedItems.add(item['id'] as String);
           }
         }
       }
 
       // 3. Fetch remote Garden Sanctuary
-      final gardenReq = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/garden'));
-      gardenReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      gardenReq.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final gardenResp = await gardenReq.close();
-      final gardenBody = await gardenResp.transform(utf8.decoder).join();
+      final gardenResp = await ApiClient.instance.get('/garden');
+      if (gardenResp.statusCode < 200 || gardenResp.statusCode >= 300) {
+        throw HttpException(
+          'Could not sync garden (${gardenResp.statusCode}): ${gardenResp.body}',
+        );
+      }
       if (gardenResp.statusCode == 200) {
-        final decoded = jsonDecode(gardenBody) as Map<String, dynamic>;
+        final decoded = gardenResp.decodeJson();
         final data = decoded['garden'] is Map<String, dynamic>
             ? decoded['garden'] as Map<String, dynamic>
             : decoded['data'];
         if (data is Map<String, dynamic>) {
-          final slots = data['grid'] is List ? data['grid'] as List : data['slots'] as List?;
+          final slots = data['grid'] is List
+              ? data['grid'] as List
+              : data['slots'] as List?;
           if (slots != null) {
             for (final s in slots) {
               if (s is Map) {
@@ -378,7 +403,9 @@ class GameStateService extends ChangeNotifier {
                 final z = s['z'] ?? s['y'];
                 final id = s['tileCatalogId'] ?? s['id'];
                 final r = s['rotation'] ?? s['r'] ?? 0;
-                final idx = _gardenGridSlots.indexWhere((g) => g['x'] == x && g['z'] == z);
+                final idx = _gardenGridSlots.indexWhere(
+                  (g) => g['x'] == x && g['z'] == z,
+                );
                 if (idx != -1) {
                   _gardenGridSlots[idx]['id'] = id;
                   _gardenGridSlots[idx]['r'] = r;
@@ -389,7 +416,6 @@ class GameStateService extends ChangeNotifier {
         }
       }
 
-      client.close();
       notifyListeners();
     } catch (e) {
       debugPrint('[GameStateService] Sync backend failed: $e');
@@ -543,7 +569,8 @@ class GameStateService extends ChangeNotifier {
 
     addNotification(
       title: '🍃 $actionName Completed!',
-      message: 'Earned +$coinsAwarded 🪙 Urja Mudra and prevented +${co2Saved.toStringAsFixed(2)} kg CO2e.',
+      message:
+          'Earned +$coinsAwarded 🪙 Urja Mudra and prevented +${co2Saved.toStringAsFixed(2)} kg CO2e.',
       type: 'eco_action',
     );
 
@@ -618,7 +645,10 @@ class GameStateService extends ChangeNotifier {
         break;
     }
     _equippedOutfit = null;
-    _sendBackendPost('/mascot/wardrobe/equip', {'slot': slot, 'itemId': itemId});
+    _sendBackendPost('/mascot/wardrobe/equip', {
+      'slot': slot,
+      'itemId': itemId,
+    });
     notifyListeners();
   }
 
@@ -675,13 +705,16 @@ class GameStateService extends ChangeNotifier {
     required int toX,
     required int toZ,
   }) {
-    final fromIdx =
-        _gardenGridSlots.indexWhere((s) => s['x'] == fromX && s['z'] == fromZ);
-    final toIdx =
-        _gardenGridSlots.indexWhere((s) => s['x'] == toX && s['z'] == toZ);
+    final fromIdx = _gardenGridSlots.indexWhere(
+      (s) => s['x'] == fromX && s['z'] == fromZ,
+    );
+    final toIdx = _gardenGridSlots.indexWhere(
+      (s) => s['x'] == toX && s['z'] == toZ,
+    );
     if (fromIdx == -1 || toIdx == -1) return false;
     if (_gardenGridSlots[fromIdx]['id'] == null) return false;
-    if (_gardenGridSlots[toIdx]['id'] != null) return false; // Destination must be empty
+    if (_gardenGridSlots[toIdx]['id'] != null)
+      return false; // Destination must be empty
 
     _gardenGridSlots[toIdx]['id'] = _gardenGridSlots[fromIdx]['id'];
     _gardenGridSlots[toIdx]['r'] = _gardenGridSlots[fromIdx]['r'];
@@ -725,7 +758,8 @@ class GameStateService extends ChangeNotifier {
   }) {
     if (!_gardenInventory.contains(tileId)) return false;
     final idx = _gardenGridSlots.indexWhere((s) => s['x'] == x && s['z'] == z);
-    if (idx == -1 || _gardenGridSlots[idx]['id'] != null) return false; // Must be empty
+    if (idx == -1 || _gardenGridSlots[idx]['id'] != null)
+      return false; // Must be empty
 
     _gardenInventory.remove(tileId);
     _gardenGridSlots[idx]['id'] = tileId;
@@ -786,7 +820,8 @@ class GameStateService extends ChangeNotifier {
     addCoins(refund);
     addNotification(
       title: '💰 Garden Eco-Resale Completed',
-      message: 'Recovered +$refund 🪙 Urja Mudra (80% resale value) for sustainable reuse!',
+      message:
+          'Recovered +$refund 🪙 Urja Mudra (80% resale value) for sustainable reuse!',
       type: 'garden_sale',
     );
 
@@ -802,8 +837,9 @@ class GameStateService extends ChangeNotifier {
         final z = (s['z'] ?? s['y']) as int?;
         final id = s['id'] as String?;
         final r = s['r'] as int? ?? 0;
-        final idx =
-            _gardenGridSlots.indexWhere((g) => g['x'] == x && g['z'] == z);
+        final idx = _gardenGridSlots.indexWhere(
+          (g) => g['x'] == x && g['z'] == z,
+        );
         if (idx != -1) {
           _gardenGridSlots[idx]['id'] = id;
           _gardenGridSlots[idx]['r'] = r;

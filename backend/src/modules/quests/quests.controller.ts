@@ -1,12 +1,17 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { QuestsService } from './quests.service';
+import type { Pool } from 'pg';
+import { QuestRuleError, QuestsService } from './quests.service';
 
 export class QuestsController {
-  private service = QuestsService.getInstance();
+  private service: QuestsService;
+
+  public constructor(db: Pool | null) {
+    this.service = new QuestsService(db);
+  }
 
   public getDailyQuests = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const user = request.user as { id: string };
-    const result = this.service.getDailyQuests(user.id);
+    const result = await this.service.getDailyQuests(user.id);
     return reply.status(200).send(result);
   };
 
@@ -18,15 +23,17 @@ export class QuestsController {
     const userId = user.id;
     const { questId } = request.params as { questId: string };
     try {
-      const result = this.service.claimQuest(userId, questId);
+      const result = await this.service.claimQuest(userId, questId);
       return reply.status(200).send(result);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to claim quest';
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'BadRequest',
-        message: msg,
-      });
+      if (err instanceof QuestRuleError) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'BadRequest',
+          message: err.message,
+        });
+      }
+      throw err;
     }
   };
 }

@@ -67,24 +67,36 @@ describe('Health Module & Core Gateway', () => {
     expect(body.openapi).toBe('3.1.0');
     expect(body.info.title).toContain('UrjaVatika');
     expect(body.paths['/health']).toBeDefined();
+    expect(body.paths['/api/v1/quests/daily'].get.security).toEqual([{ bearerAuth: [] }]);
+    expect(body.paths['/api/v1/mascot/interact'].post.security).toEqual([{ bearerAuth: [] }]);
+    expect(body.paths['/api/v1/garden/buy-and-place'].post.security).toEqual([{ bearerAuth: [] }]);
+    expect(body.paths['/api/v1/activity/'].get.security).toEqual([{ bearerAuth: [] }]);
+    expect(body.paths['/api/v1/devices/summary'].get.security).toEqual([{ bearerAuth: [] }]);
+    expect(body.paths['/api/v1/leaderboard/global'].get.security).toEqual([{ bearerAuth: [] }]);
+    expect(body.paths['/api/v1/auth/google'].post.security).toBeUndefined();
   });
 
   it('parsePostgresUrl parses URLs with special characters and removes literal brackets', () => {
-    const url1 = 'postgresql://postgres:[my_pass#123]@db.urppcoxoeswbfpbeabpz.supabase.co:5432/postgres';
+    const url1 = 'postgresql://postgres:[my_pass#123]@db.your-project-ref.supabase.co:5432/postgres';
     const parsed1 = parsePostgresUrl(url1);
     expect(parsed1).not.toBeNull();
     expect(parsed1?.user).toBe('postgres');
     expect(parsed1?.password).toBe('my_pass#123');
-    expect(parsed1?.host).toBe('db.urppcoxoeswbfpbeabpz.supabase.co');
+    expect(parsed1?.host).toBe('db.your-project-ref.supabase.co');
     expect(parsed1?.port).toBe(5432);
     expect(parsed1?.database).toBe('postgres');
     expect(parsed1?.ssl).toEqual({ rejectUnauthorized: false });
 
-    const url2 = 'postgresql://postgres.myproject:pass?word@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
+    const url2 = 'postgresql://postgres.myproject:pass?word@pooler.example.supabase.com:6543/postgres?pgbouncer=true';
     const parsed2 = parsePostgresUrl(url2);
     expect(parsed2).not.toBeNull();
     expect(parsed2?.user).toBe('postgres.myproject');
     expect(parsed2?.password).toBe('pass?word');
     expect(parsed2?.port).toBe(6543);
+
+    const parsed3 = parsePostgresUrl(
+      'postgresql://postgres.your-project-ref:p#ss@pooler.example.supabase.com:6543/postgres?pgbouncer=true',
+    );
+    expect(parsed3?.password).toBe('p#ss');
   });
 });

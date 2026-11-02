@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../constants/auth_config.dart';
+import 'api_client.dart';
 
 /// Citizen Profile Data Model
 class CitizenProfile {
@@ -56,12 +58,24 @@ class CitizenProfile {
       district: json['district'] as String?,
       ward: json['ward'] as String?,
       houseType: json['houseType'] as String?,
-      householdMembers: json['householdMembers'] is num ? (json['householdMembers'] as num).toInt() : null,
-      monthlyBillRupees: json['monthlyBillRupees'] is num ? (json['monthlyBillRupees'] as num).toDouble() : null,
+      householdMembers: json['householdMembers'] is num
+          ? (json['householdMembers'] as num).toInt()
+          : null,
+      monthlyBillRupees: json['monthlyBillRupees'] is num
+          ? (json['monthlyBillRupees'] as num).toDouble()
+          : null,
       waterSupplyType: json['waterSupplyType'] as String?,
       waterStorageType: json['waterStorageType'] as String?,
-      deviceCatalogIds: (json['deviceCatalogIds'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      vehicleCatalogIds: (json['vehicleCatalogIds'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      deviceCatalogIds:
+          (json['deviceCatalogIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      vehicleCatalogIds:
+          (json['vehicleCatalogIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       mascotName: json['mascotName'] as String?,
       role: json['role'] as String? ?? 'CITIZEN',
       isProfileComplete: json['isProfileComplete'] as bool? ?? false,
@@ -95,6 +109,10 @@ class CitizenProfile {
 class AuthService extends ChangeNotifier {
   static final AuthService instance = AuthService._internal();
   AuthService._internal() {
+    ApiClient.instance.configure(
+      accessTokenProvider: () => _accessToken,
+      sessionRefresher: refreshSession,
+    );
     _loadProfileFromStorage();
   }
 
@@ -123,6 +141,9 @@ class AuthService extends ChangeNotifier {
       if (data['accessToken'] is String) {
         _accessToken = data['accessToken'] as String;
       }
+      if (data['refreshToken'] is String) {
+        _refreshToken = data['refreshToken'] as String;
+      }
     } catch (e) {
       debugPrint('[AuthService] Error reading cached citizen profile: $e');
     }
@@ -130,71 +151,19 @@ class AuthService extends ChangeNotifier {
 
   void _saveProfileToStorage() {
     try {
-      if (_currentUser == null) return;
+      if (_currentUser == null || _isGuestMode) return;
       final file = _getAuthStorageFile();
       final data = _currentUser!.toJson();
       if (_accessToken != null) {
         data['accessToken'] = _accessToken;
       }
+      if (_refreshToken != null) {
+        data['refreshToken'] = _refreshToken;
+      }
       file.writeAsStringSync(jsonEncode(data), flush: true);
     } catch (e) {
       debugPrint('[AuthService] Error writing citizen profile to disk: $e');
     }
-  }
-
-  CitizenProfile _createOrUpdateProfileFromGoogle(GoogleSignInAccount account) {
-    // Check disk storage for existing completed profile
-    Map<String, dynamic>? savedDiskData;
-    try {
-      final file = _getAuthStorageFile();
-      if (file.existsSync()) {
-        final raw = file.readAsStringSync();
-        if (raw.isNotEmpty) savedDiskData = jsonDecode(raw) as Map<String, dynamic>?;
-      }
-    } catch (_) {}
-
-    final savedIsComplete = savedDiskData != null && (savedDiskData['isProfileComplete'] == true || savedDiskData['district'] != null);
-    final existing = _currentUser;
-    final isAlreadyDone = (existing != null && existing.isProfileComplete) || savedIsComplete;
-
-    if (isAlreadyDone) {
-      final base = existing ?? (savedDiskData != null ? CitizenProfile.fromJson(savedDiskData) : null);
-      final resolvedName = (account.displayName != null && account.displayName!.isNotEmpty)
-          ? account.displayName!
-          : (base?.name.isNotEmpty == true ? base!.name : 'Gujarat Citizen');
-
-      return CitizenProfile(
-        id: (base != null && base.id.isNotEmpty) ? base.id : 'citizen_${account.id}',
-        email: account.email,
-        name: resolvedName,
-        avatarUrl: account.photoUrl ?? base?.avatarUrl,
-        dob: base?.dob,
-        district: base?.district ?? 'Ahmedabad',
-        ward: base?.ward ?? 'Navrangpura',
-        houseType: base?.houseType ?? 'apartment',
-        householdMembers: base?.householdMembers ?? 4,
-        monthlyBillRupees: base?.monthlyBillRupees ?? 2200,
-        waterSupplyType: base?.waterSupplyType ?? 'municipal_piped',
-        waterStorageType: base?.waterStorageType ?? 'both_sump_overhead',
-        deviceCatalogIds: base?.deviceCatalogIds ?? ['air_conditioner', 'refrigerator'],
-        vehicleCatalogIds: base?.vehicleCatalogIds ?? ['ev_2wheeler'],
-        mascotName: base?.mascotName ?? 'Cheechee',
-        role: base?.role ?? 'CITIZEN',
-        isProfileComplete: true,
-        points: (base != null && base.points > 50) ? base.points : 150,
-      );
-    }
-
-    // Truly brand new user: set Google details, profile completion pending
-    return CitizenProfile(
-      id: 'citizen_${account.id}',
-      email: account.email,
-      name: account.displayName ?? 'Gujarat Citizen',
-      avatarUrl: account.photoUrl,
-      role: 'CITIZEN',
-      isProfileComplete: false,
-      points: 50,
-    );
   }
 
   String? _accessToken;
@@ -209,17 +178,22 @@ class AuthService extends ChangeNotifier {
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
 
-  final HttpClient _httpClient = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+  final HttpClient _httpClient = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 8);
 
   String? _lastSignInError;
   String? get lastSignInError => _lastSignInError;
+  String? get lastAuthError => _lastSignInError;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: AuthConfig.googleAndroidClientId.isNotEmpty
         ? AuthConfig.googleAndroidClientId
         : null,
-    serverClientId: AuthConfig.googleServerClientId.isNotEmpty &&
-            AuthConfig.googleServerClientId.endsWith('.apps.googleusercontent.com') &&
+    serverClientId:
+        AuthConfig.googleServerClientId.isNotEmpty &&
+            AuthConfig.googleServerClientId.endsWith(
+              '.apps.googleusercontent.com',
+            ) &&
             !AuthConfig.googleServerClientId.startsWith('YOUR_')
         ? AuthConfig.googleServerClientId
         : null,
@@ -241,7 +215,7 @@ class AuthService extends ChangeNotifier {
         }
 
         if (account == null) {
-          // User dismissed Google sign-in dialog
+          _lastSignInError = null;
           return false;
         }
 
@@ -249,91 +223,104 @@ class AuthService extends ChangeNotifier {
           final GoogleSignInAuthentication auth = await account.authentication;
           token = auth.idToken;
         } catch (authErr) {
-          debugPrint('[AuthService] account.authentication error: $authErr');
+          _lastSignInError =
+              'Google could not finish sign-in. Please check the account and app configuration.';
+          debugPrint('[AuthService] Google token retrieval failed: $authErr');
         }
 
-        // Resilient fallback: If Google Play Services did not return an idToken
-        // (common in debug builds when SHA-1 is not registered in Google Cloud Console),
-        // we use their authenticated Google account to provision their citizen account!
         if (token == null || token.isEmpty) {
-          debugPrint('[AuthService] Generating verified citizen token for ${account.email}');
-          final safeSuffix = account.email.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-          token = 'mock_test_token_$safeSuffix';
+          _lastSignInError ??=
+              'Google did not return an ID token. Check the Android SHA-1 and Web OAuth client ID configuration.';
+          return false;
         }
       }
 
-      if (token.isNotEmpty) {
-        try {
-          final uri = Uri.parse('${AuthConfig.apiBaseUrl}/auth/google');
-          final request = await _httpClient.postUrl(uri);
-          request.headers.contentType = ContentType.json;
-          request.write(jsonEncode({'idToken': token}));
-
-          final response = await request.close();
-          final responseBody = await response.transform(utf8.decoder).join();
-
-          if (response.statusCode == 200) {
-            final data = jsonDecode(responseBody) as Map<String, dynamic>;
-            _accessToken = data['accessToken'] as String?;
-            _refreshToken = data['refreshToken'] as String?;
-            final userJson = Map<String, dynamic>.from(data['user'] as Map<String, dynamic>);
-            if (account != null) {
-              if (account.displayName != null && account.displayName!.isNotEmpty) {
-                userJson['name'] = account.displayName;
-              }
-              if (account.photoUrl != null && account.photoUrl!.isNotEmpty) {
-                userJson['avatarUrl'] = account.photoUrl;
-              }
-              userJson['email'] = account.email;
-            }
-            _currentUser = CitizenProfile.fromJson(userJson);
-            _isGuestMode = false;
-            notifyListeners();
-            return true;
-          }
-
-          _lastSignInError = 'Backend authentication failed (HTTP ${response.statusCode}).';
-          if (responseBody.isNotEmpty && responseBody.length < 400) {
-            _lastSignInError = responseBody;
-          }
-          debugPrint('[AuthService] Google auth endpoint returned ${response.statusCode}: $responseBody');
-        } catch (netErr) {
-          debugPrint('[AuthService] Backend network error: $netErr');
-          // If network failed but user authenticated via Google, enter with Google profile
-          if (account != null) {
-            _currentUser = _createOrUpdateProfileFromGoogle(account);
-            _isGuestMode = false;
-            notifyListeners();
-            return true;
-          }
-        }
+      if (token.isEmpty) {
+        _lastSignInError = 'Google did not return a valid sign-in token.';
+        return false;
       }
 
-      // If user selected an account, allow them in with their Google account
-      if (account != null) {
-        _currentUser = _createOrUpdateProfileFromGoogle(account);
-        _isGuestMode = false;
-        notifyListeners();
-        return true;
+      final uri = Uri.parse('${AuthConfig.apiBaseUrl}/auth/google');
+      final request = await _httpClient
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 15));
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode({'idToken': token}));
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
+      final responseBody = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != HttpStatus.ok) {
+        _lastSignInError = _messageFromResponse(
+          responseBody,
+          'Sign-in failed. Please try again.',
+        );
+        debugPrint(
+          '[AuthService] Google auth endpoint returned ${response.statusCode}: $_lastSignInError',
+        );
+        return false;
       }
 
-      _lastSignInError = 'Google sign-in could not be completed.';
-      return false;
+      final data = jsonDecode(responseBody) as Map<String, dynamic>;
+      final accessToken = data['accessToken'];
+      final refreshToken = data['refreshToken'];
+      final user = data['user'];
+      if (accessToken is! String ||
+          refreshToken is! String ||
+          user is! Map<String, dynamic>) {
+        throw const FormatException(
+          'Authentication response is missing user or token data.',
+        );
+      }
+
+      _accessToken = accessToken;
+      _refreshToken = refreshToken;
+      _currentUser = CitizenProfile.fromJson(user);
+      _isGuestMode = false;
+      notifyListeners();
+      return true;
     } catch (e) {
       debugPrint('[AuthService] Google Authentication error: $e');
-      if (account != null) {
-        _currentUser = _createOrUpdateProfileFromGoogle(account);
-        _isGuestMode = false;
-        notifyListeners();
-        return true;
-      }
-      _lastSignInError = 'Google authentication failed: $e';
+      _lastSignInError = e is SocketException || e is HttpException
+          ? 'Could not reach URJA. Check your internet connection and try again.'
+          : e is TimeoutException
+          ? 'Sign-in timed out. Please check your connection and try again.'
+          : 'Google sign-in could not be completed. Please try again.';
       return false;
     }
   }
 
+  String _messageFromResponse(String body, String fallback) {
+    if (body.isEmpty) return fallback;
+    try {
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final message = json['message'];
+      if (message is String && message.isNotEmpty) return message;
+      final error = json['error'];
+      if (error is String && error.isNotEmpty) return error;
+    } on FormatException {
+      if (body.length < 240) return body;
+    }
+    return fallback;
+  }
+
   /// Guest / Dev Mode
   void signInAsGuest() {
+    _accessToken = null;
+    _refreshToken = null;
+    try {
+      final file = _getAuthStorageFile();
+      if (file.existsSync()) file.deleteSync();
+    } catch (error) {
+      debugPrint(
+        '[AuthService] Could not clear saved session for guest: $error',
+      );
+    }
     _currentUser = CitizenProfile(
       id: 'guest_citizen',
       email: 'guest@urja.vatika',
@@ -361,10 +348,10 @@ class AuthService extends ChangeNotifier {
     String? gasProviderId,
     String? waterSupplyType,
     String? waterStorageType,
-    List<String>? defaultTransitModes,
     List<String>? deviceCatalogIds,
     List<String>? vehicleCatalogIds,
     String? mascotName,
+    bool retryAfterRefresh = true,
   }) async {
     final payload = {
       'district': district,
@@ -373,61 +360,86 @@ class AuthService extends ChangeNotifier {
       if (houseType != null) 'houseType': houseType,
       if (householdMembers != null) 'householdMembers': householdMembers,
       if (monthlyBillRupees != null) 'monthlyBillRupees': monthlyBillRupees,
-      if (electricityProviderId != null) 'electricityProviderId': electricityProviderId,
+      if (electricityProviderId != null)
+        'electricityProviderId': electricityProviderId,
       if (gasProviderId != null) 'gasProviderId': gasProviderId,
       if (waterSupplyType != null) 'waterSupplyType': waterSupplyType,
       if (waterStorageType != null) 'waterStorageType': waterStorageType,
-      if (defaultTransitModes != null) 'transitProviderIds': defaultTransitModes,
       if (deviceCatalogIds != null) 'deviceCatalogIds': deviceCatalogIds,
       if (vehicleCatalogIds != null) 'vehicleCatalogIds': vehicleCatalogIds,
       if (mascotName != null) 'mascotName': mascotName,
     };
 
+    if (_accessToken == null || _accessToken!.isEmpty) {
+      _lastSignInError = 'Sign in again before saving your profile.';
+      return false;
+    }
+
     if (_accessToken != null) {
       try {
         final uri = Uri.parse('${AuthConfig.apiBaseUrl}/auth/complete-profile');
-        final request = await _httpClient.postUrl(uri);
+        final request = await _httpClient
+            .postUrl(uri)
+            .timeout(const Duration(seconds: 15));
         request.headers.contentType = ContentType.json;
         request.headers.set('Authorization', 'Bearer $_accessToken');
         request.write(jsonEncode(payload));
 
-        final response = await request.close();
-        final responseBody = await response.transform(utf8.decoder).join();
+        final response = await request.close().timeout(
+          const Duration(seconds: 15),
+        );
+        final responseBody = await response
+            .transform(utf8.decoder)
+            .join()
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == HttpStatus.unauthorized &&
+            retryAfterRefresh &&
+            await refreshSession()) {
+          return completeProfile(
+            district: district,
+            ward: ward,
+            dob: dob,
+            houseType: houseType,
+            householdMembers: householdMembers,
+            monthlyBillRupees: monthlyBillRupees,
+            electricityProviderId: electricityProviderId,
+            gasProviderId: gasProviderId,
+            waterSupplyType: waterSupplyType,
+            waterStorageType: waterStorageType,
+            deviceCatalogIds: deviceCatalogIds,
+            vehicleCatalogIds: vehicleCatalogIds,
+            mascotName: mascotName,
+            retryAfterRefresh: false,
+          );
+        }
+        if (response.statusCode != HttpStatus.ok) {
+          _lastSignInError = _messageFromResponse(
+            responseBody,
+            'Could not save your profile. Please try again.',
+          );
+          return false;
+        }
 
         if (response.statusCode == 200) {
           final data = jsonDecode(responseBody) as Map<String, dynamic>;
-          _currentUser = CitizenProfile.fromJson(data['user'] as Map<String, dynamic>);
+          _currentUser = CitizenProfile.fromJson(
+            data['user'] as Map<String, dynamic>,
+          );
           notifyListeners();
           return true;
         }
       } catch (e) {
-        debugPrint('[AuthService] Backend call failed: $e');
+        debugPrint('[AuthService] Profile update failed: $e');
+        _lastSignInError = e is SocketException || e is HttpException
+            ? 'Could not reach URJA. Your profile was not saved; check your connection and retry.'
+            : e is TimeoutException
+            ? 'Saving your profile timed out. Please try again.'
+            : 'Could not save your profile. Please try again.';
       }
     }
 
-    // Local state update
-    _currentUser = CitizenProfile(
-      id: _currentUser?.id ?? 'local_citizen',
-      email: _currentUser?.email ?? 'citizen@gujarat.urja',
-      name: _currentUser?.name ?? 'Gujarat Citizen',
-      avatarUrl: _currentUser?.avatarUrl,
-      dob: dob ?? _currentUser?.dob,
-      district: district,
-      ward: ward,
-      houseType: houseType,
-      householdMembers: householdMembers,
-      monthlyBillRupees: monthlyBillRupees,
-      waterSupplyType: waterSupplyType,
-      waterStorageType: waterStorageType,
-      deviceCatalogIds: deviceCatalogIds ?? [],
-      vehicleCatalogIds: vehicleCatalogIds ?? [],
-      mascotName: mascotName ?? 'Cheechee',
-      role: _currentUser?.role ?? 'CITIZEN',
-      isProfileComplete: true,
-      points: (_currentUser?.points ?? 50) + 100, // +100 bonus for completing onboarding
-    );
-    notifyListeners();
-    return true;
+    return false;
   }
 
   @override
@@ -436,7 +448,157 @@ class AuthService extends ChangeNotifier {
     super.notifyListeners();
   }
 
-  void logout() {
+  Future<bool> refreshSession() async {
+    final token = _refreshToken;
+    if (token == null || token.isEmpty) return false;
+
+    try {
+      final request = await _httpClient
+          .postUrl(Uri.parse('${AuthConfig.apiBaseUrl}/auth/refresh'))
+          .timeout(const Duration(seconds: 15));
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode({'refreshToken': token}));
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
+      final body = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != HttpStatus.ok) {
+        _lastSignInError = _messageFromResponse(
+          body,
+          'Your session expired. Please sign in again.',
+        );
+        if (response.statusCode == HttpStatus.unauthorized) {
+          _accessToken = null;
+          _refreshToken = null;
+          _currentUser = null;
+          try {
+            final file = _getAuthStorageFile();
+            if (file.existsSync()) file.deleteSync();
+          } catch (error) {
+            debugPrint('[AuthService] Could not clear expired session: $error');
+          }
+          notifyListeners();
+        }
+        return false;
+      }
+
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final accessToken = data['accessToken'];
+      final refreshToken = data['refreshToken'];
+      if (accessToken is! String || refreshToken is! String) {
+        throw const FormatException(
+          'Refresh response is missing authentication tokens.',
+        );
+      }
+      _accessToken = accessToken;
+      _refreshToken = refreshToken;
+      _lastSignInError = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      debugPrint('[AuthService] Session refresh failed: $error');
+      _lastSignInError = error is SocketException || error is HttpException
+          ? 'Could not reach URJA to refresh your session.'
+          : error is TimeoutException
+          ? 'Session refresh timed out. Please try again.'
+          : 'Your session could not be refreshed. Please sign in again.';
+      return false;
+    }
+  }
+
+  Future<bool> restoreSession() async {
+    if (_refreshToken == null || _refreshToken!.isEmpty) return false;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final request = await _httpClient
+            .getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/auth/me'))
+            .timeout(const Duration(seconds: 15));
+        final token = _accessToken;
+        if (token != null && token.isNotEmpty) {
+          request.headers.set('Authorization', 'Bearer $_accessToken');
+        }
+        final response = await request.close().timeout(
+          const Duration(seconds: 15),
+        );
+        final body = await response
+            .transform(utf8.decoder)
+            .join()
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == HttpStatus.unauthorized &&
+            attempt == 0 &&
+            await refreshSession()) {
+          continue;
+        }
+        if (response.statusCode != HttpStatus.ok) {
+          _lastSignInError = _messageFromResponse(
+            body,
+            'Your session has expired. Please sign in again.',
+          );
+          return false;
+        }
+
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final user = data['user'];
+        if (user is! Map<String, dynamic>) {
+          throw const FormatException('Profile response is missing user data.');
+        }
+        _currentUser = CitizenProfile.fromJson(user);
+        _isGuestMode = false;
+        _lastSignInError = null;
+        notifyListeners();
+        return true;
+      } catch (error) {
+        debugPrint('[AuthService] Session restore failed: $error');
+        _lastSignInError = error is SocketException || error is HttpException
+            ? 'Could not reach URJA. Check your connection and retry.'
+            : error is TimeoutException
+            ? 'Session restore timed out. Please try again.'
+            : 'Your session could not be restored. Please sign in again.';
+        return false;
+      }
+    }
+    return false;
+  }
+
+  Future<void> logout() async {
+    final hasTokens = _accessToken != null && _refreshToken != null;
+    if (hasTokens) {
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          final request = await _httpClient
+              .postUrl(Uri.parse('${AuthConfig.apiBaseUrl}/auth/logout'))
+              .timeout(const Duration(seconds: 10));
+          request.headers.contentType = ContentType.json;
+          request.headers.set('Authorization', 'Bearer $_accessToken');
+          request.write(jsonEncode({'refreshToken': _refreshToken}));
+          final response = await request.close().timeout(
+            const Duration(seconds: 10),
+          );
+          await response.drain<void>();
+          if (response.statusCode == HttpStatus.unauthorized &&
+              attempt == 0 &&
+              await refreshSession()) {
+            continue;
+          }
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            debugPrint(
+              '[AuthService] Backend logout returned ${response.statusCode}; clearing local session.',
+            );
+          }
+          break;
+        } catch (error) {
+          debugPrint(
+            '[AuthService] Backend logout failed; clearing local session: $error',
+          );
+          break;
+        }
+      }
+    }
+
     try {
       final file = _getAuthStorageFile();
       if (file.existsSync()) file.deleteSync();

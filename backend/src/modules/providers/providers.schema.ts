@@ -13,19 +13,23 @@ export const UtilityProviderSchema = Type.Object({
   id: Type.String({ description: 'Unique provider identifier slug' }),
   name: Type.String({ description: 'Display title of the utility organization' }),
   category: ProviderCategorySchema,
-  districts: Type.Array(Type.String(), { description: 'Gujarat districts served by this provider' }),
+  districts: Type.Array(Type.String(), {
+    description: 'Gujarat districts served by this provider',
+  }),
   code: Type.String({ description: 'Official short code' }),
   contactPhone: Type.String(),
   peakHours: Type.Optional(Type.String({ description: 'Peak demand window for electricity' })),
   supplyWindow: Type.Optional(Type.String({ description: 'Scheduled supply hours for water' })),
-  activeAlertCount: Type.Number({ default: 0 }),
+  activeAlertCount: Type.Union([Type.Number(), Type.Null()]),
 });
 
 export type UtilityProvider = Static<typeof UtilityProviderSchema>;
 
 export const ListProvidersQuerySchema = Type.Object({
   category: Type.Optional(ProviderCategorySchema),
-  district: Type.Optional(Type.String({ description: 'Filter providers serving this Gujarat district' })),
+  district: Type.Optional(
+    Type.String({ description: 'Filter providers serving this Gujarat district' }),
+  ),
 });
 
 export type ListProvidersQuery = Static<typeof ListProvidersQuerySchema>;
@@ -47,7 +51,7 @@ export const LinkProvidersBodySchema = Type.Object({
   consumerNumbers: Type.Optional(
     Type.Record(Type.String(), Type.String(), {
       description: 'Optional consumer/connection numbers for electricity, gas or water',
-    })
+    }),
   ),
 });
 
@@ -76,10 +80,20 @@ export type MyProvidersResponse = Static<typeof MyProvidersResponseSchema>;
 export const ProviderBroadcastBodySchema = Type.Object({
   title: Type.String({ minLength: 3, maxLength: 120 }),
   message: Type.String({ minLength: 5, maxLength: 500 }),
-  category: Type.Optional(Type.Union([Type.Literal('ALERT'), Type.Literal('COMMUNITY'), Type.Literal('HABIT')])),
-  targetDistrict: Type.Optional(Type.String({ description: 'Restrict notification to this district' })),
+  category: Type.Optional(
+    Type.Union([Type.Literal('ALERT'), Type.Literal('COMMUNITY'), Type.Literal('HABIT')]),
+  ),
+  targetDistrict: Type.String({
+    minLength: 2,
+    maxLength: 64,
+    description: 'District in the provider administrator assigned service area',
+  }),
   incentiveCoins: Type.Optional(Type.Number({ minimum: 0, maximum: 100 })),
-  urgency: Type.Optional(Type.Union([Type.Literal('LOW'), Type.Literal('MEDIUM'), Type.Literal('HIGH')])),
+  urgency: Type.Optional(
+    Type.Union([Type.Literal('LOW'), Type.Literal('MEDIUM'), Type.Literal('HIGH')]),
+  ),
+  reason: Type.String({ minLength: 5, maxLength: 240 }),
+  scheduledAt: Type.Optional(Type.String({ format: 'date-time' })),
 });
 
 export type ProviderBroadcastBody = Static<typeof ProviderBroadcastBodySchema>;
@@ -92,3 +106,9 @@ export const ProviderBroadcastResponseSchema = Type.Object({
 });
 
 export type ProviderBroadcastResponse = Static<typeof ProviderBroadcastResponseSchema>;
+
+export const ProviderServiceUnavailableSchema = Type.Object({
+  statusCode: Type.Integer(),
+  error: Type.String(),
+  message: Type.String(),
+});

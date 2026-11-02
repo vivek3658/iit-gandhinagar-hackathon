@@ -48,8 +48,8 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
   });
 
   it('2. Filters real activity by category', async () => {
-    ActivityService.postActivity({ userId: citizenId, category: 'COMMUNITY', title: 'Verified community update', message: 'Community update from the test fixture.', icon: 'leaf' });
-    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Verified habit', message: 'Self-reported test action.', icon: 'zap' });
+    await ActivityService.postActivity({ userId: citizenId, category: 'COMMUNITY', title: 'Verified community update', message: 'Community update from the test fixture.', icon: 'leaf' });
+    await ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Verified habit', message: 'Self-reported test action.', icon: 'zap' });
     const res = await app.inject({
       method: 'GET',
       url: '/api/v1/activity?category=COMMUNITY',
@@ -65,7 +65,7 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
   });
 
   it('3. POST /api/v1/activity/:id/read marks single notification as read', async () => {
-    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Test action', message: 'A real test event.', icon: 'leaf' });
+    await ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Test action', message: 'A real test event.', icon: 'leaf' });
     // 1. Fetch initial feed
     const feedRes = await app.inject({
       method: 'GET',
@@ -89,8 +89,8 @@ describe('Activity Feed Module (Event Stream & Notifications)', () => {
   });
 
   it('4. POST /api/v1/activity/read-all marks all notifications as read', async () => {
-    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Action one', message: 'Test event one.', icon: 'leaf' });
-    ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Action two', message: 'Test event two.', icon: 'zap' });
+    await ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Action one', message: 'Test event one.', icon: 'leaf' });
+    await ActivityService.postActivity({ userId: citizenId, category: 'HABIT', title: 'Action two', message: 'Test event two.', icon: 'zap' });
     const readAllRes = await app.inject({
       method: 'POST',
       url: '/api/v1/activity/read-all',

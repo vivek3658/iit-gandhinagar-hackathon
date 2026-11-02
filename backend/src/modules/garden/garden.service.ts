@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { RabbitMQService } from '../../plugins/rabbitmq';
 import { AuthService } from '../auth/auth.service';
 import { MascotService } from '../mascot/mascot.service';
+import type { Pool } from 'pg';
 import type {
   GardenActionResponse,
   GardenCatalogItem,
@@ -292,6 +293,131 @@ export const MASTER_GARDEN_CATALOG: MasterTileDefinition[] = [
 
 export class GardenRepository {
   private gardens = new Map<string, GardenRecord>();
+  private static schemaReady = new WeakMap<Pool, Promise<void>>();
+
+  public constructor(
+    private db: Pool | null = null,
+    private allowTestMemory = false,
+  ) {}
+
+  public configure(db: Pool | null, allowTestMemory: boolean): void {
+    this.db = db;
+    this.allowTestMemory = allowTestMemory;
+  }
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.db) return;
+    let ready = GardenRepository.schemaReady.get(this.db);
+    if (!ready) {
+      ready = this.db.query(`
+        CREATE TABLE IF NOT EXISTS public.citizen_gardens (
+          user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+          placed_tiles JSONB NOT NULL DEFAULT '[]'::jsonb,
+          inventory JSONB NOT NULL DEFAULT '[]'::jsonb,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `).then(() => undefined);
+      GardenRepository.schemaReady.set(this.db, ready);
+    }
+    await ready;
+  }
+
+  public async findByUserIdAsync(userId: string): Promise<GardenRecord | null> {
+    if (!this.db) return this.findByUserId(userId);
+    await this.ensureSchema();
+    const result = await this.db.query(
+      'SELECT user_id, placed_tiles, inventory, updated_at FROM public.citizen_gardens WHERE user_id = $1',
+      [userId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      userId: row.user_id,
+      placedTiles: row.placed_tiles,
+      inventory: row.inventory,
+      updatedAt: new Date(row.updated_at).toISOString(),
+    };
+  }
+
+  public async saveAsync(
+    record: GardenRecord,
+    options: { expectedUpdatedAt?: string; pointsDelta?: number } = {},
+  ): Promise<number | null> {
+    if (this.db) {
+      await this.ensureSchema();
+      const client = await this.db.connect();
+      try {
+        await client.query('BEGIN');
+        let updatedPoints: number | null = null;
+        if (options.pointsDelta !== undefined) {
+          const userResult = await client.query(
+            'SELECT points FROM public.users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+            [record.userId],
+          );
+          if (!userResult.rows[0]) throw new Error('Citizen not found');
+          const currentPoints = Number(userResult.rows[0].points);
+          updatedPoints = currentPoints + options.pointsDelta;
+          if (updatedPoints < 0) {
+            throw new Error(`Insufficient Urja Mudra! Required: ${Math.abs(options.pointsDelta)}, Available: ${currentPoints}`);
+          }
+          await client.query(
+            'UPDATE public.users SET points = $2, updated_at = NOW() WHERE id = $1',
+            [record.userId, updatedPoints],
+          );
+        }
+
+        const values = [
+          record.userId,
+          JSON.stringify(record.placedTiles),
+          JSON.stringify(record.inventory),
+          record.updatedAt,
+        ];
+        if (options.expectedUpdatedAt) {
+          const result = await client.query(
+            `UPDATE public.citizen_gardens
+             SET placed_tiles = $2::jsonb, inventory = $3::jsonb,
+                 updated_at = GREATEST(clock_timestamp(), updated_at + INTERVAL '1 microsecond')
+             WHERE user_id = $1 AND updated_at = $4`,
+            [record.userId, JSON.stringify(record.placedTiles), JSON.stringify(record.inventory), options.expectedUpdatedAt],
+          );
+          if (result.rowCount !== 1) {
+            throw new Error('Garden changed during this action. Reload the garden and try again.');
+          }
+        } else {
+          await client.query(
+            `INSERT INTO public.citizen_gardens (user_id, placed_tiles, inventory, updated_at)
+             VALUES ($1, $2::jsonb, $3::jsonb, $4)
+             ON CONFLICT (user_id) DO NOTHING`,
+            values,
+          );
+        }
+        await client.query('COMMIT');
+        if (updatedPoints !== null) {
+          AuthService.getRepository().cachePoints(record.userId, updatedPoints);
+        }
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } else if (!this.allowTestMemory) {
+      throw new Error('PostgreSQL is required for durable garden state.');
+    } else if (options.pointsDelta !== undefined) {
+      const authRepository = AuthService.getRepository();
+      const user = await authRepository.refreshByIdAsync(record.userId);
+      if (!user) throw new Error('Citizen not found');
+      const updatedPoints = user.points + options.pointsDelta;
+      if (updatedPoints < 0) {
+        throw new Error(`Insufficient Urja Mudra! Required: ${Math.abs(options.pointsDelta)}, Available: ${user.points}`);
+      }
+      await authRepository.updateUserAsync(record.userId, { points: updatedPoints });
+    }
+    this.save(record);
+    return options.pointsDelta === undefined
+      ? null
+      : (await AuthService.getRepository().refreshByIdAsync(record.userId))?.points ?? null;
+  }
 
   public findByUserId(userId: string): GardenRecord | null {
     const garden = this.gardens.get(userId);
@@ -322,6 +448,10 @@ export class GardenRepository {
 export class GardenService {
   private static repository = new GardenRepository();
 
+  public static configure(db: Pool | null, allowTestMemory: boolean): void {
+    this.repository.configure(db, allowTestMemory);
+  }
+
   public static getRepository(): GardenRepository {
     return this.repository;
   }
@@ -342,8 +472,8 @@ export class GardenService {
   /**
    * Get or initialize citizen's garden sanctuary
    */
-  public static getOrCreateGarden(userId: string): GardenRecord {
-    let garden = this.repository.findByUserId(userId);
+  public static async getOrCreateGarden(userId: string): Promise<GardenRecord> {
+    let garden = await this.repository.findByUserIdAsync(userId);
 
     if (!garden) {
       garden = {
@@ -352,7 +482,8 @@ export class GardenService {
         inventory: [],
         updatedAt: new Date().toISOString(),
       };
-      this.repository.save(garden);
+      await this.repository.saveAsync(garden);
+      garden = await this.repository.findByUserIdAsync(userId) ?? garden;
     }
 
     return garden;
@@ -361,11 +492,11 @@ export class GardenService {
   /**
    * Fetch full garden sanctuary state
    */
-  public static getGardenState(userId: string): GardenStateResponse {
-    const garden = this.getOrCreateGarden(userId);
-    const mascot = MascotService.getOrCreateMascot(userId);
-    const user = AuthService.getRepository().findById(userId);
-    const citizenCoins = user?.points || 0;
+  public static async getGardenState(userId: string): Promise<GardenStateResponse> {
+    const garden = await this.getOrCreateGarden(userId);
+    const mascot = await MascotService.getOrCreateMascot(userId);
+    const user = await AuthService.getRepository().refreshByIdAsync(userId);
+    const citizenCoins = user?.points ?? 0;
 
     const gridSize = this.getGridDimensionForLevel(mascot.level);
     const maxOccupancy = gridSize * gridSize;
@@ -395,15 +526,15 @@ export class GardenService {
   /**
    * Pure Preview: Validates tile placement before citizen confirms purchase
    */
-  public static previewTile(userId: string, tileId: string, x: number, y: number, rotation: TileRotation = 0): PreviewTileResponse {
+  public static async previewTile(userId: string, tileId: string, x: number, y: number, rotation: TileRotation = 0): Promise<PreviewTileResponse> {
     const item = MASTER_GARDEN_CATALOG.find((t) => t.id === tileId);
     if (!item) {
       throw new Error(`Tile '${tileId}' not found in catalog`);
     }
 
-    const mascot = MascotService.getOrCreateMascot(userId);
+    const mascot = await MascotService.getOrCreateMascot(userId);
     const gridSize = this.getGridDimensionForLevel(mascot.level);
-    const garden = this.getOrCreateGarden(userId);
+    const garden = await this.getOrCreateGarden(userId);
 
     const isUnlocked = mascot.level >= item.requiredLevel;
     const isWithinBounds = x >= 0 && x < gridSize && y >= 0 && y < gridSize;
@@ -443,19 +574,19 @@ export class GardenService {
    * Purchase tile with Urja Mudra coins and place directly onto grid
    * Concurrency architecture: Atomic verification mimicking Redis Lua script
    */
-  public static buyAndPlace(
+  public static async buyAndPlace(
     userId: string,
     tileId: string,
     x: number,
     y: number,
     rotation: TileRotation = 0
-  ): GardenActionResponse {
+  ): Promise<GardenActionResponse> {
     const item = MASTER_GARDEN_CATALOG.find((t) => t.id === tileId);
     if (!item) {
       throw new Error(`Tile '${tileId}' not found in master catalog`);
     }
 
-    const mascot = MascotService.getOrCreateMascot(userId);
+    const mascot = await MascotService.getOrCreateMascot(userId);
     if (mascot.level < item.requiredLevel) {
       throw new Error(`Requires Mascot Level ${item.requiredLevel}. Keep reducing emissions to unlock!`);
     }
@@ -465,13 +596,13 @@ export class GardenService {
       throw new Error(`Coordinate (${x}, ${y}) is outside unlocked grid size (${gridSize}x${gridSize})`);
     }
 
-    const garden = this.getOrCreateGarden(userId);
+    const garden = await this.getOrCreateGarden(userId);
     if (garden.placedTiles.some((t) => t.x === x && t.y === y)) {
       throw new Error(`Coordinate (${x}, ${y}) is already occupied`);
     }
 
     const authRepo = AuthService.getRepository();
-    const user = authRepo.findById(userId);
+    const user = await authRepo.refreshByIdAsync(userId);
     if (!user) {
       throw new Error('Citizen not found');
     }
@@ -480,9 +611,7 @@ export class GardenService {
       throw new Error(`Insufficient Urja Mudra! Required: ${item.cost}, Available: ${user.points}`);
     }
 
-    // Atomic transaction: Deduct coins + Place tile
-    const remainingCoins = user.points - item.cost;
-    authRepo.updateUser(userId, { points: remainingCoins });
+    const expectedUpdatedAt = garden.updatedAt;
 
     const newPlacedTile: PlacedTile = {
       instanceId: crypto.randomUUID(),
@@ -498,7 +627,10 @@ export class GardenService {
 
     garden.placedTiles.push(newPlacedTile);
     garden.updatedAt = new Date().toISOString();
-    this.repository.save(garden);
+    const remainingCoins = await this.repository.saveAsync(garden, {
+      expectedUpdatedAt,
+      pointsDelta: -item.cost,
+    });
 
     // Publish event for RabbitMQ async write-behind worker
     this.emitWriteBehindEvent('garden.tile_placed', {
@@ -509,7 +641,7 @@ export class GardenService {
     return {
       success: true,
       message: `Successfully built '${item.name}' at (${x}, ${y}) for ${item.cost} Urja Mudra!`,
-      remainingCoins,
+      remainingCoins: remainingCoins ?? user.points - item.cost,
       placedTile: newPlacedTile,
       gridSize,
       placedTiles: garden.placedTiles,
@@ -520,14 +652,14 @@ export class GardenService {
   /**
    * Place an existing tile from inventory onto the grid (0 coins cost)
    */
-  public static placeFromInventory(
+  public static async placeFromInventory(
     userId: string,
     instanceId: string,
     x: number,
     y: number,
     rotation: TileRotation = 0
-  ): GardenActionResponse {
-    const garden = this.getOrCreateGarden(userId);
+  ): Promise<GardenActionResponse> {
+    const garden = await this.getOrCreateGarden(userId);
     const inventoryIndex = garden.inventory.findIndex((i) => i.instanceId === instanceId);
 
     if (inventoryIndex === -1) {
@@ -535,7 +667,7 @@ export class GardenService {
     }
 
     const inventoryItem = garden.inventory[inventoryIndex]!;
-    const mascot = MascotService.getOrCreateMascot(userId);
+    const mascot = await MascotService.getOrCreateMascot(userId);
     const gridSize = this.getGridDimensionForLevel(mascot.level);
 
     if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) {
@@ -546,6 +678,7 @@ export class GardenService {
       throw new Error(`Coordinate (${x}, ${y}) is already occupied`);
     }
 
+    const expectedUpdatedAt = garden.updatedAt;
     // Remove from inventory
     garden.inventory.splice(inventoryIndex, 1);
 
@@ -563,9 +696,9 @@ export class GardenService {
 
     garden.placedTiles.push(placedTile);
     garden.updatedAt = new Date().toISOString();
-    this.repository.save(garden);
+    await this.repository.saveAsync(garden, { expectedUpdatedAt });
 
-    const user = AuthService.getRepository().findById(userId);
+    const user = await AuthService.getRepository().refreshByIdAsync(userId);
 
     this.emitWriteBehindEvent('garden.tile_placed_from_inventory', {
       userId,
@@ -586,8 +719,8 @@ export class GardenService {
   /**
    * Remove tile from grid and preserve it in citizen's inventory
    */
-  public static removeToInventory(userId: string, x: number, y: number): GardenActionResponse {
-    const garden = this.getOrCreateGarden(userId);
+  public static async removeToInventory(userId: string, x: number, y: number): Promise<GardenActionResponse> {
+    const garden = await this.getOrCreateGarden(userId);
     const tileIndex = garden.placedTiles.findIndex((t) => t.x === x && t.y === y);
 
     if (tileIndex === -1) {
@@ -600,6 +733,7 @@ export class GardenService {
       throw new Error('SPARROW_HOME is the sanctuary centerpiece and cannot be removed.');
     }
 
+    const expectedUpdatedAt = garden.updatedAt;
     garden.placedTiles.splice(tileIndex, 1);
 
     const inventoryItem: InventoryTile = {
@@ -614,10 +748,10 @@ export class GardenService {
 
     garden.inventory.push(inventoryItem);
     garden.updatedAt = new Date().toISOString();
-    this.repository.save(garden);
+    await this.repository.saveAsync(garden, { expectedUpdatedAt });
 
-    const user = AuthService.getRepository().findById(userId);
-    const mascot = MascotService.getOrCreateMascot(userId);
+    const user = await AuthService.getRepository().refreshByIdAsync(userId);
+    const mascot = await MascotService.getOrCreateMascot(userId);
     const gridSize = this.getGridDimensionForLevel(mascot.level);
 
     this.emitWriteBehindEvent('garden.tile_removed_to_inventory', {
@@ -640,30 +774,31 @@ export class GardenService {
   /**
    * Sell an owned tile from inventory back to the system for an 80% coin recovery
    */
-  public static sellTileFromInventory(userId: string, instanceId: string): GardenActionResponse {
-    const garden = this.getOrCreateGarden(userId);
+  public static async sellTileFromInventory(userId: string, instanceId: string): Promise<GardenActionResponse> {
+    const garden = await this.getOrCreateGarden(userId);
     const inventoryIndex = garden.inventory.findIndex((i) => i.instanceId === instanceId);
 
     if (inventoryIndex === -1) {
       throw new Error(`Tile instance '${instanceId}' not found in inventory. Only inventory tiles can be sold.`);
     }
 
+    const expectedUpdatedAt = garden.updatedAt;
     const itemToSell = garden.inventory.splice(inventoryIndex, 1)[0]!;
     const refundCoins = itemToSell.sellRefundPrice;
 
     const authRepo = AuthService.getRepository();
-    const user = authRepo.findById(userId);
+    const user = await authRepo.refreshByIdAsync(userId);
     if (!user) {
       throw new Error('Citizen not found');
     }
 
-    const newCoinsBalance = user.points + refundCoins;
-    authRepo.updateUser(userId, { points: newCoinsBalance });
-
     garden.updatedAt = new Date().toISOString();
-    this.repository.save(garden);
+    const newCoinsBalance = await this.repository.saveAsync(garden, {
+      expectedUpdatedAt,
+      pointsDelta: refundCoins,
+    });
 
-    const mascot = MascotService.getOrCreateMascot(userId);
+    const mascot = await MascotService.getOrCreateMascot(userId);
     const gridSize = this.getGridDimensionForLevel(mascot.level);
 
     this.emitWriteBehindEvent('garden.tile_sold', {
@@ -675,7 +810,7 @@ export class GardenService {
     return {
       success: true,
       message: `Sold '${itemToSell.name}'! Recovered 80% of price (+${refundCoins} Urja Mudra).`,
-      remainingCoins: newCoinsBalance,
+      remainingCoins: newCoinsBalance ?? user.points + refundCoins,
       refundCoins,
       gridSize,
       placedTiles: garden.placedTiles,

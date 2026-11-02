@@ -1,4 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox';
+import { UtilityReadingSchema } from '../citizen-data/citizen-data.schema';
+
+const UnavailableNumberSchema = Type.Union([Type.Number(), Type.Null()]);
 
 export const HourlyLoadPointSchema = Type.Object({
   hour: Type.Number({ minimum: 0, maximum: 23 }),
@@ -34,24 +37,32 @@ export const CarbonLedgerDomainSchema = Type.Object({
 });
 
 export const AnalyticsDashboardResponseSchema = Type.Object({
+  dataAvailability: Type.Object({
+    utilityReadings: Type.Boolean(),
+    liveMeterTelemetry: Type.Boolean(),
+    solarGeneration: Type.Boolean(),
+    emissions: Type.Boolean(),
+    tariff: Type.Boolean(),
+  }),
   realTimeMetrics: Type.Object({
-    activePowerKw: Type.Number(),
-    todayKwh: Type.Number(),
-    todaySolarKwh: Type.Number(),
-    todayCo2AvoidedKg: Type.Number(),
-    peakDemandKw: Type.Number(),
+    activePowerKw: UnavailableNumberSchema,
+    todayKwh: UnavailableNumberSchema,
+    todaySolarKwh: UnavailableNumberSchema,
+    todayCo2AvoidedKg: UnavailableNumberSchema,
+    peakDemandKw: UnavailableNumberSchema,
   }),
   hourlyLoadCurve: Type.Array(HourlyLoadPointSchema),
   applianceBreakdown: Type.Array(ApplianceShareSchema),
   monthlyTrends: Type.Array(MonthlyTrendPointSchema),
   carbonLedger: Type.Array(CarbonLedgerDomainSchema),
   gridTariffInsights: Type.Object({
-    discomName: Type.String(),
-    peakTariffRateRupees: Type.Number(),
-    offPeakTariffRateRupees: Type.Number(),
-    solarFeedInTariffRupees: Type.Number(),
-    recommendation: Type.String(),
+    discomName: Type.Union([Type.String(), Type.Null()]),
+    peakTariffRateRupees: UnavailableNumberSchema,
+    offPeakTariffRateRupees: UnavailableNumberSchema,
+    solarFeedInTariffRupees: UnavailableNumberSchema,
+    recommendation: Type.Union([Type.String(), Type.Null()]),
   }),
+  utilityReadings: Type.Array(UtilityReadingSchema),
 });
 
 export type AnalyticsDashboardResponse = Static<typeof AnalyticsDashboardResponseSchema>;

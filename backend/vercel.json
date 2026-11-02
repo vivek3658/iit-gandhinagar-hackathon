@@ -6,6 +6,12 @@
       "maxDuration": 15
     }
   },
+  "crons": [
+    {
+      "path": "/api/v1/notifications/internal/dispatch-due",
+      "schedule": "* * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

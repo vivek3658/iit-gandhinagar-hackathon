@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
+import '../../services/notification_preferences_service.dart';
 import '../appliances/appliance_registry_sheet.dart';
 import '../auth/google_login_screen.dart';
 import '../commute/commute_travel_sheet.dart';
@@ -25,6 +26,78 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   bool _sumpOverflowAlert = true;
   double _gardenTouchSensitivity = 1.0;
   bool _pinchZoomEnabled = true;
+  bool _campaignNotificationsEnabled = false;
+  bool _wasteRemindersEnabled = false;
+  bool _notificationPreferencesLoading = true;
+  bool _notificationPreferencesSaving = false;
+  String? _notificationPreferencesError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationPreferences();
+  }
+
+  Future<void> _loadNotificationPreferences() async {
+    if (mounted && !_notificationPreferencesLoading) {
+      setState(() {
+        _notificationPreferencesLoading = true;
+        _notificationPreferencesError = null;
+      });
+    }
+    try {
+      final preferences =
+          await NotificationPreferencesService.instance.getPreferences();
+      if (!mounted) return;
+      setState(() {
+        _campaignNotificationsEnabled = preferences.campaignsEnabled;
+        _wasteRemindersEnabled = preferences.wasteRemindersEnabled;
+        _notificationPreferencesLoading = false;
+        _notificationPreferencesError = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _notificationPreferencesLoading = false;
+        _notificationPreferencesError =
+            'Could not sync notification consent. Check your connection and try again.';
+      });
+    }
+  }
+
+  Future<void> _saveNotificationPreferences({
+    required bool campaignsEnabled,
+    required bool wasteRemindersEnabled,
+  }) async {
+    if (_notificationPreferencesSaving) return;
+    setState(() {
+      _notificationPreferencesSaving = true;
+      _notificationPreferencesError = null;
+    });
+    try {
+      final preferences =
+          await NotificationPreferencesService.instance.updatePreferences(
+        campaignsEnabled: campaignsEnabled,
+        wasteRemindersEnabled: wasteRemindersEnabled,
+      );
+      if (!mounted) return;
+      setState(() {
+        _campaignNotificationsEnabled = preferences.campaignsEnabled;
+        _wasteRemindersEnabled = preferences.wasteRemindersEnabled;
+        _notificationPreferencesSaving = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _notificationPreferencesSaving = false;
+        _notificationPreferencesError =
+            'Could not save your consent settings. Your previous choices are unchanged.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification settings were not saved.')),
+      );
+    }
+  }
 
   Future<void> _selectSleepTime(BuildContext context) async {
     final picked = await showTimePicker(
@@ -64,7 +137,10 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             SizedBox(width: 8),
             Text(
               'Sign Out?',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ],
         ),
@@ -75,12 +151,16 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white60),
+            ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx); // Close dialog
-              _auth.logout();
+              await _auth.logout();
+              if (!mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const GoogleLoginScreen()),
                 (route) => false,
@@ -89,9 +169,14 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-            child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w800)),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
         ],
       ),
@@ -121,7 +206,10 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -137,6 +225,66 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           ),
           const SizedBox(height: 20),
 
+          _buildSectionHeader('CITY & PROVIDER NOTIFICATIONS'),
+          const SizedBox(height: 10),
+          _buildCard([
+            if (_notificationPreferencesLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF22C55E)),
+                ),
+              )
+            else ...[
+              _buildSwitchRow(
+                icon: '📣',
+                title: 'Utility provider updates',
+                subtitle:
+                    'Receive opted-in service notices from your linked electricity, gas, water, or transit provider.',
+                value: _campaignNotificationsEnabled,
+                onChanged: _notificationPreferencesSaving
+                    ? null
+                    : (value) => _saveNotificationPreferences(
+                          campaignsEnabled: value,
+                          wasteRemindersEnabled: _wasteRemindersEnabled,
+                        ),
+              ),
+              const Divider(color: Colors.white12, height: 20),
+              _buildSwitchRow(
+                icon: '♻️',
+                title: 'Waste collection reminders',
+                subtitle:
+                    'Receive a reminder in your activity inbox before your city’s scheduled collection.',
+                value: _wasteRemindersEnabled,
+                onChanged: _notificationPreferencesSaving
+                    ? null
+                    : (value) => _saveNotificationPreferences(
+                          campaignsEnabled: _campaignNotificationsEnabled,
+                          wasteRemindersEnabled: value,
+                        ),
+              ),
+            ],
+            if (_notificationPreferencesError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _notificationPreferencesError!,
+                style: const TextStyle(color: Color(0xFFFFB4A8), fontSize: 12),
+              ),
+              TextButton(
+                onPressed: _notificationPreferencesLoading
+                    ? null
+                    : _loadNotificationPreferences,
+                child: const Text('Retry sync'),
+              ),
+            ],
+            const SizedBox(height: 8),
+            const Text(
+              'These choices are stored with your account and default to off. Reminders currently arrive in the in-app activity feed, not as push notifications.',
+              style: TextStyle(color: Colors.white60, fontSize: 11, height: 1.4),
+            ),
+          ]),
+          const SizedBox(height: 20),
+
           // 2. Sparrow Mascot Sanctuary Settings
           _buildSectionHeader('SPARROW MASCOT SANCTUARY & BEDTIME'),
           const SizedBox(height: 10),
@@ -146,7 +294,8 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             _buildSwitchRow(
               icon: '🌙',
               title: 'Nest Mode Bedtime Sleep (11 PM - 6 AM)',
-              subtitle: 'Sparrow dozes in its straw nest during late night hours',
+              subtitle:
+                  'Sparrow dozes in its straw nest during late night hours',
               value: _state.enableNightDimming,
               onChanged: (val) {
                 setState(() => _state.setEnableNightDimming(val));
@@ -156,7 +305,8 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             _buildSwitchRow(
               icon: '⏰',
               title: 'Bedtime Device Sweep Reminder',
-              subtitle: 'Alerts 15 min before sleep to turn off AC & idle electronics',
+              subtitle:
+                  'Alerts 15 min before sleep to turn off AC & idle electronics',
               value: _state.enableSleepReminder,
               onChanged: (val) {
                 setState(() => _state.setEnableSleepReminder(val));
@@ -170,10 +320,17 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Bedtime Target:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      const Text(
+                        'Bedtime Target:',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
                       Text(
                         'Remind at: ${_state.sleepReminderTime.format(context)}',
-                        style: const TextStyle(color: Color(0xFF86EFAC), fontWeight: FontWeight.bold, fontSize: 12),
+                        style: const TextStyle(
+                          color: Color(0xFF86EFAC),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -184,7 +341,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1B6B44),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ],
@@ -217,11 +376,18 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                     children: [
                       const Text(
                         'Garden Touch Sensitivity',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
                       ),
                       Text(
                         'Adjust 3D camera pan responsiveness: ${_gardenTouchSensitivity.toStringAsFixed(1)}x',
-                        style: const TextStyle(color: Colors.white60, fontSize: 11),
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -249,14 +415,17 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             _buildDomainTile(
               icon: '⚡',
               title: 'Electricity Utility Provider',
-              subtitle: '${_state.electricityProvider} • Consumer No: GJ-AMD-40192',
+              subtitle:
+                  '${_state.electricityProvider} • Consumer No: GJ-AMD-40192',
               onTap: () => EnergySetupSheet.show(context),
             ),
             const Divider(color: Colors.white12, height: 16),
             _buildDomainTile(
               icon: '☀️',
               title: 'PM Surya Ghar Rooftop Solar',
-              subtitle: _state.hasSolar ? '${_state.solarCapacityKw} kW Grid-Tied PV Active' : 'Configure Solar Net-Metering',
+              subtitle: _state.hasSolar
+                  ? '${_state.solarCapacityKw} kW Grid-Tied PV Active'
+                  : 'Configure Solar Net-Metering',
               onTap: () => EnergySetupSheet.show(context),
             ),
           ]),
@@ -299,7 +468,8 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             _buildSwitchRow(
               icon: '❄️',
               title: 'AC High-Hour Warning (Limit: 5 hrs/day)',
-              subtitle: 'Alerts when AC runs excessively and calculates ₹ waste',
+              subtitle:
+                  'Alerts when AC runs excessively and calculates ₹ waste',
               value: _acHighHoursAlert,
               onChanged: (val) {
                 setState(() => _acHighHoursAlert = val);
@@ -348,7 +518,8 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             _buildSwitchRow(
               icon: '🔊',
               title: 'Ambient Soundscape & Audio',
-              subtitle: 'Chirping sanctuary birds, rustling trees, water ripples',
+              subtitle:
+                  'Chirping sanctuary birds, rustling trees, water ripples',
               value: _state.soundEnabled,
               onChanged: (val) {
                 setState(() => _state.setSoundEnabled(val));
@@ -378,7 +549,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 foregroundColor: const Color(0xFFEF4444),
                 side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text(
@@ -416,7 +589,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFF4ADE80), width: 1.5),
         boxShadow: const [
-          BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -450,11 +627,17 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                     ),
                     Text(
                       userEmail,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF22C55E),
                         borderRadius: BorderRadius.circular(8),
@@ -479,9 +662,15 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             children: [
               _buildMetricColumn('🪙 Urja Mudra', '${_state.coins}'),
               Container(width: 1, height: 28, color: Colors.white12),
-              _buildMetricColumn('🌱 CO₂e Saved', '${_state.co2eSavedKg.toStringAsFixed(1)} kg'),
+              _buildMetricColumn(
+                '🌱 CO₂e Saved',
+                '${_state.co2eSavedKg.toStringAsFixed(1)} kg',
+              ),
               Container(width: 1, height: 28, color: Colors.white12),
-              _buildMetricColumn('🔥 LiFE Streak', '${_state.notificationHistory.length + 5}d'),
+              _buildMetricColumn(
+                '🔥 LiFE Streak',
+                '${_state.notificationHistory.length + 5}d',
+              ),
             ],
           ),
         ],
@@ -492,7 +681,10 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   Widget _buildMetricColumn(String label, String value) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 11),
+        ),
         const SizedBox(height: 2),
         Text(
           value,
@@ -517,7 +709,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             children: [
               Text(
                 'Mascot Identity & Vitality',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
               ),
               Text(
                 'Piku the Indian Sparrow • Level 2 Companion',
@@ -534,7 +730,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           ),
           child: const Text(
             '95% Vitality',
-            style: TextStyle(color: Color(0xFF86EFAC), fontSize: 11, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: Color(0xFF86EFAC),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -573,7 +773,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     return Row(
       children: [
@@ -585,7 +785,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
               ),
               Text(
                 subtitle,
@@ -627,7 +831,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
                   ),
                   Text(
                     subtitle,
@@ -636,7 +844,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 14),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white38,
+              size: 14,
+            ),
           ],
         ),
       ),

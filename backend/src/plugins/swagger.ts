@@ -18,8 +18,12 @@ export default fp(async (fastify) => {
       },
       servers: [
         {
-          url: 'http://localhost:3000',
-          description: 'Local Development Server',
+          url: process.env.VERCEL_PROJECT_PRODUCTION_URL
+            ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+            : process.env.VERCEL_URL
+              ? `https://${process.env.VERCEL_URL}`
+              : 'http://localhost:3000',
+          description: process.env.VERCEL_URL ? 'Deployed API' : 'Local Development Server',
         },
       ],
       components: {

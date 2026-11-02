@@ -75,7 +75,7 @@ export class MascotController {
 
     const body = request.body as BuyAccessoryBody;
     try {
-      return MascotService.buyAccessory(userId, body.accessoryId);
+      return await MascotService.buyAccessory(userId, body.accessoryId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to purchase accessory';
       return reply.badRequest(msg);
@@ -93,7 +93,7 @@ export class MascotController {
 
     const body = request.body as EquipAccessoryBody;
     try {
-      return MascotService.equipAccessory(userId, body.slot, body.accessoryId);
+      return await MascotService.equipAccessory(userId, body.slot, body.accessoryId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to equip accessory';
       return reply.badRequest(msg);
@@ -123,7 +123,7 @@ export class MascotController {
 
     const body = request.body as EquipOutfitBody;
     try {
-      return MascotService.equipOutfit(userId, body.outfitId);
+      return await MascotService.equipOutfit(userId, body.outfitId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to equip outfit';
       return reply.badRequest(msg);

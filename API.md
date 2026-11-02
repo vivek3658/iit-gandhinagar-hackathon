@@ -1,137 +1,66 @@
-# UrjaVatika API Documentation
+# UrjaVatika API
 
-Backend API specification for the **UrjaVatika GEDA Mission LiFE Citizen Engagement Platform** (Problem Statement: `HC26-GEDA01`).
+The generated OpenAPI document at `GET /docs/json` is the authoritative reference for current routes, request/response schemas, and authentication. This file summarizes user-facing behavior and production limitations.
 
----
+## Conventions
 
-## 1. Global API Conventions
+- Local base URL: `http://localhost:3000/api/v1`
+- Authenticated routes require `Authorization: Bearer <access-token>`.
+- Success and error payloads follow the route's generated OpenAPI schema.
+- Production requires PostgreSQL. Configure `DATABASE_URL` and the other required environment variables described in [backend/DEPLOYMENT.md](./backend/DEPLOYMENT.md).
 
-### Base URL
-- Local Development: `http://localhost:3000/api/v1`
-- Root Healthcheck: `http://localhost:3000/health`
+## Persisted citizen data
 
-### Headers & Content Types
-- `Content-Type: application/json`
-- `Accept: application/json`
-- `Authorization: Bearer <jwt-token>` (for authenticated routes)
+These routes require a citizen token and PostgreSQL:
 
-### Request & Response Compression
-To minimize latency and bandwidth for millions of citizens on mobile and rural cellular networks:
-- **Client Request:** Clients can send compressed bodies using `Content-Encoding: gzip` or `Content-Encoding: br`.
-- **Server Response:** The server automatically compresses payloads using `@fastify/compress` supporting **Brotli (`br`)** (preferred) and **Gzip (`gzip`)** when the request includes `Accept-Encoding: br, gzip`. Payloads under 1 KB bypass compression to eliminate CPU overhead.
+| Method and path | Behavior |
+|---|---|
+| `GET /api/v1/readings` | List the signed-in citizen's utility readings. |
+| `POST /api/v1/readings` | Add an electricity, water, or gas reading. Its provenance is `USER_ENTERED`, not provider-verified. |
+| `GET /api/v1/vehicles` | List the citizen's vehicles. |
+| `POST /api/v1/vehicles` | Add a citizen-entered vehicle; no government registration lookup is performed. |
+| `PUT /api/v1/vehicles/:vehicleId` | Update a citizen-owned vehicle. |
+| `DELETE /api/v1/vehicles/:vehicleId` | Soft-delete a citizen-owned vehicle. |
+| `GET /api/v1/trips` | List citizen-confirmed trip summaries. |
+| `POST /api/v1/trips` | Submit an idempotent, citizen-confirmed trip summary. Raw GPS coordinates are neither accepted nor stored. CO₂e is unknown unless a validated calculation is configured. |
+| `GET /api/v1/analytics/dashboard` | Return the citizen's stored utility readings and explicit data-availability flags. |
+| `GET /api/v1/analytics/carbon` | Alias for the analytics dashboard. |
+| `GET /api/v1/quests/daily` | Get daily self-reported tasks and streak state. |
+| `POST /api/v1/quests/claim/:questId` | Claim a task's coin reward. This is not independent verification that the action occurred. |
+| `GET /api/v1/learning/chapters` | List versioned learning chapters and quizzes. |
+| `POST /api/v1/learning/chapters/:chapterId/complete` | Submit a quiz; the reward is once per chapter version. |
+| `GET /api/v1/learning/waste-game/catalog` | Get sorting-game items and locality-qualified guidance. |
+| `POST /api/v1/learning/waste-game/play` | Submit the daily game; the reward is once per UTC day and does not claim that waste was collected or emissions avoided. |
+| `POST /api/v1/devices/log-hours` | Save daily appliance runtime; energy is labeled as an estimate from rated power, while cost and CO₂e remain unavailable without tariff and validated emission data. |
+| `GET /api/v1/devices/summary` | Summarize saved runtime logs; monthly bill projections remain unavailable without tariff data. |
+| `GET /api/v1/activity` | Return the signed-in citizen's persisted activity feed, including per-citizen read state for shared community events. |
+| `POST /api/v1/activity/:id/read` | Mark a citizen-owned or shared activity item as read for this citizen. |
+| `POST /api/v1/activity/read-all` | Mark all visible activity items read for this citizen. |
+| `GET /api/v1/providers` | Browse the provider directory. |
+| `GET /api/v1/providers/my` | List the citizen's linked providers. |
+| `PUT /api/v1/providers/link` | Save the citizen's provider links. |
 
-### Standard Success Response Envelope
-All success payloads return the schema-validated data directly with optimal serializer throughput (`fast-json-stringify`):
-```json
-{
-  "success": true,
-  "data": { ... }
-}
-```
+Analytics fields without an actual data source (live meter telemetry, solar generation, tariff, and emissions) are returned as `null` or empty collections. User-entered readings are not represented as real-time meter data or verified environmental impact.
 
-### Standard Error Response Shape
-All error responses adhere strictly to the centralized error handler contract:
-```json
-{
-  "statusCode": 400,
-  "error": "Bad Request",
-  "message": "Detailed human-readable error description"
-}
-```
+## Platform administration
 
-Common status codes:
-- `200 OK`: Request succeeded.
-- `201 Created`: Resource successfully created.
-- `204 No Content`: Successful request with no body returned.
-- `400 Bad Request`: Validation failure on body, query, or params.
-- `401 Unauthorized`: Missing or invalid JWT token.
-- `403 Forbidden`: Insufficient permissions (e.g. non-admin accessing state KPI analytics).
-- `404 Not Found`: Resource does not exist.
-- `409 Conflict`: Unique constraint violation (e.g. duplicate mobile number).
-- `429 Too Many Requests`: Rate limit exceeded.
-- `500 Internal Server Error`: Unexpected server issue (sanitized in production, no stack traces leaked).
+- `POST /api/v1/admin/auth/login` issues a short-lived platform, provider, or city-admin token. Platform login requires `ADMIN_EMAIL` and an scrypt `ADMIN_PASSWORD_HASH`; tenant accounts are provisioned by a platform admin.
+- `GET /api/v1/admin/kpis` and `GET /api/v1/admin/providers` require a platform-admin token. Unsupported metrics are explicitly unavailable.
+- `POST /api/v1/admin/tenant-admins`, `GET /api/v1/admin/tenant-admins`, and `POST /api/v1/admin/tenant-admins/:adminId/deactivate` manage tenant accounts and require a platform-admin token. Provision a provider account only for an existing provider-directory ID; city accounts receive explicit district assignments.
+- `GET /api/v1/admin/tenant/me` validates the current tenant role and assignment. `GET /api/v1/admin/audit` returns platform-wide records to platform admins and tenant-scoped records to provider/city admins.
+- `GET /api/v1/admin/tenant/overview` returns aggregate in-scope residents and opt-in counts for the authenticated provider or city tenant, restricted to the admin's assigned districts.
+- `GET/POST /api/v1/admin/campaigns` create and list persisted campaigns. Tenant audiences are restricted to linked provider customers or residents in assigned city districts, and only citizens who opted in to campaign updates are selected. Campaigns create an in-app notification outbox; incentives are rejected until reward-ledger integration exists.
+- `GET/PUT /api/v1/notifications/preferences` lets citizens manage campaign and waste-reminder consent. Both preferences default to off.
+- The Flutter Settings screen syncs those preferences to the signed-in citizen account; a failed save is surfaced and does not silently change the displayed choice.
+- `POST /api/v1/notifications/internal/dispatch-due` is intended for Vercel Cron and requires `Authorization: Bearer <CRON_SECRET>`. It generates next-day waste reminders at 18:00 India time for active schedules, then delivers due outbox messages to the in-app activity feed and rechecks consent before delivery. This is not push notification delivery.
+- `GET /api/v1/waste/schedules?district=...&ward=...&date=YYYY-MM-DD` lists currently effective public collection schedules.
+- `GET/POST /api/v1/waste/admin/schedules` and `PUT /api/v1/waste/admin/schedules/:scheduleId` provide city-admin schedule management. Admins can only access their assigned districts; overlapping active schedules for the same ward and waste type are rejected.
+- `POST /api/v1/admin/broadcast-alert`, `POST /api/v1/admin/send-reminder`, and `POST /api/v1/providers/:providerId/broadcast` create consent-filtered, durable in-app campaigns; they do not send push notifications.
 
----
+The Next.js operator console is available at `/operator` when the frontend project is deployed. It proxies API calls server-side and stores the short-lived admin token in an HttpOnly cookie. Configure the frontend deployment's `URJA_API_URL` as the backend origin (for example `https://api.example.com`, without `/api/v1`). Deploy the backend and frontend as separate Vercel projects when using the backend's catch-all API rewrite.
 
-## 2. Core & System Endpoints
+## Production limitations
 
-### Health & Readiness Check
-- **`GET /health`**
-  - **Description:** Verifies service uptime, database readiness, and memory usage.
-  - **Authentication:** Public
-  - **Response (200 OK):**
-    ```json
-    {
-      "status": "ok",
-      "timestamp": "2026-10-29T14:30:00.000Z",
-      "uptime": 124.5,
-      "service": "urjavatika-backend"
-    }
-    ```
+Mascot state, garden layouts, inventory, and coin-funded purchases are stored in PostgreSQL; purchase/refund updates are transactional, and concurrent garden edits are rejected rather than silently overwriting one another. Leaderboard snapshots and cheers are PostgreSQL-backed. Weekly league scores reflect completed learning and sorting-game rewards, not measured environmental impact; municipal rankings remain empty until district-level verified impact data exists. The global impact board uses only persisted mascot CO₂e progress. Activity and device-runtime records are stored in PostgreSQL. Device consumption derived from catalog-rated power is only an estimate, not smart-meter data. The carbon calculator uses configured/static assumptions rather than verified utility data. Push notifications, city/provider tenant administration, provider schedules, and the Next.js admin portal are not complete.
 
-### Interactive API Documentation (Swagger / OpenAPI 3.1)
-- **`GET /docs`**: Interactive Swagger UI dashboard.
-- **`GET /docs/json`**: Raw OpenAPI 3.1 JSON specification.
-
----
-
-## 3. Modular Feature Endpoints (Roadmap)
-
-### Module 1: Authentication & Identity (`/api/v1/auth`)
-- **`POST /api/v1/auth/google`**: One-button Google Sign-In & registration. Verifies Google `idToken`, creates or resolves citizen record, and returns `{ isNewUser, isProfileComplete, accessToken, refreshToken, user }`.
-- **`POST /api/v1/auth/complete-profile`**: (Requires Bearer JWT) Completes onboarding: `{ dob?, district, avatarUrl? }`. Flips `isProfileComplete = true`.
-- **`GET /api/v1/auth/me`**: (Requires Bearer JWT) Retrieves active citizen profile, role, district, and Urja points.
-- **`POST /api/v1/auth/refresh`**: Rotates 30-day refresh token and issues a fresh 15-minute access JWT. Features anti-replay detection.
-- **`POST /api/v1/auth/logout`**: (Requires Bearer JWT) Revokes active refresh token in Redis/DB.
-- **`DELETE /api/v1/auth/account`**: (Requires Bearer JWT) Soft-deletes user record and scrubs personal identifiable information (PII).
-
-### Module 2: Media & Image CDN (`/api/v1/media`)
-- **`GET /api/v1/media/imagekit-auth`**: (Requires Bearer JWT) Issues temporary HMAC-SHA1 signature and token allowing the frontend to upload avatar photos directly to ImageKit CDN without exposing the private key.
-
-### Module 2: Profile & Citizen Baseline (`/api/v1/profile`)
-- **`GET /api/v1/profile`**: Retrieve citizen profile, selected mascot, and household energy profile.
-- **`PUT /api/v1/profile`**: Update household size, appliances, and DISCOM circle.
-
-### Module 3: Energy Footprint Tracker (`/api/v1/footprint`)
-- **`POST /api/v1/footprint/calculate`**: Calculate baseline carbon footprint from monthly kWh and tariff slab.
-- **`GET /api/v1/footprint/history`**: Get monthly historical carbon emissions and reduction trajectory.
-
-### Module 4: Gamified Mascot & Companion (`/api/v1/mascot`)
-- **`GET /api/v1/mascot/state`**: Retrieves active mascot entity (sparrow or squirrel), level (CO2-gated), vitality (0–100), mood (`EXCITED`, `HAPPY`, `DROOPY`, `SLEEPY`), canonical 3D expression (18 expressions: `tpose`, `happy`, `excited`, `curious`, `thinking`, `cheering`, `resting`, `planting`, `watering`, `celebrating`, `exploring`, `nest`, `angry`, `petted`, `levelup`, `announce`, `frustrated`, `sad`, `crying`), active props, equipped accessories (slots: `head`, `face`, `neck`, `held`, `fx`), owned wardrobe, and context-aware speech dialogue.
-- **`PATCH /api/v1/mascot`**: Renames mascot or switches species between `'sparrow'` and `'squirrel'`.
-- **`POST /api/v1/mascot/interact`**: Taps companion to boost vitality (+5) and trigger tap reaction speech and curious expression.
-- **`GET /api/v1/mascot/wardrobe`**: Lists all available accessories for `HEAD`, `FACE`, `NECK`, `HELD`, and `FX` slots with Urja Mudra pricing and required level.
-- **`POST /api/v1/mascot/wardrobe/buy`**: Purchases an accessory using earned Urja Mudra coins (atomic balance deduction).
-- **`POST /api/v1/mascot/wardrobe/equip`**: Equips or unequips an owned accessory to a designated slot (`HEAD`, `FACE`, `NECK`, `HELD`, or `FX`).
-- **`GET /api/v1/mascot/outfits`**: Lists all seasonal curated outfit collections (`spring`, `summer`, `autumn`, `winter`, `rainy`, `festive`) with owned and equipped statuses.
-- **`POST /api/v1/mascot/outfits/equip`**: Equips all owned pieces from a seasonal outfit bundle.
-
-### Module 5: Dynamic Garden Sanctuary & Inventory (`/api/v1/garden`)
-- **`GET /api/v1/garden`**: Returns current sanctuary land layout ($N \times N$ grid dynamically sized from $3\times3$ up to $10\times10$ based on verified $CO_2$ mascot level), all currently placed tiles, unplaced inventory items, citizen coin balance, and the master 31-tile catalog with unlock statuses.
-- **`POST /api/v1/garden/preview`**: Ghost placement validator. Verifies whether a prospective tile at coordinate `(x, y)` with rotation `(0, 90, 180, 270)` is valid within current unlocked grid bounds and unoccupied before citizen confirms purchase.
-- **`POST /api/v1/garden/buy-and-place`**: Purchases a catalog tile using Urja Mudra coins and places it immediately onto grid coordinates `(x, y, rotation)`. Enforces atomic balance deduction and grid collision locks.
-- **`POST /api/v1/garden/place-from-inventory`**: Repositions an existing unplaced tile from citizen inventory back onto the grid at 0 coin cost.
-- **`POST /api/v1/garden/remove-to-inventory`**: Picks up a placed tile from `(x, y)` and stores it safely in citizen inventory (prevents loss of owned items). Note: `SPARROW_HOME` is the permanent sanctuary centerpiece and cannot be removed to inventory.
-- **`POST /api/v1/garden/sell`**: Permanently liquidates an unplaced tile from inventory, refunding exactly 80% of its original purchase price in Urja Mudra coins back to the citizen.
-
-### Module 10: Activity Feed & Community Stream (`/api/v1/activity`)
-- **`GET /api/v1/activity`**: Retrieves paginated activity updates, personal habit achievements, sanctuary upgrades, and Gujarat community eco-events. Supports query params `?category=HABIT|SANCTUARY|COMMUNITY|ALERT&page=1&limit=20`. Returns `{ activities, totalCount, unreadCount, page, limit }`.
-- **`POST /api/v1/activity/:id/read`**: Marks a specific activity item as read.
-- **`POST /api/v1/activity/read-all`**: Marks all activity notifications as read for current citizen.
-
-### Module 6: DISCOM Peak Nudges & Micro-Tasks (`/api/v1/nudges`)
-- **`GET /api/v1/nudges/active`**: Retrieve real-time grid alerts (e.g. shift load between 6:30 PM - 9:30 PM).
-- **`POST /api/v1/nudges/commit`**: Citizen commits to shifting AC/washing machine during peak window.
-- **`POST /api/v1/tasks/complete`**: Verify and reward completed micro-habit (e.g. turned off idle geyser).
-
-### Module 7: Solar Feasibility & PM Surya Ghar (`/api/v1/solar`)
-- **`POST /api/v1/solar/feasibility`**: Estimate rooftop solar capacity (kW), subsidy under PM Surya Ghar Muft Bijli Yojana, and ROI.
-- **`GET /api/v1/solar/vendors`**: List empanelled GEDA solar vendors by Gujarat district.
-
-### Module 8: Leaderboards & Community Impact (`/api/v1/leaderboard`)
-- **`GET /api/v1/leaderboard/district`**: Sub-millisecond district ranking across Gujarat's 33 districts.
-- **`GET /api/v1/leaderboard/ward`**: Ward-level community ranking.
-
-### Module 9: State Administration & DISCOM Despatch (`/api/v1/admin`)
-- **`GET /api/v1/admin/kpis`**: State-wide aggregated megawatt load shed and CO2 prevented.
-- **`POST /api/v1/admin/broadcast-alert`**: Broadcast regional peak demand response alert to citizens.
+Do not treat any historical product mockup or route description as proof of production readiness. Use `/docs/json` for the exact current API contract and this section for the current data guarantees.

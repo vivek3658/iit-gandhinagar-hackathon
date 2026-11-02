@@ -87,7 +87,7 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.vitality).toBe(90); // 85 + 5
-    expect(body.pointsAwarded).toBe(2);
+    expect(body.pointsAwarded).toBe(0);
     expect(body.expression).toBe('curious');
     expect(body.activeProps).toContain('sparks');
     expect(body.dialogue.context).toBe('TAP');
@@ -246,9 +246,9 @@ describe('Mascot Module (State Machine & Wardrobe Tests)', () => {
     expect(equipOutfitBody.outfitId).toBe('spring');
   });
 
-  it('8. CO2 Saved Progression: levels up mascot without coins', () => {
+  it('8. CO2 Saved Progression: levels up mascot without coins', async () => {
     // Add 16 kg of CO2 saved (1600 exp) -> Math.floor(Math.sqrt(1600 / 100)) + 1 = 5
-    const mascot = MascotService.addCo2Savings(citizenId, 16);
+    const mascot = await MascotService.addCo2Savings(citizenId, 16);
     expect(mascot.currentExp).toBe(1600);
     expect(mascot.level).toBe(5);
     expect(mascot.nextLevelExp).toBe(2500); // 5^2 * 100

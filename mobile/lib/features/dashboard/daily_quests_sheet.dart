@@ -21,8 +21,9 @@ class DailyQuestsSheet extends StatefulWidget {
 
 class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
   DailyQuestsData? _questsData;
+  String? _loadError;
   bool _isLoading = true;
-  final Set<String> _claimedQuestIds = {};
+  final Set<String> _claimingQuestIds = {};
 
   @override
   void initState() {
@@ -31,37 +32,53 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
   }
 
   Future<void> _loadQuests() async {
-    final data = await QuestsClientService.instance.getDailyQuests();
-    if (mounted) {
+    try {
+      final data = await QuestsClientService.instance.getDailyQuests();
+      if (!mounted) return;
       setState(() {
         _questsData = data;
+        _loadError = null;
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.toString();
         _isLoading = false;
       });
     }
   }
 
   Future<void> _claimQuest(DailyQuestItem quest) async {
-    if (_claimedQuestIds.contains(quest.id)) return;
+    if (_claimingQuestIds.contains(quest.id) || quest.isClaimed) return;
     HapticFeedback.heavyImpact();
 
     setState(() {
-      _claimedQuestIds.add(quest.id);
+      _claimingQuestIds.add(quest.id);
     });
 
-    final res = await QuestsClientService.instance.claimQuest(quest.id);
-    final coins = (res['coinsAwarded'] as int?) ?? quest.coinReward;
-    GameStateService.instance.recordEcoAction(
-      actionName: quest.title,
-      co2Saved: quest.co2SavedKg,
-      coinsAwarded: coins,
-    );
-
-    if (mounted) {
+    try {
+      final res = await QuestsClientService.instance.claimQuest(quest.id);
+      if (res['success'] != true) {
+        throw StateError('The server did not confirm the task claim.');
+      }
+      final coins = (res['coinsAwarded'] as num?)?.toInt() ?? quest.coinReward;
+      GameStateService.instance.recordEcoAction(
+        actionName: quest.title,
+        co2Saved: quest.co2SavedKg,
+        coinsAwarded: coins,
+      );
+      if (!mounted) return;
+      setState(() => _claimingQuestIds.remove(quest.id));
+      await _loadQuests();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF1B6B44),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           content: Row(
             children: [
               const Text('🎉', style: TextStyle(fontSize: 20)),
@@ -69,11 +86,23 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
               Expanded(
                 child: Text(
                   'Claimed ${quest.title}! +$coins Urja Mudra coins added!',
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _claimingQuestIds.remove(quest.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('Could not claim ${quest.title}: $error'),
         ),
       );
     }
@@ -160,7 +189,30 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
           // Content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ADE80)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF4ADE80)),
+                  )
+                : _questsData == null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _loadError ?? 'Daily tasks are unavailable.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() => _isLoading = true);
+                            _loadQuests();
+                          },
+                          child: const Text('Try again'),
+                        ),
+                      ],
+                    ),
+                  )
                 : ListView(
                     children: [
                       // Streak & Rewards summary card
@@ -192,9 +244,9 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
   }
 
   Widget _buildSummaryCard() {
-    final streak = _questsData?.streakDays ?? 7;
-    final totalCoins = _questsData?.totalCoinsEarnableToday ?? 110;
-    final totalCo2 = _questsData?.totalCo2AvoidableToday ?? 6.2;
+    final streak = _questsData?.streakDays ?? 0;
+    final totalCoins = _questsData?.totalCoinsEarnableToday ?? 0;
+    final totalCo2 = _questsData?.totalCo2AvoidableToday ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -212,7 +264,11 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
         children: [
           _statColumn('🔥 Streak', '$streak days', const Color(0xFFF97316)),
           Container(width: 1, height: 32, color: Colors.white24),
-          _statColumn('🪙 Earnable', '$totalCoins coins', const Color(0xFFFDE68A)),
+          _statColumn(
+            '🪙 Earnable',
+            '$totalCoins coins',
+            const Color(0xFFFDE68A),
+          ),
           Container(width: 1, height: 32, color: Colors.white24),
           _statColumn('🌱 Cut CO₂', '$totalCo2 kg', const Color(0xFF86EFAC)),
         ],
@@ -223,18 +279,26 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
   Widget _statColumn(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
         const SizedBox(height: 3),
         Text(
           value,
-          style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w900),
+          style: TextStyle(
+            color: color,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildQuestCard(DailyQuestItem quest) {
-    final isClaimed = _claimedQuestIds.contains(quest.id) || quest.isClaimed;
+    final isClaimed = quest.isClaimed;
+    final isClaiming = _claimingQuestIds.contains(quest.id);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -273,20 +337,29 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
                           color: isClaimed ? Colors.white60 : Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          decoration: isClaimed ? TextDecoration.lineThrough : null,
+                          decoration: isClaimed
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0x334ADE80),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         quest.category,
-                        style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 8, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          color: Color(0xFF86EFAC),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ],
@@ -294,12 +367,20 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
                 const SizedBox(height: 3),
                 Text(
                   quest.description,
-                  style: const TextStyle(color: Colors.white60, fontSize: 11, height: 1.2),
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    height: 1.2,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '🪙 +${quest.coinReward} Urja Mudra • ⭐ +${quest.xpReward} XP',
-                  style: const TextStyle(color: Color(0xFFFDE68A), fontSize: 10, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    color: Color(0xFFFDE68A),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -307,15 +388,25 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
           const SizedBox(width: 8),
 
           ElevatedButton(
-            onPressed: isClaimed ? null : () => _claimQuest(quest),
+            onPressed: isClaimed || isClaiming
+                ? null
+                : () => _claimQuest(quest),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isClaimed ? Colors.white12 : const Color(0xFF22C55E),
+              backgroundColor: isClaimed
+                  ? Colors.white12
+                  : const Color(0xFF22C55E),
               foregroundColor: isClaimed ? Colors.white38 : Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text(
-              isClaimed ? 'Done ✓' : 'Claim',
+              isClaimed
+                  ? 'Done ✓'
+                  : isClaiming
+                  ? 'Claiming…'
+                  : 'Claim',
               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
             ),
           ),

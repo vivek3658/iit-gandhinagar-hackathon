@@ -1,134 +1,196 @@
 import crypto from 'node:crypto';
-import type { MongoClient } from 'mongodb';
+import type { Pool } from 'pg';
 import type { ActivityCategory, ActivityFeedResponse, ActivityItem } from './activity.schema';
+
+type ActivityEvent = Omit<ActivityItem, 'id' | 'isRead' | 'createdAt'>;
 
 export class ActivityRepository {
   private activities: ActivityItem[] = [];
-  private mongo: MongoClient | null = null;
-  private readonly collectionName = 'citizen_activities';
+  private db: Pool | null = null;
+  private allowTestMemory = false;
+  private static schemaReady = new WeakMap<Pool, Promise<void>>();
 
-  public setMongoClient(client: MongoClient | null): void {
-    this.mongo = client;
-    if (this.mongo) {
-      this.syncFromMongo().catch(() => {});
+  public setDbPool(db: Pool | null, allowTestMemory: boolean): void {
+    this.db = db;
+    this.allowTestMemory = allowTestMemory;
+  }
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.db) return;
+    let ready = ActivityRepository.schemaReady.get(this.db);
+    if (!ready) {
+      ready = this.db
+        .query(`
+          CREATE TABLE IF NOT EXISTS public.citizen_activities (
+            id UUID PRIMARY KEY,
+            user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            category TEXT NOT NULL,
+            icon TEXT NOT NULL,
+            coins_earned INTEGER,
+            co2_saved_kg NUMERIC,
+            district TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_citizen_activities_owner_created
+            ON public.citizen_activities(user_id, created_at DESC);
+          CREATE TABLE IF NOT EXISTS public.activity_read_status (
+            user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+            activity_id UUID NOT NULL REFERENCES public.citizen_activities(id) ON DELETE CASCADE,
+            read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id, activity_id)
+          );
+        `)
+        .then(() => undefined);
+      ActivityRepository.schemaReady.set(this.db, ready);
+    }
+    await ready;
+  }
+
+  private requireTestMemory(): void {
+    if (!this.allowTestMemory) {
+      throw new Error('PostgreSQL is required for durable activity feeds.');
     }
   }
 
-  public getAll(): ActivityItem[] {
-    return this.activities.map((a) => ({ ...a }));
+  public async findForUser(
+    userId: string,
+    options: { category: ActivityCategory | 'ALL'; page: number; limit: number },
+  ): Promise<ActivityFeedResponse> {
+    if (!this.db) {
+      this.requireTestMemory();
+      const visible = this.activities.filter((item) => item.userId === userId || item.userId === null);
+      const filtered = options.category === 'ALL'
+        ? visible
+        : visible.filter((item) => item.category === options.category);
+      const start = (options.page - 1) * options.limit;
+      return {
+        activities: filtered.slice(start, start + options.limit).map((item) => ({ ...item })),
+        totalCount: filtered.length,
+        unreadCount: filtered.filter((item) => !item.isRead).length,
+        page: options.page,
+        limit: options.limit,
+      };
+    }
+
+    await this.ensureSchema();
+    const categoryClause = options.category === 'ALL' ? '' : 'AND a.category = $2';
+    const parameters = options.category === 'ALL'
+      ? [userId]
+      : [userId, options.category];
+    const countResult = await this.db.query(
+      `SELECT COUNT(*)::integer AS total_count,
+              COUNT(*) FILTER (WHERE r.activity_id IS NULL)::integer AS unread_count
+       FROM public.citizen_activities a
+       LEFT JOIN public.activity_read_status r
+         ON r.activity_id = a.id AND r.user_id = $1
+       WHERE (a.user_id = $1 OR a.user_id IS NULL) ${categoryClause}`,
+      parameters,
+    );
+    const offsetIndex = parameters.length + 1;
+    const limitIndex = parameters.length + 2;
+    const result = await this.db.query(
+      `SELECT a.id, a.user_id, a.title, a.message, a.category, a.icon,
+              a.coins_earned, a.co2_saved_kg, a.district, a.created_at,
+              (r.activity_id IS NOT NULL) AS is_read
+       FROM public.citizen_activities a
+       LEFT JOIN public.activity_read_status r
+         ON r.activity_id = a.id AND r.user_id = $1
+       WHERE (a.user_id = $1 OR a.user_id IS NULL) ${categoryClause}
+       ORDER BY a.created_at DESC
+       LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
+      [...parameters, options.limit, (options.page - 1) * options.limit],
+    );
+    return {
+      activities: result.rows.map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        message: row.message,
+        category: row.category,
+        icon: row.icon,
+        coinsEarned: row.coins_earned ?? undefined,
+        co2SavedKg: row.co2_saved_kg === null ? undefined : Number(row.co2_saved_kg),
+        district: row.district ?? undefined,
+        isRead: row.is_read,
+        createdAt: new Date(row.created_at).toISOString(),
+      })),
+      totalCount: Number(countResult.rows[0]?.total_count ?? 0),
+      unreadCount: Number(countResult.rows[0]?.unread_count ?? 0),
+      page: options.page,
+      limit: options.limit,
+    };
   }
 
-  public findForUser(userId: string): ActivityItem[] {
-    return this.activities
-      .filter((a) => a.userId === userId || a.userId === null)
-      .map((a) => ({ ...a }));
-  }
-
-  public add(item: ActivityItem): ActivityItem {
-    this.activities.unshift({ ...item });
-    this.persistActivity(item).catch(() => {});
+  public async add(item: ActivityItem): Promise<ActivityItem> {
+    if (!this.db) {
+      this.requireTestMemory();
+      this.activities.unshift({ ...item });
+      return item;
+    }
+    await this.ensureSchema();
+    await this.db.query(
+      `INSERT INTO public.citizen_activities
+         (id, user_id, title, message, category, icon, coins_earned, co2_saved_kg, district, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        item.id, item.userId, item.title, item.message, item.category, item.icon,
+        item.coinsEarned ?? null, item.co2SavedKg ?? null, item.district ?? null, item.createdAt,
+      ],
+    );
     return item;
   }
 
-  public markRead(id: string, userId: string): boolean {
-    const item = this.activities.find((a) => a.id === id && (a.userId === userId || a.userId === null));
-    if (item) {
+  public async markRead(id: string, userId: string): Promise<boolean> {
+    if (!this.db) {
+      this.requireTestMemory();
+      const item = this.activities.find(
+        (activity) => activity.id === id && (activity.userId === userId || activity.userId === null),
+      );
+      if (!item) return false;
       item.isRead = true;
-      this.updateReadInMongo(id, userId).catch(() => {});
       return true;
     }
-    return false;
+    await this.ensureSchema();
+    const result = await this.db.query(
+      `INSERT INTO public.activity_read_status (user_id, activity_id)
+       SELECT $1, id FROM public.citizen_activities
+       WHERE id = $2 AND (user_id = $1 OR user_id IS NULL)
+       ON CONFLICT (user_id, activity_id) DO NOTHING
+       RETURNING activity_id`,
+      [userId, id],
+    );
+    if (result.rowCount) return true;
+    const exists = await this.db.query(
+      'SELECT 1 FROM public.activity_read_status WHERE user_id = $1 AND activity_id = $2',
+      [userId, id],
+    );
+    return exists.rowCount === 1;
   }
 
-  public markAllRead(userId: string): number {
-    let count = 0;
-    for (const item of this.activities) {
-      if ((item.userId === userId || item.userId === null) && !item.isRead) {
-        item.isRead = true;
-        count++;
+  public async markAllRead(userId: string): Promise<void> {
+    if (!this.db) {
+      this.requireTestMemory();
+      for (const item of this.activities) {
+        if (item.userId === userId || item.userId === null) item.isRead = true;
       }
+      return;
     }
-    this.updateAllReadInMongo(userId).catch(() => {});
-    return count;
+    await this.ensureSchema();
+    await this.db.query(
+      `INSERT INTO public.activity_read_status (user_id, activity_id)
+       SELECT $1, a.id FROM public.citizen_activities a
+       LEFT JOIN public.activity_read_status r
+         ON r.user_id = $1 AND r.activity_id = a.id
+       WHERE (a.user_id = $1 OR a.user_id IS NULL) AND r.activity_id IS NULL
+       ON CONFLICT (user_id, activity_id) DO NOTHING`,
+      [userId],
+    );
   }
 
   public clear(): void {
     this.activities = [];
-  }
-
-  private async syncFromMongo(): Promise<void> {
-    if (!this.mongo) return;
-    try {
-      const docs = await this.mongo
-        .db('urjavatika')
-        .collection<ActivityItem>(this.collectionName)
-        .find()
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .toArray();
-
-      for (const doc of docs) {
-        if (!this.activities.some((a) => a.id === doc.id)) {
-          this.activities.push({
-            id: doc.id,
-            userId: doc.userId,
-            title: doc.title,
-            message: doc.message,
-            category: doc.category,
-            icon: doc.icon,
-            coinsEarned: doc.coinsEarned,
-            co2SavedKg: doc.co2SavedKg,
-            district: doc.district,
-            isRead: Boolean(doc.isRead),
-            createdAt: doc.createdAt,
-          });
-        }
-      }
-    } catch {
-      // Non-fatal
-    }
-  }
-
-  private async persistActivity(item: ActivityItem): Promise<void> {
-    if (!this.mongo) return;
-    try {
-      await this.mongo
-        .db('urjavatika')
-        .collection(this.collectionName)
-        .insertOne({ ...item });
-    } catch {
-      // Non-fatal
-    }
-  }
-
-  private async updateReadInMongo(id: string, userId: string): Promise<void> {
-    if (!this.mongo) return;
-    try {
-      await this.mongo
-        .db('urjavatika')
-        .collection(this.collectionName)
-        .updateOne(
-          { id, $or: [{ userId }, { userId: null }] },
-          { $set: { isRead: true } }
-        );
-    } catch {
-      // Non-fatal
-    }
-  }
-
-  private async updateAllReadInMongo(userId: string): Promise<void> {
-    if (!this.mongo) return;
-    try {
-      await this.mongo
-        .db('urjavatika')
-        .collection(this.collectionName)
-        .updateMany(
-          { $or: [{ userId }, { userId: null }], isRead: false },
-          { $set: { isRead: true } }
-        );
-    } catch {
-      // Non-fatal
-    }
   }
 }
 
@@ -139,47 +201,22 @@ export class ActivityService {
     return this.repository;
   }
 
-  public static setMongoClient(client: MongoClient | null): void {
-    this.repository.setMongoClient(client);
+  public static setDbPool(db: Pool | null, allowTestMemory = false): void {
+    this.repository.setDbPool(db, allowTestMemory);
   }
 
-  public static ensureInitialActivities(userId: string, district = 'Ahmedabad'): void {
-    void userId;
-    void district;
-  }
-
-  public static getFeed(
+  public static async getFeed(
     userId: string,
-    options?: { category?: ActivityCategory; page?: number; limit?: number }
-  ): ActivityFeedResponse {
-    this.ensureInitialActivities(userId);
-
-    const category = options?.category || 'ALL';
-    const page = Math.max(1, options?.page || 1);
-    const limit = Math.min(50, Math.max(1, options?.limit || 20));
-
-    let list = this.repository.findForUser(userId);
-
-    if (category !== 'ALL') {
-      list = list.filter((a) => a.category === category);
-    }
-
-    const totalCount = list.length;
-    const unreadCount = list.filter((a) => !a.isRead).length;
-
-    const startIndex = (page - 1) * limit;
-    const paginated = list.slice(startIndex, startIndex + limit);
-
-    return {
-      activities: paginated,
-      totalCount,
-      unreadCount,
-      page,
-      limit,
-    };
+    options?: { category?: ActivityCategory; page?: number; limit?: number },
+  ): Promise<ActivityFeedResponse> {
+    return this.repository.findForUser(userId, {
+      category: options?.category || 'ALL',
+      page: Math.max(1, options?.page || 1),
+      limit: Math.min(50, Math.max(1, options?.limit || 20)),
+    });
   }
 
-  public static postActivity(event: Omit<ActivityItem, 'id' | 'isRead' | 'createdAt'>): ActivityItem {
+  public static async postActivity(event: ActivityEvent): Promise<ActivityItem> {
     const item: ActivityItem = {
       ...event,
       id: crypto.randomUUID(),
@@ -189,17 +226,17 @@ export class ActivityService {
     return this.repository.add(item);
   }
 
-  public static markAsRead(id: string, userId: string): { success: boolean; unreadCount: number } {
-    this.ensureInitialActivities(userId);
-    this.repository.markRead(id, userId);
-    const list = this.repository.findForUser(userId);
-    const unreadCount = list.filter((a) => !a.isRead).length;
-    return { success: true, unreadCount };
+  public static async markAsRead(
+    id: string,
+    userId: string,
+  ): Promise<{ success: boolean; unreadCount: number }> {
+    const success = await this.repository.markRead(id, userId);
+    const feed = await this.repository.findForUser(userId, { page: 1, limit: 1, category: 'ALL' });
+    return { success, unreadCount: feed.unreadCount };
   }
 
-  public static markAllAsRead(userId: string): { success: boolean; unreadCount: number } {
-    this.ensureInitialActivities(userId);
-    this.repository.markAllRead(userId);
+  public static async markAllAsRead(userId: string): Promise<{ success: boolean; unreadCount: number }> {
+    await this.repository.markAllRead(userId);
     return { success: true, unreadCount: 0 };
   }
 }

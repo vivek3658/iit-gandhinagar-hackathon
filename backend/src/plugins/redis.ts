@@ -1,6 +1,5 @@
 import Redis from 'ioredis';
 import fp from 'fastify-plugin';
-import { LeaderboardService } from '../modules/leaderboard/leaderboard.service';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -36,7 +35,6 @@ export default fp(async (fastify) => {
       redisClient.connect()
         .then(() => {
           fastify.log.info('[Redis] Connected successfully to Redis instance');
-          LeaderboardService.getInstance().setRedisClient(redisClient);
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
@@ -51,7 +49,6 @@ export default fp(async (fastify) => {
   }
 
   fastify.decorate('redis', redisClient);
-  LeaderboardService.getInstance().setRedisClient(redisClient);
 
   fastify.addHook('onClose', async () => {
     if (redisClient && redisClient.status === 'ready') {

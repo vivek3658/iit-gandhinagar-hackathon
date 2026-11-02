@@ -42,6 +42,7 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
   bool _isLoading = true;
   bool _hasCheered = false;
   int _cheersCount = 0;
+  String? _loadError;
 
   @override
   void initState() {
@@ -50,35 +51,50 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
   }
 
   Future<void> _loadSnapshot() async {
-    final data = await LeaderboardClientService.instance.visitGarden(widget.citizenId);
-    if (mounted) {
+    try {
+      final data = await LeaderboardClientService.instance.visitGarden(
+        widget.citizenId,
+      );
+      if (!mounted) return;
       setState(() {
         _visitorData = data;
         _isLoading = false;
-        _cheersCount = (data?.citizen['cheersReceived'] as int?) ?? 24;
+        _loadError = data == null
+            ? 'This citizen garden is unavailable.'
+            : null;
+        _cheersCount = (data?.citizen['cheersReceived'] as num?)?.toInt() ?? 0;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = error.toString().replaceFirst('Exception: ', '');
       });
     }
   }
 
   Future<void> _cheer() async {
-    if (_hasCheered) return;
+    if (_hasCheered || _visitorData == null) return;
     HapticFeedback.heavyImpact();
-    setState(() {
-      _hasCheered = true;
-      _cheersCount += 1;
-    });
-
-    // Call backend API
-    final res = await LeaderboardClientService.instance.cheerCitizen(widget.citizenId);
-    final coins = (res['coinsEarned'] as int?) ?? 2;
-    GameStateService.instance.addCoins(coins);
-
-    if (mounted) {
+    try {
+      final result = await LeaderboardClientService.instance.cheerCitizen(
+        widget.citizenId,
+      );
+      final coins = (result['coinsEarned'] as num?)?.toInt() ?? 0;
+      final totalCheers = (result['totalCheersReceived'] as num?)?.toInt();
+      if (coins > 0) GameStateService.instance.addCoins(coins);
+      if (!mounted) return;
+      setState(() {
+        _hasCheered = true;
+        if (totalCheers != null) _cheersCount = totalCheers;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF1B6B44),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           content: Row(
             children: [
               const Text('👏', style: TextStyle(fontSize: 20)),
@@ -86,10 +102,22 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
               Expanded(
                 child: Text(
                   'Cheered ${widget.citizenName}! +$coins Urja Mudra coins added!',
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not cheer ${widget.citizenName}: ${error.toString().replaceFirst('Exception: ', '')}',
           ),
         ),
       );
@@ -180,6 +208,17 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
                 ? const Center(
                     child: CircularProgressIndicator(color: Color(0xFF4ADE80)),
                   )
+                : _loadError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _loadError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  )
                 : SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
@@ -222,18 +261,34 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _hasCheered ? null : _cheer,
+                    onPressed: _hasCheered || _visitorData == null
+                        ? null
+                        : _cheer,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _hasCheered ? Colors.white12 : const Color(0xFF22C55E),
-                      foregroundColor: _hasCheered ? Colors.white54 : Colors.black,
+                      backgroundColor: _hasCheered
+                          ? Colors.white12
+                          : const Color(0xFF22C55E),
+                      foregroundColor: _hasCheered
+                          ? Colors.white54
+                          : Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       elevation: _hasCheered ? 0 : 4,
                     ),
-                    icon: Text(_hasCheered ? '✓' : '👏', style: const TextStyle(fontSize: 18)),
+                    icon: Text(
+                      _hasCheered ? '✓' : '👏',
+                      style: const TextStyle(fontSize: 18),
+                    ),
                     label: Text(
-                      _hasCheered ? 'Cheered! ($_cheersCount Cheers)' : 'Cheer Island (+2 🪙)',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                      _hasCheered
+                          ? 'Cheered! ($_cheersCount Cheers)'
+                          : 'Cheer Island',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -294,7 +349,10 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF59E0B),
                         borderRadius: BorderRadius.circular(8),
@@ -313,7 +371,10 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
                 const SizedBox(height: 4),
                 Text(
                   'Mood: $mood • Vitality: $vitality%',
-                  style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF86EFAC),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(
@@ -353,17 +414,16 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
         alignment: Alignment.center,
         children: [
           // Isometric Garden Grid Background
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _IsometricGridPainter(),
-            ),
-          ),
+          Positioned.fill(child: CustomPaint(painter: _IsometricGridPainter())),
 
           // Floating items
           if (slots.isEmpty)
             const Text(
               '🌱 Developing Garden Island',
-              style: TextStyle(color: Colors.white54, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white54,
+                fontWeight: FontWeight.w600,
+              ),
             )
           else
             Wrap(
@@ -375,13 +435,20 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
                 final icon = slot['icon'] as String? ?? '🏡';
                 final name = slot['name'] as String? ?? 'Eco Home';
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xDD0D2B1C),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: const Color(0x444ADE80)),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 3)),
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 6,
+                        offset: Offset(0, 3),
+                      ),
                     ],
                   ),
                   child: Column(
@@ -391,7 +458,11 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
                       const SizedBox(height: 4),
                       Text(
                         name,
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -410,13 +481,9 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
 
     return Row(
       children: [
-        Expanded(
-          child: _statPill('🌱 Total CO₂e Saved', '$co2 kg'),
-        ),
+        Expanded(child: _statPill('🌱 Total CO₂e Saved', '$co2 kg')),
         const SizedBox(width: 10),
-        Expanded(
-          child: _statPill('🔥 LiFE Streak', '$streak days'),
-        ),
+        Expanded(child: _statPill('🔥 LiFE Streak', '$streak days')),
       ],
     );
   }
@@ -432,11 +499,18 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white60, fontSize: 11),
+          ),
           const SizedBox(height: 2),
           Text(
             val,
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),

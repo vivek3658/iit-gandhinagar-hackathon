@@ -4,10 +4,10 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Pool } from 'pg';
-import { createClient } from '@supabase/supabase-js';
 import Redis from 'ioredis';
 import { MongoClient } from 'mongodb';
 import amqp from 'amqplib';
+import { parsePostgresUrl } from '../src/plugins/db';
 
 function parseEnv(filePath: string): Record<string, string> {
   const result: Record<string, string> = {};
@@ -34,14 +34,6 @@ const backendEnvPath = path.resolve(process.cwd(), '.env');
 const backendEnv = parseEnv(backendEnvPath);
 const rootEnv = parseEnv(rootEnvPath);
 const mergedEnv: Record<string, string | undefined> = { ...rootEnv, ...backendEnv, ...process.env };
-
-// Auto-alias SUPABASE_URL to DATABASE_URL if needed
-if (!mergedEnv.DATABASE_URL && mergedEnv.SUPABASE_URL) {
-  mergedEnv.DATABASE_URL = mergedEnv.SUPABASE_URL;
-}
-if (!mergedEnv.SUPABASE_URL && mergedEnv.DATABASE_URL) {
-  mergedEnv.SUPABASE_URL = mergedEnv.DATABASE_URL;
-}
 
 function mask(val: string | undefined): string {
   if (!val) return 'NOT_SET';
@@ -123,9 +115,6 @@ export async function runDiagnostics() {
   const varsToCheck = [
     'DATABASE_URL',
     'DATABASE_READ_URL',
-    'SUPABASE_URL',
-    'SUPABASE_ANON_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
     'MONGODB_URL',
     'REDIS_URL',
     'RABBITMQ_URL',
@@ -147,34 +136,30 @@ export async function runDiagnostics() {
   }
   console.log('\n');
 
-  // 2. SUPABASE / POSTGRESQL CHECK
-  console.log('2. MAIN DATABASE (SUPABASE / POSTGRESQL) STATUS:');
+  // 2. PostgreSQL check
+  console.log('2. POSTGRESQL DATABASE STATUS:');
   console.log('--------------------------------------------------');
-  const dbUrl = mergedEnv.DATABASE_URL || mergedEnv.SUPABASE_URL;
+  const dbUrl = mergedEnv.DATABASE_URL;
   if (!dbUrl) {
-    console.log('❌ Status: NOT CONFIGURED (DATABASE_URL / SUPABASE_URL missing in backend/.env)');
+    console.log('❌ Status: NOT CONFIGURED (DATABASE_URL missing in backend/.env)');
     console.log('   Testing fallback local PostgreSQL at 127.0.0.1:5432...');
     const localPg = await checkTcp('127.0.0.1', 5432);
     console.log(`   Local PostgreSQL (127.0.0.1:5432): ${localPg.ok ? '✅ REACHABLE (Service is listening locally)' : '❌ UNREACHABLE (' + localPg.message + ')'}`);
-    console.log('   👉 For Supabase: Add your Supabase PostgreSQL connection string or SUPABASE_URL to backend/.env:');
-    console.log('      DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres');
-    console.log('      Or set SUPABASE_URL, which automatically aliases to DATABASE_URL');
+    console.log('   Set DATABASE_URL to your PostgreSQL provider connection string.');
   } else {
-    if (!mergedEnv.DATABASE_URL && mergedEnv.SUPABASE_URL) {
-      console.log('   ℹ️  Auto-aliased from SUPABASE_URL -> DATABASE_URL');
-    }
     if (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://')) {
       try {
-        const parsed = new URL(dbUrl);
-        const host = parsed.hostname;
-        const port = Number(parsed.port) || 5432;
+        const parsed = parsePostgresUrl(dbUrl);
+        if (!parsed) throw new Error('Unsupported or invalid PostgreSQL connection string');
+        const host = parsed.host;
+        const port = parsed.port;
         console.log(`   Target host: ${host}:${port}`);
         const dbCheck = await checkTcp(host, port);
         console.log(`   Socket reachability: ${dbCheck.ok ? '✅ REACHABLE (' + dbCheck.latencyMs + 'ms)' : '❌ UNREACHABLE - ' + dbCheck.message}`);
 
         if (dbCheck.ok) {
           console.log('   Testing live PostgreSQL handshake with pg.Pool...');
-          const pool = new Pool({ connectionString: dbUrl, connectionTimeoutMillis: 4000 });
+          const pool = new Pool({ ...parsed, connectionTimeoutMillis: 4000 });
           try {
             await pool.query('SELECT 1');
             console.log('   PostgreSQL Live Query: ✅ SUCCESS (SELECT 1 executed)');
@@ -188,27 +173,10 @@ export async function runDiagnostics() {
         console.log(`❌ Invalid DATABASE_URL: ${e.message}`);
       }
     } else {
-      console.log(`   Configured URL type: HTTP / Supabase API (${dbUrl})`);
+      console.log('   ❌ Invalid DATABASE_URL: expected a postgres:// or postgresql:// connection string');
     }
   }
 
-  // Supabase Client SDK Check
-  const sbUrl = mergedEnv.SUPABASE_URL || (mergedEnv.DATABASE_URL?.startsWith('https://') ? mergedEnv.DATABASE_URL : undefined);
-  const sbKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || mergedEnv.SUPABASE_ANON_KEY;
-  if (sbUrl && sbKey) {
-    console.log(`   Testing Supabase SDK client (${sbUrl})...`);
-    try {
-      const client = createClient(sbUrl, sbKey);
-      const { error } = await client.auth.getSession();
-      if (!error) {
-        console.log('   Supabase SDK Authentication: ✅ SUCCESS (Client connected)');
-      } else {
-        console.log(`   Supabase SDK Authentication: ⚠️ ${error.message}`);
-      }
-    } catch (e: any) {
-      console.log(`   Supabase SDK Error: ❌ ${e.message}`);
-    }
-  }
   console.log('\n');
 
   // 3. MONGODB CHECK

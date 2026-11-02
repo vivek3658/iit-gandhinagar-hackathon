@@ -35,7 +35,9 @@ export const ClaimQuestResponseSchema = Type.Object({
   success: Type.Boolean(),
   coinsAwarded: Type.Number(),
   xpAwarded: Type.Number(),
-  newMascotVitality: Type.Number(),
+  impactCreditedKg: Type.Number(),
+  evidenceTier: Type.Literal('SELF_REPORTED'),
+  newMascotVitality: Type.Union([Type.Number(), Type.Null()]),
   streakDays: Type.Number(),
   message: Type.String(),
 });

@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import type { Pool } from 'pg';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { OAuth2Client } from 'google-auth-library';
 import { ProvidersService } from '../providers/providers.service';
 import type {
@@ -45,8 +44,18 @@ export interface RefreshTokenRecord {
   revokedAt: number | null;
 }
 
+export class AuthPersistenceError extends Error {
+  public readonly cause: unknown;
+
+  constructor(message: string, cause: unknown) {
+    super(message);
+    this.name = 'AuthPersistenceError';
+    this.cause = cause;
+  }
+}
+
 /**
- * Thread-safe In-Memory Cache + Persistent Supabase / PostgreSQL Store
+ * Thread-safe in-memory cache with PostgreSQL persistence
  */
 export class AuthRepository {
   private users = new Map<string, UserRecord>(); // id -> UserRecord
@@ -54,27 +63,40 @@ export class AuthRepository {
   private emailIndex = new Map<string, string>(); // email -> id
   private refreshTokens = new Map<string, RefreshTokenRecord>(); // tokenHash -> RefreshTokenRecord
 
-  private supabase: SupabaseClient | null = null;
   private db: Pool | null = null;
 
-  public async setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): Promise<void> {
-    if (clients.supabase !== undefined) this.supabase = clients.supabase;
+  public async setDbClients(clients: { db?: Pool | null }): Promise<void> {
     if (clients.db !== undefined) this.db = clients.db;
 
-    if (this.db || this.supabase) {
+    if (this.db) {
       try {
         await this.ensureSchema();
         await this.loadUsersFromDb();
       } catch (err: unknown) {
+        if (process.env.NODE_ENV === 'production') {
+          throw err;
+        }
+
         console.warn('[AuthRepository] Initial DB schema/sync non-fatal warning:', err);
       }
     }
+  }
+
+  public getDbPool(): Pool | null {
+    return this.db;
   }
 
   public cacheUser(user: UserRecord): void {
     this.users.set(user.id, user);
     this.googleIdIndex.set(user.googleId, user.id);
     this.emailIndex.set(user.email.toLowerCase(), user.id);
+  }
+
+  public cachePoints(id: string, points: number): void {
+    const user = this.users.get(id);
+    if (user) {
+      this.cacheUser({ ...user, points, updatedAt: new Date().toISOString() });
+    }
   }
 
   public findById(id: string): UserRecord | null {
@@ -86,27 +108,6 @@ export class AuthRepository {
   public async findByIdAsync(id: string): Promise<UserRecord | null> {
     const cached = this.findById(id);
     if (cached) return cached;
-
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('users')
-          .select('*')
-          .eq('id', id)
-          .is('deleted_at', null)
-          .maybeSingle();
-
-        if (error) {
-          console.warn('[AuthRepository] Supabase findById error:', error.message);
-        } else if (data) {
-          const user = this.mapDbRowToUser(data as Record<string, unknown>);
-          this.cacheUser(user);
-          return user;
-        }
-      } catch (err: unknown) {
-        console.warn('[AuthRepository] Supabase findById exception:', err);
-      }
-    }
 
     if (this.db) {
       try {
@@ -124,6 +125,18 @@ export class AuthRepository {
     return null;
   }
 
+  public async refreshByIdAsync(id: string): Promise<UserRecord | null> {
+    if (!this.db) return this.findById(id);
+    const result = await this.db.query(
+      'SELECT * FROM public.users WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
+      [id],
+    );
+    if (!result.rows[0]) return null;
+    const user = this.mapDbRowToUser(result.rows[0]);
+    this.cacheUser(user);
+    return user;
+  }
+
   public findByGoogleId(googleId: string): UserRecord | null {
     const id = this.googleIdIndex.get(googleId);
     if (!id) return null;
@@ -135,27 +148,6 @@ export class AuthRepository {
     if (cachedId) {
       const u = this.findById(cachedId);
       if (u) return u;
-    }
-
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('users')
-          .select('*')
-          .eq('google_id', googleId)
-          .is('deleted_at', null)
-          .maybeSingle();
-
-        if (error) {
-          console.warn('[AuthRepository] Supabase findByGoogleId error:', error.message);
-        } else if (data) {
-          const user = this.mapDbRowToUser(data as Record<string, unknown>);
-          this.cacheUser(user);
-          return user;
-        }
-      } catch (err: unknown) {
-        console.warn('[AuthRepository] Supabase findByGoogleId exception:', err);
-      }
     }
 
     if (this.db) {
@@ -187,27 +179,6 @@ export class AuthRepository {
       if (u) return u;
     }
 
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('users')
-          .select('*')
-          .eq('email', email.toLowerCase())
-          .is('deleted_at', null)
-          .maybeSingle();
-
-        if (error) {
-          console.warn('[AuthRepository] Supabase findByEmail error:', error.message);
-        } else if (data) {
-          const user = this.mapDbRowToUser(data as Record<string, unknown>);
-          this.cacheUser(user);
-          return user;
-        }
-      } catch (err: unknown) {
-        console.warn('[AuthRepository] Supabase findByEmail exception:', err);
-      }
-    }
-
     if (this.db) {
       try {
         const res = await this.db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1', [email]);
@@ -225,7 +196,7 @@ export class AuthRepository {
   }
 
   /**
-   * Atomic user creation with write-through to Supabase / PostgreSQL
+   * Atomic user creation with PostgreSQL write-through
    */
   public createUser(record: Omit<UserRecord, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>): UserRecord {
     const id = crypto.randomUUID();
@@ -279,11 +250,9 @@ export class AuthRepository {
       deletedAt: null,
     };
 
-    // Commit memory cache
-    this.cacheUser(newUser);
-
-    // Await persistence for serverless safety
+    // Persist first so failed writes cannot leave a success-shaped cache entry.
     await this.persistUser(newUser);
+    this.cacheUser(newUser);
 
     return { ...newUser };
   }
@@ -314,7 +283,7 @@ export class AuthRepository {
   }
 
   public async updateUserAsync(id: string, updates: Partial<UserRecord>): Promise<UserRecord> {
-    const existing = await this.findByIdAsync(id);
+    const existing = await this.refreshByIdAsync(id);
     if (!existing) {
       throw new Error('User not found');
     }
@@ -325,10 +294,8 @@ export class AuthRepository {
       updatedAt: new Date().toISOString(),
     };
 
-    this.cacheUser(updated);
-
-    // Await persistence for serverless safety
     await this.persistUser(updated);
+    this.cacheUser(updated);
 
     return { ...updated };
   }
@@ -354,9 +321,8 @@ export class AuthRepository {
       expiresAt: Date.now() + ttlMs,
       revokedAt: null,
     };
-    this.refreshTokens.set(tokenHash, record);
-
     await this.persistRefreshToken(record);
+    this.refreshTokens.set(tokenHash, record);
   }
 
   public getRefreshToken(token: string): RefreshTokenRecord | null {
@@ -368,29 +334,6 @@ export class AuthRepository {
     const tokenHash = this.hashToken(token);
     const cached = this.refreshTokens.get(tokenHash);
     if (cached) return cached;
-
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('refresh_tokens')
-          .select('*')
-          .eq('token_hash', tokenHash)
-          .maybeSingle();
-
-        if (!error && data) {
-          const rec: RefreshTokenRecord = {
-            tokenHash: String(data.token_hash),
-            userId: String(data.user_id),
-            expiresAt: Number(data.expires_at),
-            revokedAt: data.revoked_at ? Number(data.revoked_at) : null,
-          };
-          this.refreshTokens.set(tokenHash, rec);
-          return rec;
-        }
-      } catch (err: unknown) {
-        console.warn('[AuthRepository] Supabase getRefreshToken exception:', err);
-      }
-    }
 
     if (this.db) {
       try {
@@ -555,8 +498,7 @@ export class AuthRepository {
 
   private async ensureSchema(): Promise<void> {
     if (this.db) {
-      try {
-        await this.db.query(`
+      await this.db.query(`
           CREATE TABLE IF NOT EXISTS users (
             id UUID PRIMARY KEY,
             google_id TEXT UNIQUE NOT NULL,
@@ -588,56 +530,11 @@ export class AuthRepository {
             expires_at BIGINT NOT NULL,
             revoked_at BIGINT
           );
-        `);
-      } catch {
-        // Non-fatal if tables already exist or managed via Supabase UI
-      }
+      `);
     }
   }
 
   private async persistUser(user: UserRecord): Promise<void> {
-    if (this.supabase) {
-      try {
-        const payload = {
-          id: user.id,
-          google_id: user.googleId,
-          email: user.email,
-          name: user.name,
-          avatar_url: user.avatarUrl,
-          dob: user.dob,
-          district: user.district,
-          ward: user.ward,
-          house_type: user.houseType,
-          household_members: user.householdMembers,
-          monthly_bill_rupees: user.monthlyBillRupees,
-          water_supply_type: user.waterSupplyType,
-          water_storage_type: user.waterStorageType,
-          device_catalog_ids: user.deviceCatalogIds || [],
-          vehicle_catalog_ids: user.vehicleCatalogIds || [],
-          mascot_name: user.mascotName,
-          role: user.role,
-          is_profile_complete: user.isProfileComplete,
-          points: user.points,
-          created_at: user.createdAt,
-          updated_at: user.updatedAt,
-          deleted_at: user.deletedAt,
-        };
-
-        const { error } = await this.supabase
-          .from('users')
-          .upsert(payload, { onConflict: 'id' });
-
-        if (error) {
-          console.error('[AuthRepository] Supabase user upsert error:', error.message, error.details || '');
-        } else if (process.env.NODE_ENV !== 'test') {
-          console.info(`[AuthRepository] User ${user.id} (${user.email}) persisted to Supabase successfully`);
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[AuthRepository] Failed to persist user to Supabase:', msg);
-      }
-    }
-
     if (this.db) {
       try {
         await this.db.query(
@@ -693,70 +590,28 @@ export class AuthRepository {
           ]
         );
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn('[AuthRepository] PostgreSQL persistUser non-fatal warning:', msg);
+        throw new AuthPersistenceError('Failed to persist user', err);
       }
     }
   }
 
   private async persistRefreshToken(record: RefreshTokenRecord): Promise<void> {
-    if (this.supabase) {
-      try {
-        const { error } = await this.supabase
-          .from('refresh_tokens')
-          .upsert({
-            token_hash: record.tokenHash,
-            user_id: record.userId,
-            expires_at: record.expiresAt,
-            revoked_at: record.revokedAt,
-          }, { onConflict: 'token_hash' });
-
-        if (error) {
-          console.error('[AuthRepository] Supabase persistRefreshToken error:', error.message);
-        }
-      } catch (err: unknown) {
-        console.error('[AuthRepository] Failed to persist refresh token to Supabase:', err);
-      }
-    }
-
     if (this.db) {
       try {
         await this.db.query(
           `INSERT INTO refresh_tokens (token_hash, user_id, expires_at, revoked_at)
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (token_hash) DO UPDATE SET revoked_at = EXCLUDED.revoked_at`,
-          [record.tokenHash, record.userId, record.expiresAt, record.revokedAt]
+          [record.tokenHash, record.userId, record.expiresAt, record.revokedAt],
         );
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn('[AuthRepository] PostgreSQL persistRefreshToken non-fatal warning:', msg);
+        throw new AuthPersistenceError('Failed to persist refresh token', err);
       }
     }
   }
 
   private async loadUsersFromDb(): Promise<void> {
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('users')
-          .select('*')
-          .is('deleted_at', null);
-
-        if (error) {
-          console.warn('[AuthRepository] Supabase loadUsersFromDb error:', error.message);
-        } else if (Array.isArray(data)) {
-          for (const row of data) {
-            const rec = this.mapDbRowToUser(row as Record<string, unknown>);
-            this.cacheUser(rec);
-          }
-          if (process.env.NODE_ENV !== 'test') {
-            console.info(`[AuthRepository] Pre-loaded ${data.length} users from Supabase into memory cache`);
-          }
-        }
-      } catch (err: unknown) {
-        console.warn('[AuthRepository] Supabase loadUsersFromDb exception:', err);
-      }
-    } else if (this.db) {
+    if (this.db) {
       try {
         const res = await this.db.query('SELECT * FROM users WHERE deleted_at IS NULL');
         for (const row of res.rows) {
@@ -811,7 +666,7 @@ export class AuthService {
     return this.repository;
   }
 
-  public static async setDbClients(clients: { supabase?: SupabaseClient | null; db?: Pool | null }): Promise<void> {
+  public static async setDbClients(clients: { db?: Pool | null }): Promise<void> {
     await this.repository.setDbClients(clients);
   }
 
@@ -897,19 +752,19 @@ export class AuthService {
       body.waterProviderId ||
       body.transitProviderIds
     ) {
-      ProvidersService.linkCitizenProviders(userId, {
+      await ProvidersService.linkCitizenProviders(userId, {
         electricityProviderId: body.electricityProviderId,
         gasProviderId: body.gasProviderId,
         waterProviderId: body.waterProviderId,
         transitProviderIds: body.transitProviderIds,
-      });
+      }, this.repository.getDbPool(), process.env.NODE_ENV === 'test');
     }
 
     return this.toDto(updated);
   }
 
   public static async getMe(userId: string): Promise<UserDto> {
-    const user = await this.repository.findByIdAsync(userId);
+    const user = await this.repository.refreshByIdAsync(userId);
     if (!user) {
       throw new Error('Citizen not found or account has been deleted');
     }
@@ -957,7 +812,7 @@ export class AuthService {
     googleClientId: string,
   ): Promise<{ sub: string; email: string; name: string; picture?: string }> {
     const cleanClientId = (googleClientId || '').trim().replace(/^["']|["']$/g, '');
-    if (idToken.startsWith('mock_test_token_')) {
+    if (process.env.NODE_ENV === 'test' && idToken.startsWith('mock_test_token_')) {
       const parts = idToken.split('_');
       const suffix = parts[3] || 'citizen1';
       return {
@@ -966,6 +821,13 @@ export class AuthService {
         name: `Mission LiFE ${suffix}`,
         picture: `https://ik.imagekit.io/urjavatika/avatars/${suffix}.webp`,
       };
+    }
+
+    if (
+      cleanClientId.length === 0 ||
+      cleanClientId === 'mock-google-client-id.apps.googleusercontent.com'
+    ) {
+      throw new Error('Google Sign-In is not configured on the server');
     }
 
     if (!this.oauthClient) {
@@ -978,8 +840,8 @@ export class AuthService {
         audience: cleanClientId,
       });
       const payload = ticket.getPayload();
-      if (!payload || !payload.sub || !payload.email) {
-        throw new Error('Invalid token payload from Google');
+      if (!payload?.sub || !payload.email || payload.email_verified !== true) {
+        throw new Error('Google token is missing a verified email');
       }
       return {
         sub: payload.sub,
@@ -988,23 +850,6 @@ export class AuthService {
         picture: payload.picture,
       };
     } catch (err: unknown) {
-      try {
-        const parts = idToken.split('.');
-        const payloadPart = parts[1];
-        if (parts.length === 3 && payloadPart) {
-          const payload = JSON.parse(Buffer.from(payloadPart, 'base64').toString('utf-8'));
-          if (payload && payload.sub && payload.email) {
-            return {
-              sub: payload.sub,
-              email: payload.email,
-              name: payload.name || 'Gujarat Citizen',
-              picture: payload.picture,
-            };
-          }
-        }
-      } catch {
-        // Fallback
-      }
       const msg = err instanceof Error ? err.message : 'Google token verification failed';
       throw new Error(`Google authentication failed: ${msg}`);
     }

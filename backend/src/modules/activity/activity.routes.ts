@@ -7,6 +7,11 @@ import {
 import { ActivityController } from './activity.controller';
 
 export const activityRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('onRoute', (routeOptions) => {
+    if (routeOptions.schema) {
+      routeOptions.schema.security = [{ bearerAuth: [] }];
+    }
+  });
   fastify.addHook('preHandler', fastify.authenticate);
 
   fastify.get('/', { schema: GetActivityRouteSchema }, ActivityController.getFeed);

@@ -98,7 +98,8 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
                 listenable: GameStateService.instance,
                 builder: (context, _) {
                   final isGardenPage = _verticalPage == 1;
-                  final isScrollLocked = GameStateService.instance.gardenScrollLocked;
+                  final isScrollLocked =
+                      GameStateService.instance.gardenScrollLocked;
                   return PageView(
                     controller: _verticalController,
                     scrollDirection: Axis.vertical,
@@ -107,7 +108,8 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
                     physics: (isGardenPage && isScrollLocked)
                         ? const NeverScrollableScrollPhysics()
                         : const BouncingScrollPhysics(),
-                    onPageChanged: (page) => setState(() => _verticalPage = page),
+                    onPageChanged: (page) =>
+                        setState(() => _verticalPage = page),
                     children: [
                       MascotSanctuaryScreen(
                         onScrollToGarden: _scrollToGarden,
@@ -123,9 +125,7 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
               ),
 
               // Screen 2: Dedicated Wardrobe Fitting Room Screen (Slide Right)
-              WardrobeFittingScreen(
-                onBackToSanctuary: _slideToSanctuary,
-              ),
+              WardrobeFittingScreen(onBackToSanctuary: _slideToSanctuary),
             ],
           ),
 
@@ -134,33 +134,41 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
             Positioned(
               left: 16,
               right: 16,
-              bottom: 88,
+              bottom: MediaQuery.paddingOf(context).bottom + 88,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                  padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    color: Colors.white.withValues(alpha: 0.96),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: const Color(0xFFDCE8DF)),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x0A0F172A), blurRadius: 14, offset: Offset(0, 4)),
+                      BoxShadow(
+                        color: Color(0x160F172A),
+                        blurRadius: 18,
+                        offset: Offset(0, 5),
+                      ),
                     ],
                   ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    _buildIndicator(
-                      isActive: _verticalPage == 0,
-                      emoji: '🐥',
-                      tooltip: 'Mascot Sanctuary',
-                      onTap: _scrollToSanctuary,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildIndicator(
-                      isActive: _verticalPage == 1,
-                      emoji: '🏝️',
-                      tooltip: 'Floating Island',
-                      onTap: _scrollToGarden,
-                    ),
-                  ]),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildIndicator(
+                        isActive: _verticalPage == 0,
+                        icon: Icons.flutter_dash_rounded,
+                        label: 'Sanctuary',
+                        tooltip: 'Mascot Sanctuary',
+                        onTap: _scrollToSanctuary,
+                      ),
+                      _buildIndicator(
+                        isActive: _verticalPage == 1,
+                        icon: Icons.park_rounded,
+                        label: 'Garden',
+                        tooltip: 'Floating Island',
+                        onTap: _scrollToGarden,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -171,7 +179,8 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
 
   Widget _buildIndicator({
     required bool isActive,
-    required String emoji,
+    required IconData icon,
+    required String label,
     required String tooltip,
     required VoidCallback onTap,
   }) {
@@ -183,18 +192,37 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
       child: Tooltip(
         message: tooltip,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          width: isActive ? 28 : 22,
-          height: isActive ? 28 : 22,
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF16A34A) : const Color(0xFFF1F5F9),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: isActive ? const Color(0xFF567C2C) : Colors.white,
-              width: 1.5,
-            ),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(
+            horizontal: isActive ? 14 : 12,
+            vertical: 10,
           ),
-          child: Center(child: Text(emoji, style: TextStyle(fontSize: isActive ? 16 : 13))),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFF16834A) : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isActive ? Colors.white : const Color(0xFF64756A),
+              ),
+              if (isActive) ...[
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

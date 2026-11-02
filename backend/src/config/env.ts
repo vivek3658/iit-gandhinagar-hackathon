@@ -9,6 +9,9 @@ export const EnvSchema = Type.Object({
   LOG_LEVEL: Type.String({ default: 'info' }),
   CORS_ORIGIN: Type.String({ default: '*' }),
   JWT_SECRET: Type.String({ default: 'dev-jwt-secret-key-must-be-at-least-32-characters-long' }),
+  ADMIN_EMAIL: Type.Optional(Type.String({ minLength: 3, maxLength: 254 })),
+  ADMIN_PASSWORD_HASH: Type.Optional(Type.String()),
+  CRON_SECRET: Type.Optional(Type.String({ minLength: 32 })),
   GOOGLE_CLIENT_ID: Type.String({ default: 'mock-google-client-id.apps.googleusercontent.com' }),
   GOOGLE_CLIENT_SECRET: Type.Optional(Type.String()),
   IMAGEKIT_PUBLIC_KEY: Type.String({ default: 'public_mock_imagekit_key' }),
@@ -16,9 +19,6 @@ export const EnvSchema = Type.Object({
   IMAGEKIT_URL_ENDPOINT: Type.String({ default: 'https://ik.imagekit.io/urjavatika' }),
   DATABASE_URL: Type.Optional(Type.String()),
   DATABASE_READ_URL: Type.Optional(Type.String()),
-  SUPABASE_URL: Type.Optional(Type.String()),
-  SUPABASE_ANON_KEY: Type.Optional(Type.String()),
-  SUPABASE_SERVICE_ROLE_KEY: Type.Optional(Type.String()),
   MONGODB_URL: Type.Optional(Type.String()),
   REDIS_URL: Type.Optional(Type.String()),
   RABBITMQ_URL: Type.Optional(Type.String()),
@@ -41,7 +41,10 @@ function loadExternalEnv(): void {
           const eq = trimmed.indexOf('=');
           if (eq !== -1) {
             const key = trimmed.slice(0, eq).trim();
-            const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+            const val = trimmed
+              .slice(eq + 1)
+              .trim()
+              .replace(/^["']|["']$/g, '');
             if (!process.env[key] && val) {
               process.env[key] = val;
             }
@@ -67,24 +70,6 @@ function cleanEnv(raw: Record<string, string | undefined>): Record<string, unkno
       trimmed = trimmed.slice(1, -1).trim();
     }
     cleaned[key] = trimmed;
-  }
-
-  // Auto-alias only if the protocol format matches expectations
-  if (
-    !cleaned.DATABASE_URL &&
-    cleaned.SUPABASE_URL &&
-    (typeof cleaned.SUPABASE_URL === 'string') &&
-    (cleaned.SUPABASE_URL.startsWith('postgres://') || cleaned.SUPABASE_URL.startsWith('postgresql://'))
-  ) {
-    cleaned.DATABASE_URL = cleaned.SUPABASE_URL;
-  }
-  if (
-    !cleaned.SUPABASE_URL &&
-    cleaned.DATABASE_URL &&
-    (typeof cleaned.DATABASE_URL === 'string') &&
-    cleaned.DATABASE_URL.startsWith('https://')
-  ) {
-    cleaned.SUPABASE_URL = cleaned.DATABASE_URL;
   }
 
   if (!cleaned.PORT || cleaned.PORT === '') {

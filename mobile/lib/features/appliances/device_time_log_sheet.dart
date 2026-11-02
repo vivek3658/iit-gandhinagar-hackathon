@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/device_time_log_service.dart';
-import '../../services/game_state_service.dart';
 
 class DeviceTimeLogSheet extends StatefulWidget {
   const DeviceTimeLogSheet({super.key});
@@ -87,9 +86,6 @@ class _DeviceTimeLogSheetState extends State<DeviceTimeLogSheet> with SingleTick
       thermostatTemp: _selectedDeviceId == 'ac' ? _thermostatTemp : null,
     );
 
-    // Reward coins for diligence
-    GameStateService.instance.addCoins(10);
-
     if (mounted) {
       setState(() {
         _isLogging = false;
@@ -107,7 +103,7 @@ class _DeviceTimeLogSheetState extends State<DeviceTimeLogSheet> with SingleTick
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Runtime logged! +10 Urja Mudra coins earned.',
+                  'Runtime logged. Energy use is an estimate based on rated appliance power.',
                   style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ),
@@ -521,11 +517,15 @@ class _DeviceTimeLogSheetState extends State<DeviceTimeLogSheet> with SingleTick
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₹${entry.costRupees}',
+                    entry.costRupees == null
+                        ? 'Tariff unavailable'
+                        : '₹${entry.costRupees}',
                     style: const TextStyle(color: Color(0xFFFDE68A), fontWeight: FontWeight.w900, fontSize: 14),
                   ),
                   Text(
-                    '${entry.co2EmissionsKg} kg CO₂',
+                    entry.co2EmissionsKg == null
+                        ? 'CO₂e unavailable'
+                        : '${entry.co2EmissionsKg} kg CO₂e',
                     style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 10, fontWeight: FontWeight.w700),
                   ),
                 ],
@@ -578,7 +578,9 @@ class _DeviceTimeLogSheetState extends State<DeviceTimeLogSheet> with SingleTick
                   children: [
                     const Text('Monthly Cost Penalty:', style: TextStyle(color: Colors.white60, fontSize: 10)),
                     Text(
-                      '~₹${alert.potentialSavingsRupeesMonthly} / mo',
+                      alert.potentialSavingsRupeesMonthly == null
+                          ? 'Unavailable'
+                          : '~₹${alert.potentialSavingsRupeesMonthly} / mo',
                       style: const TextStyle(color: Color(0xFFEF4444), fontSize: 16, fontWeight: FontWeight.w900),
                     ),
                   ],
@@ -590,7 +592,9 @@ class _DeviceTimeLogSheetState extends State<DeviceTimeLogSheet> with SingleTick
                   children: [
                     const Text('Monthly Carbon Waste:', style: TextStyle(color: Colors.white60, fontSize: 10)),
                     Text(
-                      '${alert.potentialCo2ReductionKgMonthly} kg CO₂e',
+                      alert.potentialCo2ReductionKgMonthly == null
+                          ? 'Unavailable'
+                          : '${alert.potentialCo2ReductionKgMonthly} kg CO₂e',
                       style: const TextStyle(color: Color(0xFFF97316), fontSize: 16, fontWeight: FontWeight.w900),
                     ),
                   ],

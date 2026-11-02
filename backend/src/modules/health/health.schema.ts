@@ -13,7 +13,6 @@ export const HealthResponseSchema = Type.Object({
   services: Type.Optional(
     Type.Object({
       database: Type.String(),
-      supabase: Type.String(),
       redis: Type.String(),
       mongodb: Type.String(),
       rabbitmq: Type.String(),

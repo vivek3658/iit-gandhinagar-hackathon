@@ -1,6 +1,12 @@
 import fastifyEnv from '@fastify/env';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import fastify, { FastifyError, FastifyInstance, FastifyServerOptions, type FastifyReply, type FastifyRequest } from 'fastify';
+import fastify, {
+  FastifyError,
+  FastifyInstance,
+  FastifyServerOptions,
+  type FastifyReply,
+  type FastifyRequest,
+} from 'fastify';
 import { envOptions } from './config/env';
 import dbPlugin from './plugins/db';
 import redisPlugin from './plugins/redis';
@@ -25,6 +31,10 @@ import { calculatorRoutes } from './modules/calculator/calculator.routes';
 import { analyticsRoutes } from './modules/analytics/analytics.routes';
 import { questsRoutes } from './modules/quests/quests.routes';
 import { devicesRoutes } from './modules/devices/devices.routes';
+import { citizenDataRoutes } from './modules/citizen-data/citizen-data.routes';
+import { learningRoutes } from './modules/learning/learning.routes';
+import { notificationsRoutes } from './modules/notifications/notifications.routes';
+import { wasteRoutes } from './modules/waste/waste.routes';
 
 export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   const app = fastify({
@@ -130,6 +140,10 @@ export function buildApp(opts: FastifyServerOptions = {}): FastifyInstance {
   app.register(analyticsRoutes, { prefix: '/api/v1/analytics' });
   app.register(questsRoutes, { prefix: '/api/v1/quests' });
   app.register(devicesRoutes, { prefix: '/api/v1/devices' });
+  app.register(citizenDataRoutes, { prefix: '/api/v1' });
+  app.register(learningRoutes, { prefix: '/api/v1/learning' });
+  app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
+  app.register(wasteRoutes, { prefix: '/api/v1/waste' });
 
   return app;
 }

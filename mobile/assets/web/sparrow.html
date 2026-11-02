@@ -177,11 +177,14 @@ DEMO.push(['angry',2.6],['frustrated',2.8],['sad',2.6],['crying',3.2],['petted',
 
 // ---- tap = pet ----
 let pd=null,petT=null,petBack='happy';
+let sleepLocked=false;
 const notifyFlutter=(obj)=>{try{if(window.FlutterBridge&&window.FlutterBridge.postMessage){window.FlutterBridge.postMessage(JSON.stringify(obj))}}catch(e){}};
-const pet=()=>{stop();if(curKey==='sleep'||curKey==='nest'||curKey==='resting'){set('happy');notifyFlutter({type:'wake',wasSleeping:true});return;}if(curKey!=='petted')petBack=curKey;set('petted');notifyFlutter({type:'pet',expression:'petted'});clearTimeout(petT);petT=setTimeout(()=>{if(curKey==='petted')set(petBack)},2800);};
-wrap.addEventListener('pointerdown',e=>{pd={x:e.clientX,y:e.clientY,t:performance.now()}});
+const tapReactions=['petted','curious','excited','happy','cheering'];
+let tapReactionIndex=0;
+const pet=()=>{unlockAudio();stop();if(curKey==='sleep'||curKey==='nest'||curKey==='resting'){if(sleepLocked){notifyFlutter({type:'pet',expression:'petted',scheduledSleep:true});return;}chirp('wake');set('happy');notifyFlutter({type:'wake',wasSleeping:true});return;}if(curKey!=='petted')petBack=curKey;const expression=tapReactions[tapReactionIndex++%tapReactions.length];set(expression);chirp(expression==='excited'||expression==='cheering'?'excited':'pet');notifyFlutter({type:'pet',expression});clearTimeout(petT);petT=setTimeout(()=>{if(curKey===expression)set(petBack)},2800);};
+wrap.addEventListener('pointerdown',e=>{unlockAudio();pd={x:e.clientX,y:e.clientY,t:performance.now()}});
 wrap.addEventListener('pointerup',e=>{if(!pd)return;const d=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),dt=performance.now()-pd.t;pd=null;if(d<6&&dt<400)pet()});
-Object.assign(window.Sparrow,{poses:Object.keys(P0),pet,levelUp:n=>{drawLvl('LEVEL UP!',n?'Lv '+(n-1)+' → '+n:'');window.Sparrow.set('levelup')},announce:t=>{drawBadge(String(t||'NEW!'));window.Sparrow.set('announce')}});
+Object.assign(window.Sparrow,{poses:Object.keys(P0),pet,setSleepLocked:locked=>{sleepLocked=!!locked},levelUp:n=>{drawLvl('LEVEL UP!',n?'Lv '+(n-1)+' → '+n:'');chirp('excited');window.Sparrow.set('levelup')},announce:t=>{drawBadge(String(t||'NEW!'));window.Sparrow.set('announce')}});
 
 // ---- per-frame ----
 let pudT=0,pudWas=false;
@@ -328,10 +331,10 @@ add('held','leafbrella','Leaf umbrella',()=>umb(['#6bbf59','#3e9a3a'],12));
 
 
 // ================= WEATHER / AMBIENT =================
-const fxG={},fxList=[['petals','🌸 Petals'],['butterflies','🦋 Butterflies'],['leaves','🍂 Falling leaves'],['snow','❄️ Snow'],['rain','🌧️ Rain']];
+const fxG={},ambientFxG={},fxList=[['petals','🌸 Petals'],['butterflies','🦋 Butterflies'],['leaves','🍂 Falling leaves'],['snow','❄️ Snow'],['rain','🌧️ Rain']];
 const fall=(n,mkItem,o={})=>{const g=new THREE.Group(),it=[];
  for(let i=0;i<n;i++){const m=mkItem(i);m.userData={x:rnd(-3.4,3.4),z:rnd(-1.8,3),y:rnd(0,5.4),v:rnd(o.v?o.v[0]:.4,o.v?o.v[1]:.8),amp:rnd(.1,o.amp||.4),f:rnd(.6,1.6),ph:rnd(0,6.28),sp:rnd(-1,1)};g.add(m);it.push(m)}
- g.userData.tick=(t,dt)=>{for(const m of it){const u=m.userData;u.y-=u.v*dt;if(u.y<0)u.y+=5.4;m.position.set(u.x+Math.sin(t*u.f+u.ph)*u.amp,u.y,u.z);if(o.cull)m.visible=!o.cull(m);if(o.tumble){m.rotation.x+=dt*u.sp*2;m.rotation.z+=dt*u.sp*1.6;m.rotation.y+=dt*u.sp}}};return g};
+ g.userData.tick=(t,dt)=>{for(const m of it){const u=m.userData;if(o.rise){u.y+=u.v*dt;if(u.y>5.4)u.y=0}else{u.y-=u.v*dt;if(u.y<0)u.y+=5.4}m.position.set(u.x+Math.sin(t*u.f+u.ph)*u.amp,u.y,u.z);if(o.cull)m.visible=!o.cull(m);if(o.tumble){m.rotation.x+=dt*u.sp*2;m.rotation.z+=dt*u.sp*1.6;m.rotation.y+=dt*u.sp}}};return g};
 const snowTex=TX(64,64,(x)=>{x.beginPath();x.arc(32,32,24,0,7);x.fillStyle='#fff';x.fill();x.lineWidth=4;x.strokeStyle='rgba(120,160,205,.65)';x.stroke()});
 const snowMat=new THREE.SpriteMaterial({map:snowTex,transparent:true});
 fxG.snow=fall(46,()=>{const s=new THREE.Sprite(snowMat),k=rnd(.1,.26);s.scale.set(k,k,1);return s},{v:[.25,.65],amp:.35});
@@ -355,6 +358,29 @@ fxG.rain=fall(110,()=>{const m=new THREE.Mesh(rainGeo,rainMat);m.rotation.z=.1;r
   b.userData.l.rotation.z=-f;b.userData.r.rotation.z=f})};
  fxG.butterflies=g}
 Object.values(fxG).forEach(g=>{g.visible=false;scene.add(g)});
+ambientFxG.rain=fall(38,()=>{const m=new THREE.Mesh(rainGeo,rainMat);m.rotation.z=.1;return m},{v:[4.5,6.5],amp:0});
+ambientFxG.snow=fall(22,()=>{const s=new THREE.Sprite(snowMat),k=rnd(.08,.18);s.scale.set(k,k,1);return s},{v:[.2,.45],amp:.3});
+ambientFxG.leaves=fall(18,i=>{const m=new THREE.Mesh(leafG,AM([0x78966b,0x9aa56a,0xb7a66a][i%3],.65,{side:THREE.DoubleSide}));m.scale.setScalar(rnd(.4,.7));return m},{v:[.25,.5],amp:.45,tumble:true});
+ambientFxG.petals=fall(16,i=>{const m=new THREE.Mesh(petalGeo,AM([0xffe082,0xffca80,0xffffff][i%3],.55,{side:THREE.DoubleSide}));m.scale.setScalar(rnd(.3,.55));return m},{v:[.2,.4],amp:.45,tumble:true});
+ambientFxG.heat=fall(20,()=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.025,6,6),new THREE.MeshBasicMaterial({color:0xffc857,transparent:true,opacity:.4}));return m},{v:[.12,.28],amp:.25,rise:true});
+Object.values(ambientFxG).forEach(g=>{g.visible=false;scene.add(g)});
+
+// Sound effects are synthesized locally; audio starts only after a user gesture.
+let audioContext=null,soundEnabled=true;
+const unlockAudio=()=>{if(!soundEnabled)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;if(!audioContext)audioContext=new C();if(audioContext.state==='suspended')audioContext.resume()}catch(e){}};
+const chirp=kind=>{if(!soundEnabled||!audioContext||audioContext.state!=='running')return;try{
+ const now=audioContext.currentTime,osc=audioContext.createOscillator(),gain=audioContext.createGain();
+ const notes=kind==='sleep'?[520,390]:kind==='wake'?[680,1040]:kind==='excited'?[900,1320]:[760,1080];
+ osc.type='sine';osc.frequency.setValueAtTime(notes[0],now);osc.frequency.exponentialRampToValueAtTime(notes[1],now+.12);
+ gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.035,now+.025);gain.gain.exponentialRampToValueAtTime(.0001,now+.22);
+ osc.connect(gain);gain.connect(audioContext.destination);osc.start(now);osc.stop(now+.23)
+}catch(e){}};
+const ambientWeatherKey={rain:'rain',cold:'snow',windy:'leaves',hot:'heat',clear:'petals'};
+const setAmbientWeather=mood=>{const key=ambientWeatherKey[mood]||null;Object.entries(ambientFxG).forEach(([name,group])=>{group.visible=name===key})};
+Object.assign(window.Sparrow,{
+ setWeather:setAmbientWeather,
+ setSoundEnabled:enabled=>{soundEnabled=!!enabled}
+});
 
 // ================= SHOP / WIRING =================
 const SL=['head','face','neck','held','fx'];
@@ -417,12 +443,13 @@ document.getElementById('ow').innerHTML='<span class="lbl">Weather</span>';
 mkBtn('ow','✕ None',{slot:'fx',item:''},()=>wear('fx',null));
 fxList.forEach(([k])=>mkBtn('ow',k,{slot:'fx',item:k},()=>pick('fx',k)));
 document.getElementById('earn').onclick=()=>{ST.coins+=100;save();wallet()};
-Object.assign(window.Sparrow,{wear,preview:(slot,key)=>{tryOn({[slot]:key||null});},previewOutfit:(name)=>{const f=OUTFITS[name];if(!f)return;const want={};SL.forEach(s=>want[s]=f[s]||null);tryOn(want);},cancelPreview:()=>{cancelTry();},sleep:()=>{set('sleep');},wake:()=>{set('happy');},setNight:(isNight)=>{if(typeof hemi!=='undefined'){if(isNight){hemi.color.setHex(0x5a7588);hemi.groundColor.setHex(0x1a2634);}else{hemi.color.setHex(0xfff6e6);hemi.groundColor.setHex(0xd6c8a8);}}},dress:putOn,outfits:Object.keys(OUTFITS),prices:PRICE,state,isOwned:own,
+Object.assign(window.Sparrow,{wear,preview:(slot,key)=>{tryOn({[slot]:key||null});},previewOutfit:(name)=>{const f=OUTFITS[name];if(!f)return;const want={};SL.forEach(s=>want[s]=f[s]||null);tryOn(want);},cancelPreview:()=>{cancelTry();},sleep:()=>{set('sleep');chirp('sleep');},wake:()=>{set('happy');chirp('wake');},setNight:(isNight)=>{if(typeof hemi!=='undefined'){if(isNight){hemi.color.setHex(0x5a7588);hemi.groundColor.setHex(0x1a2634);}else{hemi.color.setHex(0xfff6e6);hemi.groundColor.setHex(0xd6c8a8);}}},dress:putOn,outfits:Object.keys(OUTFITS),prices:PRICE,state,isOwned:own,
  items:{head:Object.keys(slots.head),face:Object.keys(slots.face),neck:Object.keys(slots.neck),held:Object.keys(slots.held),fx:Object.keys(fxG)},
  grant:keys=>{[].concat(keys).forEach(k=>{if(PRICE[k]&&!own(k))ST.owned.push(k)});save();refresh();notify()},
  setCoins:n=>{ST.coins=Math.max(0,n|0);save();wallet()}});
 fxTick=(t,dt)=>{for(const k in slots)for(const j in slots[k]){const g=slots[k][j].g;if(g.visible&&g.userData.tick)g.userData.tick(t,dt)}
- if(worn.fx&&fxG[worn.fx])fxG[worn.fx].userData.tick(t,dt)};
+ if(worn.fx&&fxG[worn.fx])fxG[worn.fx].userData.tick(t,dt);
+ for(const key in ambientFxG){const g=ambientFxG[key];if(g.visible&&g.userData.tick)g.userData.tick(t,dt)}};
 {const init=ST.worn||OUTFITS.autumn;SL.forEach(s=>setWorn(s,init[s]&&own(init[s])?init[s]:null))}
 wallet();refresh();
 }

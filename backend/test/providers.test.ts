@@ -47,7 +47,9 @@ describe('Providers & Admin Modules Integration Tests', () => {
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
-    expect(body.providers.every((p: { category: string }) => p.category === 'ELECTRICITY')).toBe(true);
+    expect(body.providers.every((p: { category: string }) => p.category === 'ELECTRICITY')).toBe(
+      true,
+    );
     expect(body.providers.length).toBe(5); // Torrent, UGVCL, DGVCL, MGVCL, PGVCL
   });
 
@@ -81,6 +83,7 @@ describe('Providers & Admin Modules Integration Tests', () => {
     const res = await app.inject({
       method: 'PUT',
       url: '/api/v1/providers/link',
+      headers: { authorization: `Bearer ${citizenToken}` },
       payload: linkPayload,
     });
 
@@ -94,10 +97,11 @@ describe('Providers & Admin Modules Integration Tests', () => {
     expect(body.links.consumerNumbers.electricity).toBe('100234567');
   });
 
-  it('5. POST /api/v1/providers/:providerId/broadcast dispatches notification to citizen in-app feed', async () => {
+  it('5. POST /api/v1/providers/:providerId/broadcast rejects citizen requests', async () => {
     const broadcastPayload = {
       title: 'Peak Load Shifting Window (6:30 PM - 9:30 PM)',
-      message: 'West Ahmedabad substations experiencing heavy load. Delay running washing machines to earn +20 Mudra coins!',
+      message:
+        'West Ahmedabad substations experiencing heavy load. Delay running washing machines to earn +20 Mudra coins!',
       category: 'ALERT',
       targetDistrict: 'Ahmedabad',
       incentiveCoins: 20,
@@ -107,60 +111,35 @@ describe('Providers & Admin Modules Integration Tests', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/providers/torrent_power/broadcast',
+      headers: { authorization: `Bearer ${citizenToken}` },
       payload: broadcastPayload,
     });
 
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.payload);
-    expect(body.success).toBe(true);
-    expect(body.notificationId).toBeDefined();
-
-    // Verify notification appears in citizen activity feed!
-    const activityRes = await app.inject({
-      method: 'GET',
-      url: '/api/v1/activity',
-      headers: { authorization: `Bearer ${citizenToken}` },
-    });
-
-    expect(activityRes.statusCode).toBe(200);
-    const activityBody = JSON.parse(activityRes.payload);
-    const foundAlert = activityBody.activities.find((a: { title: string }) =>
-      a.title.includes('Torrent Power Ltd: Peak Load Shifting Window')
-    );
-    expect(foundAlert).toBeDefined();
-    expect(foundAlert.coinsEarned).toBe(20);
+    expect(res.statusCode).toBe(403);
   });
 
-  it('6. GET /api/v1/admin/kpis returns state-wide GEDA aggregated metrics', async () => {
+  it('6. GET /api/v1/admin/kpis requires admin authentication', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/v1/admin/kpis',
     });
 
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.payload);
-    expect(body.success).toBe(true);
-    expect(body.kpis.totalRegisteredCitizens).toBeGreaterThan(0);
-    expect(body.kpis.totalCo2eSavedKg).toBeGreaterThan(0);
-    expect(body.kpis.totalPeakMwhShifted).toBeGreaterThan(0);
-    expect(body.kpis.districtBreakdown['Ahmedabad']).toBeDefined();
+    expect(res.statusCode).toBe(401);
   });
 
-  it('7. POST /api/v1/admin/broadcast-alert broadcasts state-wide GEDA advisory', async () => {
+  it('7. POST /api/v1/admin/broadcast-alert requires admin authentication', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/broadcast-alert',
       payload: {
         title: 'Mission LiFE State-wide Challenge',
-        message: 'All Gujarat citizens completing 5 consecutive green days earn the Gold Eco-Shield badge!',
+        message:
+          'All Gujarat citizens completing 5 consecutive green days earn the Gold Eco-Shield badge!',
         category: 'COMMUNITY',
         incentiveCoins: 30,
       },
     });
 
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.payload);
-    expect(body.success).toBe(true);
-    expect(body.broadcastId).toBeDefined();
+    expect(res.statusCode).toBe(401);
   });
 });

@@ -7,7 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// Communicates two-ways with Flutter:
 /// - Tap to pet triggers 3D heart particles and invokes [onSparrowPetted].
 /// - Tap to wake from sleep triggers [onSparrowWoken].
-/// - Allows programmatic triggers: [pet], [setExpression], [dress], [wear], [preview], [levelUp], [sleep], [wake], [setNight].
+/// - Allows programmatic triggers: [pet], [setExpression], [dress], [wear], [preview], [levelUp], [sleep], [wake], [setNight], [setWeather].
 class Sparrow3DStage extends StatefulWidget {
   final ValueChanged<String>? onSparrowPetted;
   final VoidCallback? onSparrowWoken;
@@ -85,18 +85,48 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
 
   /// Puts the sparrow into sound sleep with floating Zzz particles.
   void sleep() {
-    _controller?.runJavaScript("if (window.Sparrow && window.Sparrow.sleep) window.Sparrow.sleep();");
+    _controller?.runJavaScript(
+      "if (window.Sparrow && window.Sparrow.sleep) window.Sparrow.sleep();",
+    );
+  }
+
+  /// Prevents taps from waking the sparrow during its scheduled night sleep.
+  void setSleepLocked(bool locked) {
+    if (!_isReady) return;
+    _controller?.runJavaScript(
+      'if (window.Sparrow && window.Sparrow.setSleepLocked) window.Sparrow.setSleepLocked($locked);',
+    );
   }
 
   /// Wakes the sparrow up with a joyful chirp.
   void wake() {
-    _controller?.runJavaScript("if (window.Sparrow && window.Sparrow.wake) window.Sparrow.wake();");
+    _controller?.runJavaScript(
+      "if (window.Sparrow && window.Sparrow.wake) window.Sparrow.wake();",
+    );
   }
 
   /// Toggles night scene lighting (dims ambient lights and enhances glow).
   void setNight(bool isNight) {
+    if (!_isReady) return;
     _controller?.runJavaScript(
       "if (window.Sparrow && window.Sparrow.setNight) window.Sparrow.setNight($isNight);",
+    );
+  }
+
+  /// Applies ambient weather particles without changing the equipped wardrobe effect.
+  void setWeather(String? mood) {
+    if (!_isReady) return;
+    final value = mood == null ? 'null' : jsonEncode(mood);
+    _controller?.runJavaScript(
+      'if (window.Sparrow && window.Sparrow.setWeather) window.Sparrow.setWeather($value);',
+    );
+  }
+
+  /// Keeps synthesized companion sounds in sync with the user's sound setting.
+  void setSoundEnabled(bool enabled) {
+    if (!_isReady) return;
+    _controller?.runJavaScript(
+      'if (window.Sparrow && window.Sparrow.setSoundEnabled) window.Sparrow.setSoundEnabled($enabled);',
     );
   }
 
@@ -162,7 +192,10 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
       return const Center(
         child: Text(
           '🐥 3D Sparrow Sanctuary (WebGL)',
-          style: TextStyle(color: Color(0xFF1B6B44), fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Color(0xFF1B6B44),
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     }

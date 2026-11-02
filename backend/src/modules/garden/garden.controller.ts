@@ -48,7 +48,7 @@ export class GardenController {
 
     const { tileId, x, y, rotation } = request.body as BuyAndPlaceTileBody;
     try {
-      return GardenService.buyAndPlace(userId, tileId, x, y, rotation || 0);
+      return await GardenService.buyAndPlace(userId, tileId, x, y, rotation || 0);
     } catch (err: unknown) {
       const error = err as Error;
       return reply.badRequest(error.message);
@@ -66,7 +66,7 @@ export class GardenController {
 
     const { instanceId, x, y, rotation } = request.body as PlaceFromInventoryBody;
     try {
-      return GardenService.placeFromInventory(userId, instanceId, x, y, rotation || 0);
+      return await GardenService.placeFromInventory(userId, instanceId, x, y, rotation || 0);
     } catch (err: unknown) {
       const error = err as Error;
       return reply.badRequest(error.message);
@@ -84,7 +84,7 @@ export class GardenController {
 
     const { x, y } = request.body as RemoveToInventoryBody;
     try {
-      return GardenService.removeToInventory(userId, x, y);
+      return await GardenService.removeToInventory(userId, x, y);
     } catch (err: unknown) {
       const error = err as Error;
       return reply.badRequest(error.message);
@@ -102,7 +102,7 @@ export class GardenController {
 
     const { instanceId } = request.body as SellTileBody;
     try {
-      return GardenService.sellTileFromInventory(userId, instanceId);
+      return await GardenService.sellTileFromInventory(userId, instanceId);
     } catch (err: unknown) {
       const error = err as Error;
       return reply.badRequest(error.message);

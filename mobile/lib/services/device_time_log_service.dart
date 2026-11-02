@@ -1,6 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
-import '../constants/auth_config.dart';
+import 'api_client.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 
@@ -9,8 +8,8 @@ class HighUsageAlertData {
   final String alertTitle;
   final String alertMessage;
   final double excessHours;
-  final int potentialSavingsRupeesMonthly;
-  final int potentialCo2ReductionKgMonthly;
+  final int? potentialSavingsRupeesMonthly;
+  final int? potentialCo2ReductionKgMonthly;
   final String recommendation;
 
   HighUsageAlertData({
@@ -29,8 +28,8 @@ class HighUsageAlertData {
       alertTitle: json['alertTitle'] as String? ?? '⚠️ High Usage Warning',
       alertMessage: json['alertMessage'] as String? ?? '',
       excessHours: (json['excessHours'] as num?)?.toDouble() ?? 0.0,
-      potentialSavingsRupeesMonthly: json['potentialSavingsRupeesMonthly'] as int? ?? 0,
-      potentialCo2ReductionKgMonthly: json['potentialCo2ReductionKgMonthly'] as int? ?? 0,
+      potentialSavingsRupeesMonthly: json['potentialSavingsRupeesMonthly'] as int?,
+      potentialCo2ReductionKgMonthly: json['potentialCo2ReductionKgMonthly'] as int?,
       recommendation: json['recommendation'] as String? ?? '',
     );
   }
@@ -43,8 +42,8 @@ class ApplianceLogEntry {
   final String icon;
   final double operatingHours;
   final double energyConsumedKwh;
-  final double co2EmissionsKg;
-  final int costRupees;
+  final double? co2EmissionsKg;
+  final int? costRupees;
   final bool isOverLimit;
   final DateTime loggedAt;
 
@@ -82,10 +81,12 @@ class ApplianceLogEntry {
       icon: json['icon'] as String? ?? '📱',
       operatingHours: (json['operatingHours'] as num?)?.toDouble() ?? 0.0,
       energyConsumedKwh: (json['energyConsumedKwh'] as num?)?.toDouble() ?? 0.0,
-      co2EmissionsKg: (json['co2EmissionsKg'] as num?)?.toDouble() ?? 0.0,
-      costRupees: json['costRupees'] as int? ?? 0,
+      co2EmissionsKg: (json['co2EmissionsKg'] as num?)?.toDouble(),
+      costRupees: json['costRupees'] as int?,
       isOverLimit: json['isOverLimit'] as bool? ?? false,
-      loggedAt: json['loggedAt'] != null ? DateTime.parse(json['loggedAt'] as String) : DateTime.now(),
+      loggedAt: json['loggedAt'] != null
+          ? DateTime.parse(json['loggedAt'] as String)
+          : DateTime.now(),
     );
   }
 }
@@ -97,7 +98,7 @@ class LoggedDeviceResult {
   final double operatingHours;
   final double ratedPowerKw;
   final double energyConsumedKwh;
-  final double co2EmissionsKg;
+  final double? co2EmissionsKg;
   final HighUsageAlertData? highUsageAlert;
 
   LoggedDeviceResult({
@@ -122,8 +123,10 @@ class LoggedDeviceResult {
       operatingHours: (dev['operatingHours'] as num?)?.toDouble() ?? 0.0,
       ratedPowerKw: (dev['ratedPowerKw'] as num?)?.toDouble() ?? 1.0,
       energyConsumedKwh: (dev['energyConsumedKwh'] as num?)?.toDouble() ?? 0.0,
-      co2EmissionsKg: (dev['co2EmissionsKg'] as num?)?.toDouble() ?? 0.0,
-      highUsageAlert: alertMap != null ? HighUsageAlertData.fromJson(alertMap) : null,
+      co2EmissionsKg: (dev['co2EmissionsKg'] as num?)?.toDouble(),
+      highUsageAlert: alertMap != null
+          ? HighUsageAlertData.fromJson(alertMap)
+          : null,
     );
   }
 }
@@ -132,7 +135,6 @@ class DeviceTimeLogService {
   static final DeviceTimeLogService instance = DeviceTimeLogService._();
   DeviceTimeLogService._();
 
-  final HttpClient _http = HttpClient()..connectionTimeout = const Duration(seconds: 4);
   final List<ApplianceLogEntry> _history = [];
 
   List<ApplianceLogEntry> get history => List.unmodifiable(_history);
@@ -143,20 +145,22 @@ class DeviceTimeLogService {
     double? thermostatTemp,
   }) async {
     final token = AuthService.instance.accessToken;
-    if (token == null || token.isEmpty) throw Exception('Sign in to save appliance logs.');
-    final uri = Uri.parse('${AuthConfig.apiBaseUrl}/devices/log-hours');
-    final req = await _http.postUrl(uri);
-    req.headers.contentType = ContentType.json;
-    req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    req.write(jsonEncode({
-      'deviceCatalogId': deviceCatalogId,
-      'operatingHours': operatingHours,
-      if (thermostatTemp != null) 'thermostatTemp': thermostatTemp,
-    }));
-    final res = await req.close();
-    final body = await res.transform(utf8.decoder).join();
-    if (res.statusCode != 200) throw HttpException('Could not save log (${res.statusCode}): $body');
-    final result = LoggedDeviceResult.fromJson(jsonDecode(body) as Map<String, dynamic>);
+    if (token == null || token.isEmpty)
+      throw Exception('Sign in to save appliance logs.');
+    final response = await ApiClient.instance.post(
+      '/devices/log-hours',
+      body: {
+        'deviceCatalogId': deviceCatalogId,
+        'operatingHours': operatingHours,
+        if (thermostatTemp != null) 'thermostatTemp': thermostatTemp,
+      },
+    );
+    if (response.statusCode != HttpStatus.ok) {
+      throw HttpException(
+        'Could not save log (${response.statusCode}): ${response.body}',
+      );
+    }
+    final result = LoggedDeviceResult.fromJson(response.decodeJson());
 
     // 1. Add to persistent history log
     final newEntry = ApplianceLogEntry(
@@ -167,14 +171,17 @@ class DeviceTimeLogService {
       operatingHours: result.operatingHours,
       energyConsumedKwh: result.energyConsumedKwh,
       co2EmissionsKg: result.co2EmissionsKg,
-      costRupees: (result.energyConsumedKwh * 6.5).round(),
+      costRupees: null,
       isOverLimit: result.highUsageAlert?.triggered ?? false,
       loggedAt: DateTime.now(),
     );
-    _history.removeWhere((entry) => entry.deviceId == newEntry.deviceId &&
-        entry.loggedAt.year == newEntry.loggedAt.year &&
-        entry.loggedAt.month == newEntry.loggedAt.month &&
-        entry.loggedAt.day == newEntry.loggedAt.day);
+    _history.removeWhere(
+      (entry) =>
+          entry.deviceId == newEntry.deviceId &&
+          entry.loggedAt.year == newEntry.loggedAt.year &&
+          entry.loggedAt.month == newEntry.loggedAt.month &&
+          entry.loggedAt.day == newEntry.loggedAt.day,
+    );
     _history.insert(0, newEntry);
 
     // 2. Trigger REAL Android System Notification if high usage alert is active!
@@ -192,13 +199,14 @@ class DeviceTimeLogService {
 
   Future<Map<String, dynamic>> getSummary() async {
     final token = AuthService.instance.accessToken;
-    if (token == null || token.isEmpty) throw Exception('Sign in to view appliance summary.');
-    final uri = Uri.parse('${AuthConfig.apiBaseUrl}/devices/summary');
-    final req = await _http.getUrl(uri);
-    req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    final res = await req.close();
-    final body = await res.transform(utf8.decoder).join();
-    if (res.statusCode != 200) throw HttpException('Could not load appliance summary (${res.statusCode}).');
-    return jsonDecode(body) as Map<String, dynamic>;
+    if (token == null || token.isEmpty)
+      throw Exception('Sign in to view appliance summary.');
+    final response = await ApiClient.instance.get('/devices/summary');
+    if (response.statusCode != HttpStatus.ok) {
+      throw HttpException(
+        'Could not load appliance summary (${response.statusCode}): ${response.body}',
+      );
+    }
+    return response.decodeJson();
   }
 }

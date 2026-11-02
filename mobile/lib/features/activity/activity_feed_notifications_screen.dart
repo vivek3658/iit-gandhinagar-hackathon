@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../constants/auth_config.dart';
-import '../../services/auth_service.dart';
+import '../../services/api_client.dart';
 
 /// Clean White-Theme Activity Feed & System Notification Center
 /// Matches hackathon judge design and wireframe specifications:
@@ -35,8 +33,6 @@ class _ActivityFeedNotificationsScreenState
     ('Alerts', 'ALERT'),
   ];
 
-  final HttpClient _http = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 8);
   String _category = 'ALL';
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
@@ -51,25 +47,20 @@ class _ActivityFeedNotificationsScreenState
 
   @override
   void dispose() {
-    _http.close(force: true);
     super.dispose();
   }
 
-  Future<Map<String, dynamic>> _request(String path, {String method = 'GET'}) async {
-    final token = AuthService.instance.accessToken;
-    if (token == null || token.isEmpty) {
-      throw Exception('Sign in to load your activity.');
-    }
-    final uri = Uri.parse('${AuthConfig.apiBaseUrl}$path');
-    final request = await _http.openUrl(method, uri);
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    request.headers.contentType = ContentType.json;
-    final response = await request.close();
-    final body = await response.transform(utf8.decoder).join();
+  Future<Map<String, dynamic>> _request(
+    String path, {
+    String method = 'GET',
+  }) async {
+    final response = await ApiClient.instance.request(path, method: method);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException('Activity request failed (${response.statusCode}).');
+      throw HttpException(
+        'Activity request failed (${response.statusCode}): ${response.body}',
+      );
     }
-    return body.isEmpty ? <String, dynamic>{} : jsonDecode(body) as Map<String, dynamic>;
+    return response.body.isEmpty ? <String, dynamic>{} : response.decodeJson();
   }
 
   Future<void> _loadFeed() async {
@@ -107,7 +98,8 @@ class _ActivityFeedNotificationsScreenState
         if (_unreadCount > 0) _unreadCount--;
       });
     } catch (error) {
-      if (mounted) _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      if (mounted)
+        _showMessage(error.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -120,12 +112,15 @@ class _ActivityFeedNotificationsScreenState
         _unreadCount = 0;
       });
     } catch (error) {
-      if (mounted) _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      if (mounted)
+        _showMessage(error.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Map<String, List<Map<String, dynamic>>> _groupItemsByTime() {
@@ -140,7 +135,9 @@ class _ActivityFeedNotificationsScreenState
     };
 
     for (final item in _items) {
-      final date = DateTime.tryParse(item['createdAt'] as String? ?? '')?.toLocal();
+      final date = DateTime.tryParse(
+        item['createdAt'] as String? ?? '',
+      )?.toLocal();
       if (date == null) {
         groups['TODAY']!.add(item);
         continue;
@@ -224,7 +221,10 @@ class _ActivityFeedNotificationsScreenState
             SizedBox(
               height: 46,
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 scrollDirection: Axis.horizontal,
                 itemCount: _filters.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -247,9 +247,13 @@ class _ActivityFeedNotificationsScreenState
                       fontSize: 12,
                     ),
                     side: BorderSide(
-                      color: selected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+                      color: selected
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFE2E8F0),
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   );
                 },
               ),
@@ -258,38 +262,42 @@ class _ActivityFeedNotificationsScreenState
             // Activity List Grouped by Time
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)))
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF16A34A),
+                      ),
+                    )
                   : _error != null
-                      ? _statusCard(
-                          Icons.cloud_off_rounded,
-                          'Could not sync your journal',
-                          _error!,
-                          action: 'Retry',
-                          onAction: _loadFeed,
-                        )
-                      : _items.isEmpty
-                          ? _statusCard(
-                              Icons.auto_awesome_rounded,
-                              'No activity records yet',
-                              'Real device logs, completed habits, and sanctuary events will appear here as you play.',
-                            )
-                          : RefreshIndicator(
-                              color: const Color(0xFF16A34A),
-                              backgroundColor: Colors.white,
-                              onRefresh: _loadFeed,
-                              child: ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-                                children: [
-                                  for (final entry in grouped.entries)
-                                    if (entry.value.isNotEmpty) ...[
-                                      _buildTimeHeader(entry.key),
-                                      for (final item in entry.value)
-                                        _activityCard(item),
-                                      const SizedBox(height: 8),
-                                    ],
-                                ],
-                              ),
-                            ),
+                  ? _statusCard(
+                      Icons.cloud_off_rounded,
+                      'Could not sync your journal',
+                      _error!,
+                      action: 'Retry',
+                      onAction: _loadFeed,
+                    )
+                  : _items.isEmpty
+                  ? _statusCard(
+                      Icons.auto_awesome_rounded,
+                      'No activity records yet',
+                      'Real device logs, completed habits, and sanctuary events will appear here as you play.',
+                    )
+                  : RefreshIndicator(
+                      color: const Color(0xFF16A34A),
+                      backgroundColor: Colors.white,
+                      onRefresh: _loadFeed,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                        children: [
+                          for (final entry in grouped.entries)
+                            if (entry.value.isNotEmpty) ...[
+                              _buildTimeHeader(entry.key),
+                              for (final item in entry.value)
+                                _activityCard(item),
+                              const SizedBox(height: 8),
+                            ],
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -319,13 +327,16 @@ class _ActivityFeedNotificationsScreenState
             ),
           ),
           const SizedBox(width: 8),
-          const Expanded(child: Divider(color: Color(0xFFE2E8F0), thickness: 1)),
+          const Expanded(
+            child: Divider(color: Color(0xFFE2E8F0), thickness: 1),
+          ),
         ],
       ),
     );
   }
 
-  Widget _roundButton(IconData icon, VoidCallback onTap, {String? tooltip}) => Material(
+  Widget _roundButton(IconData icon, VoidCallback onTap, {String? tooltip}) =>
+      Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
@@ -357,9 +368,14 @@ class _ActivityFeedNotificationsScreenState
       'zap' || 'solar' => Icons.bolt_rounded,
       'tree' || 'leaf' => Icons.eco_rounded,
       'bird' || 'spark' => Icons.pets_rounded,
-      _ => category == 'ALERT' ? Icons.notifications_active_rounded : Icons.auto_awesome_rounded,
+      _ =>
+        category == 'ALERT'
+            ? Icons.notifications_active_rounded
+            : Icons.auto_awesome_rounded,
     };
-    final createdAt = DateTime.tryParse(item['createdAt'] as String? ?? '')?.toLocal();
+    final createdAt = DateTime.tryParse(
+      item['createdAt'] as String? ?? '',
+    )?.toLocal();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -368,13 +384,17 @@ class _ActivityFeedNotificationsScreenState
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: !isRead && item['id'] is String ? () => _markRead(item['id'] as String) : null,
+          onTap: !isRead && item['id'] is String
+              ? () => _markRead(item['id'] as String)
+              : null,
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: isRead ? const Color(0xFFE2E8F0) : const Color(0xFF86EFAC),
+                color: isRead
+                    ? const Color(0xFFE2E8F0)
+                    : const Color(0xFF86EFAC),
                 width: isRead ? 1.0 : 1.5,
               ),
               boxShadow: const [
@@ -392,15 +412,21 @@ class _ActivityFeedNotificationsScreenState
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: isRead ? const Color(0xFFF1F5F9) : const Color(0xFFDCFCE7),
+                    color: isRead
+                        ? const Color(0xFFF1F5F9)
+                        : const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isRead ? const Color(0xFFE2E8F0) : const Color(0xFF86EFAC),
+                      color: isRead
+                          ? const Color(0xFFE2E8F0)
+                          : const Color(0xFF86EFAC),
                     ),
                   ),
                   child: Icon(
                     icon,
-                    color: isRead ? const Color(0xFF64748B) : const Color(0xFF16A34A),
+                    color: isRead
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF16A34A),
                     size: 22,
                   ),
                 ),
@@ -416,7 +442,9 @@ class _ActivityFeedNotificationsScreenState
                               item['title'] as String? ?? 'Eco activity',
                               style: TextStyle(
                                 color: const Color(0xFF0F172A),
-                                fontWeight: isRead ? FontWeight.w700 : FontWeight.w900,
+                                fontWeight: isRead
+                                    ? FontWeight.w700
+                                    : FontWeight.w900,
                                 fontSize: 13,
                               ),
                             ),
@@ -445,7 +473,10 @@ class _ActivityFeedNotificationsScreenState
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(6),
@@ -472,15 +503,24 @@ class _ActivityFeedNotificationsScreenState
                             ),
                         ],
                       ),
-                      if (item['coinsEarned'] is num || item['co2SavedKg'] is num) ...[
+                      if (item['coinsEarned'] is num ||
+                          item['co2SavedKg'] is num) ...[
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 8,
                           children: [
                             if (item['coinsEarned'] is num)
-                              _metric(Icons.monetization_on_rounded, '+${(item['coinsEarned'] as num).toInt()} 🪙', const Color(0xFFD97706)),
+                              _metric(
+                                Icons.monetization_on_rounded,
+                                '+${(item['coinsEarned'] as num).toInt()} 🪙',
+                                const Color(0xFFD97706),
+                              ),
                             if (item['co2SavedKg'] is num)
-                              _metric(Icons.eco_rounded, '${(item['co2SavedKg'] as num).toStringAsFixed(2)} kg CO2e', const Color(0xFF16A34A)),
+                              _metric(
+                                Icons.eco_rounded,
+                                '${(item['co2SavedKg'] as num).toStringAsFixed(2)} kg CO2e',
+                                const Color(0xFF16A34A),
+                              ),
                           ],
                         ),
                       ],
@@ -496,27 +536,27 @@ class _ActivityFeedNotificationsScreenState
   }
 
   Widget _metric(IconData icon, String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(6),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w800,
+            fontSize: 10,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w800,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 
   Widget _statusCard(
     IconData icon,
@@ -524,75 +564,74 @@ class _ActivityFeedNotificationsScreenState
     String message, {
     String? action,
     VoidCallback? onAction,
-  }) =>
-      Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A0F172A),
-                  blurRadius: 16,
-                  offset: Offset(0, 4),
-                ),
-              ],
+  }) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A0F172A),
+              blurRadius: 16,
+              offset: Offset(0, 4),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(icon, color: const Color(0xFF16A34A), size: 28),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
-                ),
-                if (action != null) ...[
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: onAction,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF16A34A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(action),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          ],
         ),
-      );
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(icon, color: const Color(0xFF16A34A), size: 28),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF0F172A),
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: onAction,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(action),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 
   String _timeLabel(DateTime time) {
     final delta = DateTime.now().difference(time);

@@ -13,16 +13,27 @@ class CitizenProfileSetupScreen extends StatefulWidget {
   const CitizenProfileSetupScreen({super.key});
 
   @override
-  State<CitizenProfileSetupScreen> createState() => _CitizenProfileSetupScreenState();
+  State<CitizenProfileSetupScreen> createState() =>
+      _CitizenProfileSetupScreenState();
 }
 
 class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
   int _currentStep = 0;
   bool _isSubmitting = false;
+  String? _submitError;
 
   // Profile Avatar
   String _selectedAvatar = '🌿';
-  final List<String> _avatarPresets = ['🌿', '🦅', '🦁', '🌸', '🌞', '🌱', '🦜', '🌳'];
+  final List<String> _avatarPresets = [
+    '🌿',
+    '🦅',
+    '🦁',
+    '🌸',
+    '🌞',
+    '🌱',
+    '🦜',
+    '🌳',
+  ];
 
   // Step 1: Location & House
   String _selectedDistrict = 'Ahmedabad';
@@ -37,11 +48,7 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       'label': '🛵 Electric Scooter (EV)',
       'regNumber': '',
     },
-    {
-      'type': 'cycle',
-      'label': '🚲 Bicycle / E-Bike',
-      'regNumber': '',
-    },
+    {'type': 'cycle', 'label': '🚲 Bicycle / E-Bike', 'regNumber': ''},
   ];
 
   // Step 3: Water Supply & Storage
@@ -51,13 +58,19 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
   // Step 4: Electricity & Normalized Appliances
   String _electricityProviderId = 'torrent_power';
   double _monthlyBillRupees = 2200;
-  final Set<String> _selectedDevices = {'ro_purifier', 'refrigerator', 'air_conditioner'};
+  final Set<String> _selectedDevices = {
+    'ro_purifier',
+    'refrigerator',
+    'air_conditioner',
+  };
 
   // Step 5: Cooking Gas Provider
   String _gasProviderId = 'adani_png';
 
   // Step 6: Companion Sparrow
-  final TextEditingController _mascotNameController = TextEditingController(text: 'Cheechee');
+  final TextEditingController _mascotNameController = TextEditingController(
+    text: 'Cheechee',
+  );
 
   // Municipal Districts & Wards in Gujarat
   final Map<String, List<String>> _districtWards = {
@@ -110,7 +123,12 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       'Raysan',
     ],
     'Bhavnagar': ['Kalanala', 'Ghogha Road', 'Subhashnagar', 'Sardarnagar'],
-    'Jamnagar': ['Digvijay Plot', 'Patel Colony', 'Gulabnagar', 'Khodiyar Colony'],
+    'Jamnagar': [
+      'Digvijay Plot',
+      'Patel Colony',
+      'Gulabnagar',
+      'Khodiyar Colony',
+    ],
     'Junagadh': ['Zanzarda Road', 'Moti Baug', 'Joshipura', 'Kalva Chowk'],
   };
 
@@ -127,11 +145,16 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       final wards = _districtWards[newDistrict] ?? ['Central Ward'];
       _selectedWard = wards.first;
 
-      if (newDistrict == 'Ahmedabad' || newDistrict == 'Gandhinagar' || newDistrict == 'Surat') {
+      if (newDistrict == 'Ahmedabad' ||
+          newDistrict == 'Gandhinagar' ||
+          newDistrict == 'Surat') {
         _electricityProviderId = 'torrent_power';
       } else if (newDistrict == 'Vadodara') {
         _electricityProviderId = 'mgvcl';
-      } else if (newDistrict == 'Rajkot' || newDistrict == 'Bhavnagar' || newDistrict == 'Jamnagar' || newDistrict == 'Junagadh') {
+      } else if (newDistrict == 'Rajkot' ||
+          newDistrict == 'Bhavnagar' ||
+          newDistrict == 'Jamnagar' ||
+          newDistrict == 'Junagadh') {
         _electricityProviderId = 'pgvcl';
       }
     });
@@ -154,19 +177,27 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           title: const Row(
             children: [
               Text('🚗', style: TextStyle(fontSize: 24)),
               SizedBox(width: 8),
-              Text('Add Household Vehicle', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+              Text(
+                'Add Household Vehicle',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+              ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Vehicle Type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              const Text(
+                'Vehicle Type',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -176,7 +207,16 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                     isExpanded: true,
                     value: selectedType,
                     items: vehicleTypes.map((v) {
-                      return DropdownMenuItem(value: v['id'], child: Text(v['label']!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)));
+                      return DropdownMenuItem(
+                        value: v['id'],
+                        child: Text(
+                          v['label']!,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      );
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) setDialogState(() => selectedType = val);
@@ -185,9 +225,15 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text('Vehicle Number (Optional)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              const Text(
+                'Vehicle Number (Optional)',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
               const SizedBox(height: 4),
-              const Text('e.g. GJ-01-AB-1234 (Optional, for green toll/parking perks)', style: TextStyle(fontSize: 11, color: Colors.black54)),
+              const Text(
+                'e.g. GJ-01-AB-1234 (Optional, for green toll/parking perks)',
+                style: TextStyle(fontSize: 11, color: Colors.black54),
+              ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -200,7 +246,10 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                     hintText: 'GJ-01-XX-0000 (Optional)',
                     hintStyle: TextStyle(fontSize: 13, color: Colors.black38),
                   ),
-                  style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1.1),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
             ],
@@ -208,11 +257,16 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.black54),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
-                final found = vehicleTypes.firstWhere((t) => t['id'] == selectedType);
+                final found = vehicleTypes.firstWhere(
+                  (t) => t['id'] == selectedType,
+                );
                 setState(() {
                   _ownedVehicles.add({
                     'type': selectedType,
@@ -225,7 +279,9 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1B6B44),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: const Text('Add Vehicle'),
             ),
@@ -236,11 +292,14 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
   }
 
   Future<void> _submitOnboarding() async {
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
 
     final vehicleIds = _ownedVehicles.map((v) => v['type']!).toList();
 
-    await AuthService.instance.completeProfile(
+    final saved = await AuthService.instance.completeProfile(
       district: _selectedDistrict,
       ward: _selectedWard,
       houseType: _houseType,
@@ -250,7 +309,6 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       gasProviderId: _gasProviderId,
       waterSupplyType: _waterSupplyType,
       waterStorageType: _waterStorageType,
-      defaultTransitModes: vehicleIds,
       deviceCatalogIds: _selectedDevices.toList(),
       vehicleCatalogIds: vehicleIds,
       mascotName: _mascotNameController.text.trim().isNotEmpty
@@ -258,12 +316,19 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
           : 'Cheechee',
     );
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainTwoScreenShell()),
-      );
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    if (!saved) {
+      setState(() {
+        _submitError =
+            AuthService.instance.lastAuthError ??
+            'Your profile could not be saved. Check your connection and try again.';
+      });
+      return;
     }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const MainTwoScreenShell()),
+    );
   }
 
   @override
@@ -302,7 +367,9 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                       height: 6,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        color: isActive ? const Color(0xFF1B6B44) : const Color(0xFFD2E6DB),
+                        color: isActive
+                            ? const Color(0xFF1B6B44)
+                            : const Color(0xFFD2E6DB),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
@@ -314,7 +381,10 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
             // Step Content
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 child: _buildCurrentStepContent(),
               ),
             ),
@@ -360,7 +430,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         _buildHeroCard(
           icon: '📍',
           title: 'Gujarat Home & District',
-          subtitle: 'Select your home district and municipal ward for ward-level clean air and energy leaderboards.',
+          subtitle:
+              'Select your home district and municipal ward for ward-level clean air and energy leaderboards.',
         ),
         const SizedBox(height: 16),
 
@@ -379,9 +450,18 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                   child: DropdownButton<String>(
                     isExpanded: true,
                     value: _selectedDistrict,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF1B6B44)),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Color(0xFF1B6B44),
+                    ),
                     items: _districtWards.keys.map((d) {
-                      return DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontWeight: FontWeight.w700)));
+                      return DropdownMenuItem(
+                        value: d,
+                        child: Text(
+                          d,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      );
                     }).toList(),
                     onChanged: _onDistrictChanged,
                   ),
@@ -396,10 +476,21 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     isExpanded: true,
-                    value: wards.contains(_selectedWard) ? _selectedWard : wards.first,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF1B6B44)),
+                    value: wards.contains(_selectedWard)
+                        ? _selectedWard
+                        : wards.first,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Color(0xFF1B6B44),
+                    ),
                     items: wards.map((w) {
-                      return DropdownMenuItem(value: w, child: Text(w, style: const TextStyle(fontWeight: FontWeight.w600)));
+                      return DropdownMenuItem(
+                        value: w,
+                        child: Text(
+                          w,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      );
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) setState(() => _selectedWard = val);
@@ -424,21 +515,47 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _buildChoiceChip('apartment', '🏢 Apartment / Flat', _houseType, (v) => setState(() => _houseType = v)),
-                  _buildChoiceChip('tenement', '🏘️ Tenement', _houseType, (v) => setState(() => _houseType = v)),
-                  _buildChoiceChip('bungalow', '🏡 Bungalow', _houseType, (v) => setState(() => _houseType = v)),
-                  _buildChoiceChip('row_house', '🏠 Row House', _houseType, (v) => setState(() => _houseType = v)),
+                  _buildChoiceChip(
+                    'apartment',
+                    '🏢 Apartment / Flat',
+                    _houseType,
+                    (v) => setState(() => _houseType = v),
+                  ),
+                  _buildChoiceChip(
+                    'tenement',
+                    '🏘️ Tenement',
+                    _houseType,
+                    (v) => setState(() => _houseType = v),
+                  ),
+                  _buildChoiceChip(
+                    'bungalow',
+                    '🏡 Bungalow',
+                    _houseType,
+                    (v) => setState(() => _houseType = v),
+                  ),
+                  _buildChoiceChip(
+                    'row_house',
+                    '🏠 Row House',
+                    _houseType,
+                    (v) => setState(() => _houseType = v),
+                  ),
                 ],
               ),
               const SizedBox(height: 18),
 
-              _buildFieldLabel('Household Members: $_householdMembers people (1-20)'),
+              _buildFieldLabel(
+                'Household Members: $_householdMembers people (1-20)',
+              ),
               Row(
                 children: [
                   IconButton.filled(
-                    onPressed: _householdMembers > 1 ? () => setState(() => _householdMembers--) : null,
+                    onPressed: _householdMembers > 1
+                        ? () => setState(() => _householdMembers--)
+                        : null,
                     icon: const Icon(Icons.remove),
-                    style: IconButton.styleFrom(backgroundColor: const Color(0xFF1B6B44)),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B6B44),
+                    ),
                   ),
                   Expanded(
                     child: Slider(
@@ -448,13 +565,18 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                       divisions: 19,
                       activeColor: const Color(0xFF1B6B44),
                       label: '$_householdMembers people',
-                      onChanged: (val) => setState(() => _householdMembers = val.round()),
+                      onChanged: (val) =>
+                          setState(() => _householdMembers = val.round()),
                     ),
                   ),
                   IconButton.filled(
-                    onPressed: _householdMembers < 20 ? () => setState(() => _householdMembers++) : null,
+                    onPressed: _householdMembers < 20
+                        ? () => setState(() => _householdMembers++)
+                        : null,
                     icon: const Icon(Icons.add),
-                    style: IconButton.styleFrom(backgroundColor: const Color(0xFF1B6B44)),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B6B44),
+                    ),
                   ),
                 ],
               ),
@@ -474,7 +596,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFD2E6DB), width: 1.5),
         boxShadow: const [
-          BoxShadow(color: Color(0x0C000000), blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -488,7 +614,10 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               border: Border.all(color: const Color(0xFF1B6B44), width: 2),
             ),
             child: Center(
-              child: Text(_selectedAvatar, style: const TextStyle(fontSize: 34)),
+              child: Text(
+                _selectedAvatar,
+                style: const TextStyle(fontSize: 34),
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -498,7 +627,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               children: [
                 const Text(
                   'Citizen Sanctuary Avatar',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B6B44)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: Color(0xFF1B6B44),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 const Text(
@@ -518,9 +651,13 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isSelected ? const Color(0xFF1B6B44) : const Color(0xFFF1F8F5),
+                            color: isSelected
+                                ? const Color(0xFF1B6B44)
+                                : const Color(0xFFF1F8F5),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF1B6B44) : const Color(0xFFD2E6DB),
+                              color: isSelected
+                                  ? const Color(0xFF1B6B44)
+                                  : const Color(0xFFD2E6DB),
                               width: 1.5,
                             ),
                           ),
@@ -546,7 +683,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         _buildHeroCard(
           icon: '🚗',
           title: 'Owned Household Vehicles',
-          subtitle: 'Register your electric and daily mobility modes. Vehicle numbers are completely optional.',
+          subtitle:
+              'Register your electric and daily mobility modes. Vehicle numbers are completely optional.',
         ),
         const SizedBox(height: 16),
 
@@ -586,22 +724,35 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                           children: [
                             Text(
                               v['label']!,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              reg.isNotEmpty ? 'Reg No: $reg' : 'No number registered (Optional)',
+                              reg.isNotEmpty
+                                  ? 'Reg No: $reg'
+                                  : 'No number registered (Optional)',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: reg.isNotEmpty ? const Color(0xFF1B6B44) : Colors.black45,
-                                fontWeight: reg.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
+                                color: reg.isNotEmpty
+                                    ? const Color(0xFF1B6B44)
+                                    : Colors.black45,
+                                fontWeight: reg.isNotEmpty
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
                         onPressed: () {
                           setState(() => _ownedVehicles.removeAt(idx));
                         },
@@ -617,11 +768,19 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _addVehicleDialog,
                   icon: const Icon(Icons.add_rounded, color: Color(0xFF1B6B44)),
-                  label: const Text('+ Add Vehicle Owned (EV, Bike, Car)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    '+ Add Vehicle Owned (EV, Bike, Car)',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF1B6B44),
-                    side: const BorderSide(color: Color(0xFF1B6B44), width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    side: const BorderSide(
+                      color: Color(0xFF1B6B44),
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -641,7 +800,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         _buildHeroCard(
           icon: '💧',
           title: 'Water Supply & Storage',
-          subtitle: 'Tell us how water reaches your home. In-ground sump and overhead tank configurations calibrate motor cut-off prompts.',
+          subtitle:
+              'Tell us how water reaches your home. In-ground sump and overhead tank configurations calibrate motor cut-off prompts.',
         ),
         const SizedBox(height: 16),
 
@@ -652,9 +812,24 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildChoiceChip('municipal_piped', '🚰 Municipal Tap (AMC / SMC / VMC)', _waterSupplyType, (v) => setState(() => _waterSupplyType = v)),
-              _buildChoiceChip('borewell', '⚡ Borewell / Submersible Pump', _waterSupplyType, (v) => setState(() => _waterSupplyType = v)),
-              _buildChoiceChip('tanker', '🚚 Private Tanker Supply', _waterSupplyType, (v) => setState(() => _waterSupplyType = v)),
+              _buildChoiceChip(
+                'municipal_piped',
+                '🚰 Municipal Tap (AMC / SMC / VMC)',
+                _waterSupplyType,
+                (v) => setState(() => _waterSupplyType = v),
+              ),
+              _buildChoiceChip(
+                'borewell',
+                '⚡ Borewell / Submersible Pump',
+                _waterSupplyType,
+                (v) => setState(() => _waterSupplyType = v),
+              ),
+              _buildChoiceChip(
+                'tanker',
+                '🚚 Private Tanker Supply',
+                _waterSupplyType,
+                (v) => setState(() => _waterSupplyType = v),
+              ),
             ],
           ),
         ),
@@ -667,10 +842,30 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildChoiceChip('underground_sump', '🧱 In-Ground Tanki (Underground Sump)', _waterStorageType, (v) => setState(() => _waterStorageType = v)),
-              _buildChoiceChip('overhead_tank', '🏗️ Rooftop Overhead Tank', _waterStorageType, (v) => setState(() => _waterStorageType = v)),
-              _buildChoiceChip('both_sump_overhead', '🔄 Both (Underground Sump + Rooftop)', _waterStorageType, (v) => setState(() => _waterStorageType = v)),
-              _buildChoiceChip('tubs_drums', '🪣 Storage Tubs / Drums', _waterStorageType, (v) => setState(() => _waterStorageType = v)),
+              _buildChoiceChip(
+                'underground_sump',
+                '🧱 In-Ground Tanki (Underground Sump)',
+                _waterStorageType,
+                (v) => setState(() => _waterStorageType = v),
+              ),
+              _buildChoiceChip(
+                'overhead_tank',
+                '🏗️ Rooftop Overhead Tank',
+                _waterStorageType,
+                (v) => setState(() => _waterStorageType = v),
+              ),
+              _buildChoiceChip(
+                'both_sump_overhead',
+                '🔄 Both (Underground Sump + Rooftop)',
+                _waterStorageType,
+                (v) => setState(() => _waterStorageType = v),
+              ),
+              _buildChoiceChip(
+                'tubs_drums',
+                '🪣 Storage Tubs / Drums',
+                _waterStorageType,
+                (v) => setState(() => _waterStorageType = v),
+              ),
             ],
           ),
         ),
@@ -681,7 +876,10 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
   // --- Step 4: Electricity & Normalized Appliances ---
   Widget _buildStep4ElectricityAndDevices() {
     final discoms = [
-      {'id': 'torrent_power', 'name': '⚡ Torrent Power (Ahmedabad/Surat/Gandhinagar)'},
+      {
+        'id': 'torrent_power',
+        'name': '⚡ Torrent Power (Ahmedabad/Surat/Gandhinagar)',
+      },
       {'id': 'ugvcl', 'name': '⚡ UGVCL (Uttar Gujarat Vij)'},
       {'id': 'dgvcl', 'name': '⚡ DGVCL (Dakshin Gujarat Vij)'},
       {'id': 'mgvcl', 'name': '⚡ MGVCL (Madhya Gujarat Vij)'},
@@ -689,12 +887,43 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
     ];
 
     final devices = [
-      {'id': 'ro_purifier', 'name': '💧⚡ RO Water Purifier', 'domains': 'Water + Energy', 'desc': 'Wastes ~3L per 1L drinking water unless reject water collected.'},
-      {'id': 'air_conditioner', 'name': '❄️ Air Conditioner (AC)', 'domains': 'High Power', 'desc': 'Consumes ~1.5 kWh/hr. 24°C saves 24% bill.'},
-      {'id': 'induction_stove', 'name': '🍲 Induction Cooker', 'domains': 'Cooking + Electricity', 'desc': 'Clean electric cooking replacing LPG.'},
-      {'id': 'water_geyser', 'name': '🚿 Water Geyser / Heater', 'domains': 'Peak Load', 'desc': '2 kW heating coil with timer opportunity.'},
-      {'id': 'refrigerator', 'name': '🧊 Refrigerator', 'domains': 'Always On', 'desc': 'Clean coil & seal checks prevent continuous compressor run.'},
-      {'id': 'washing_machine', 'name': '🧺 Washing Machine', 'domains': 'Water + Energy', 'desc': 'Eco mode & full load washing saves 40L per cycle.'},
+      {
+        'id': 'ro_purifier',
+        'name': '💧⚡ RO Water Purifier',
+        'domains': 'Water + Energy',
+        'desc':
+            'Wastes ~3L per 1L drinking water unless reject water collected.',
+      },
+      {
+        'id': 'air_conditioner',
+        'name': '❄️ Air Conditioner (AC)',
+        'domains': 'High Power',
+        'desc': 'Consumes ~1.5 kWh/hr. 24°C saves 24% bill.',
+      },
+      {
+        'id': 'induction_stove',
+        'name': '🍲 Induction Cooker',
+        'domains': 'Cooking + Electricity',
+        'desc': 'Clean electric cooking replacing LPG.',
+      },
+      {
+        'id': 'water_geyser',
+        'name': '🚿 Water Geyser / Heater',
+        'domains': 'Peak Load',
+        'desc': '2 kW heating coil with timer opportunity.',
+      },
+      {
+        'id': 'refrigerator',
+        'name': '🧊 Refrigerator',
+        'domains': 'Always On',
+        'desc': 'Clean coil & seal checks prevent continuous compressor run.',
+      },
+      {
+        'id': 'washing_machine',
+        'name': '🧺 Washing Machine',
+        'domains': 'Water + Energy',
+        'desc': 'Eco mode & full load washing saves 40L per cycle.',
+      },
     ];
 
     return Column(
@@ -703,7 +932,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         _buildHeroCard(
           icon: '⚡',
           title: 'Electricity & High-Drain Appliances',
-          subtitle: 'Linked directly with your Gujarat DISCOM. Multi-domain normalization links RO Purifier to both water and power.',
+          subtitle:
+              'Linked directly with your Gujarat DISCOM. Multi-domain normalization links RO Purifier to both water and power.',
         ),
         const SizedBox(height: 16),
 
@@ -721,22 +951,34 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                   child: DropdownButton<String>(
                     isExpanded: true,
                     value: _electricityProviderId,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF1B6B44)),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Color(0xFF1B6B44),
+                    ),
                     items: discoms.map((d) {
                       return DropdownMenuItem(
                         value: d['id'],
-                        child: Text(d['name']!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        child: Text(
+                          d['name']!,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null) setState(() => _electricityProviderId = val);
+                      if (val != null)
+                        setState(() => _electricityProviderId = val);
                     },
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              _buildFieldLabel('Approximate Monthly Bill: ₹${_monthlyBillRupees.toInt()}'),
+              _buildFieldLabel(
+                'Approximate Monthly Bill: ₹${_monthlyBillRupees.toInt()}',
+              ),
               Slider(
                 value: _monthlyBillRupees,
                 min: 400,
@@ -765,15 +1007,25 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                   color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF1B6B44) : const Color(0xFFE2EBE5),
+                    color: isSelected
+                        ? const Color(0xFF1B6B44)
+                        : const Color(0xFFE2EBE5),
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
                 child: CheckboxListTile(
                   value: isSelected,
                   activeColor: const Color(0xFF1B6B44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  title: Text(dev['name']!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text(
+                    dev['name']!,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
                   subtitle: Text(
                     'Link: ${dev['domains']} • ${dev['desc']}',
                     style: const TextStyle(fontSize: 11, color: Colors.black54),
@@ -813,7 +1065,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         _buildHeroCard(
           icon: '🍳',
           title: 'Kitchen Cooking Energy',
-          subtitle: 'Track LPG refill cycles or pipeline flow to earn badges for pulse-soaking and lid-covered boiling.',
+          subtitle:
+              'Track LPG refill cycles or pipeline flow to earn badges for pulse-soaking and lid-covered boiling.',
         ),
         const SizedBox(height: 16),
 
@@ -831,14 +1084,29 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                   color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF1B6B44) : const Color(0xFFE2EBE5),
+                    color: isSelected
+                        ? const Color(0xFF1B6B44)
+                        : const Color(0xFFE2EBE5),
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
                 child: ListTile(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  title: Text(p['name']!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                  trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: Color(0xFF1B6B44)) : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text(
+                    p['name']!,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: Color(0xFF1B6B44),
+                        )
+                      : null,
                   onTap: () => setState(() => _gasProviderId = id),
                 ),
               );
@@ -857,7 +1125,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         _buildHeroCard(
           icon: '🕊️',
           title: 'Adopt Your Sparrow Companion',
-          subtitle: 'Gujarat House Sparrow (Chakli) will guide your daily energy quests and react to your real-world conservation.',
+          subtitle:
+              'Gujarat House Sparrow (Chakli) will guide your daily energy quests and react to your real-world conservation.',
         ),
         const SizedBox(height: 20),
 
@@ -870,7 +1139,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
             color: const Color(0xFFDFF0FE),
             border: Border.all(color: const Color(0xFF1B6B44), width: 3.5),
             boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 18, offset: Offset(0, 6)),
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 18,
+                offset: Offset(0, 6),
+              ),
             ],
           ),
           child: const Center(
@@ -911,7 +1184,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               Expanded(
                 child: Text(
                   'Adopting your sparrow awards +100 Urja Mudra coins and unlocks your 3D Garden Sanctuary!',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF92400E), fontSize: 13),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF92400E),
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -922,7 +1199,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
   }
 
   // --- UI Card Helpers ---
-  Widget _buildSectionCard({required String title, required String icon, required Widget child}) {
+  Widget _buildSectionCard({
+    required String title,
+    required String icon,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -931,7 +1212,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFD2E6DB), width: 1.2),
         boxShadow: const [
-          BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -941,9 +1226,15 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
             children: [
               Text(icon, style: const TextStyle(fontSize: 18)),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B6B44)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: Color(0xFF1B6B44),
+                  ),
+                ),
               ),
             ],
           ),
@@ -954,7 +1245,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
     );
   }
 
-  Widget _buildHeroCard({required String icon, required String title, required String subtitle}) {
+  Widget _buildHeroCard({
+    required String icon,
+    required String title,
+    required String subtitle,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -963,7 +1258,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFD2E6DB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: Row(
@@ -984,12 +1283,20 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1B6B44)),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: Color(0xFF1B6B44),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.3),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black87,
+                    height: 1.3,
+                  ),
                 ),
               ],
             ),
@@ -1004,12 +1311,21 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF263238)),
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+          color: Color(0xFF263238),
+        ),
       ),
     );
   }
 
-  Widget _buildChoiceChip(String value, String label, String currentSelected, ValueChanged<String> onSelected) {
+  Widget _buildChoiceChip(
+    String value,
+    String label,
+    String currentSelected,
+    ValueChanged<String> onSelected,
+  ) {
     final isSelected = value == currentSelected;
     return ChoiceChip(
       label: Text(label),
@@ -1038,7 +1354,11 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFD2E6DB), width: 1.5),
       boxShadow: const [
-        BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
+        BoxShadow(
+          color: Color(0x08000000),
+          blurRadius: 6,
+          offset: Offset(0, 2),
+        ),
       ],
     );
   }
@@ -1052,51 +1372,99 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -3)),
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, -3),
+          ),
         ],
       ),
       child: Row(
         children: [
           if (_currentStep > 0)
             OutlinedButton(
-              onPressed: () => setState(() => _currentStep--),
+              onPressed: _isSubmitting
+                  ? null
+                  : () => setState(() {
+                      _currentStep--;
+                      _submitError = null;
+                    }),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF1B6B44),
                 side: const BorderSide(color: Color(0xFF1B6B44), width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
               ),
-              child: const Text('Back', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Back',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           if (_currentStep > 0) const SizedBox(width: 12),
           Expanded(
-            child: ElevatedButton(
-              onPressed: _isSubmitting
-                  ? null
-                  : () {
-                      if (isLastStep) {
-                        _submitOnboarding();
-                      } else {
-                        setState(() => _currentStep++);
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B6B44),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                elevation: 3,
-              ),
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                    )
-                  : Text(
-                      isLastStep ? 'Complete & Enter Sanctuary 🌿' : 'Next Step →',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_submitError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      _submitError!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFB42318),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () {
+                            if (isLastStep) {
+                              _submitOnboarding();
+                            } else {
+                              setState(() => _currentStep++);
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B6B44),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 3,
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Text(
+                            isLastStep
+                                ? 'Complete & Enter Sanctuary 🌿'
+                                : 'Next Step →',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

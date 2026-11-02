@@ -15,6 +15,7 @@ import type {
   WardrobeResponse,
 } from './mascot.schema';
 import type { Static } from '@sinclair/typebox';
+import type { Pool, PoolClient } from 'pg';
 
 type MascotMood = Static<typeof MascotMoodSchema>;
 type EquippedAccessories = Static<typeof EquippedAccessoriesSchema>;
@@ -371,6 +372,67 @@ export const OUTFITS_CATALOG: OutfitDefinition[] = [
 
 export class MascotRepository {
   private mascots = new Map<string, MascotRecord>(); // userId -> MascotRecord
+  private static schemaReady = new WeakMap<Pool, Promise<void>>();
+
+  public constructor(
+    private db: Pool | null = null,
+    private allowTestMemory = false,
+  ) {}
+
+  public configure(db: Pool | null, allowTestMemory: boolean): void {
+    this.db = db;
+    this.allowTestMemory = allowTestMemory;
+  }
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.db) return;
+    let ready = MascotRepository.schemaReady.get(this.db);
+    if (!ready) {
+      ready = this.db.query(`
+        CREATE TABLE IF NOT EXISTS public.citizen_mascots (
+          user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+          mascot_id UUID NOT NULL UNIQUE,
+          mascot_type TEXT NOT NULL CHECK (mascot_type IN ('sparrow', 'squirrel')),
+          name TEXT NOT NULL,
+          level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 100),
+          current_exp INTEGER NOT NULL DEFAULT 0 CHECK (current_exp >= 0),
+          vitality INTEGER NOT NULL CHECK (vitality BETWEEN 0 AND 100),
+          equipped JSONB NOT NULL DEFAULT '{}'::jsonb,
+          owned_accessories JSONB NOT NULL DEFAULT '[]'::jsonb,
+          last_interacted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `).then(() => undefined);
+      MascotRepository.schemaReady.set(this.db, ready);
+    }
+    await ready;
+  }
+
+  public async findByUserIdAsync(userId: string): Promise<MascotRecord | null> {
+    if (!this.db) return this.findByUserId(userId);
+    await this.ensureSchema();
+    const result = await this.db.query(
+      `SELECT mascot_id, user_id, mascot_type, name, level, current_exp, vitality,
+              equipped, owned_accessories, last_interacted_at
+       FROM public.citizen_mascots WHERE user_id = $1`,
+      [userId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const record: MascotRecord = {
+      id: row.mascot_id,
+      userId: row.user_id,
+      type: row.mascot_type,
+      name: row.name,
+      level: Number(row.level),
+      currentExp: Number(row.current_exp),
+      vitality: Number(row.vitality),
+      equipped: row.equipped,
+      ownedAccessories: row.owned_accessories,
+      lastInteractedAt: new Date(row.last_interacted_at).toISOString(),
+    };
+    return this.save(record);
+  }
 
   public findByUserId(userId: string): MascotRecord | null {
     const mascot = this.mascots.get(userId);
@@ -386,6 +448,110 @@ export class MascotRepository {
     return record;
   }
 
+  public async saveAsync(
+    record: MascotRecord,
+    options: { pointsDelta?: number; purchaseAccessoryId?: string } = {},
+  ): Promise<number | null> {
+    if (!this.db) {
+      if (!this.allowTestMemory) {
+        throw new Error('PostgreSQL is required for durable mascot state.');
+      }
+      if (options.pointsDelta !== undefined) {
+        const authRepository = AuthService.getRepository();
+        const user = await authRepository.refreshByIdAsync(record.userId);
+        if (!user) throw new Error('Citizen not found');
+        const updatedPoints = user.points + options.pointsDelta;
+        if (updatedPoints < 0) {
+          throw new Error(`Insufficient Urja Mudra! Required: ${Math.abs(options.pointsDelta)}, Available: ${user.points}`);
+        }
+        await authRepository.updateUserAsync(record.userId, { points: updatedPoints });
+      }
+      this.save(record);
+      return options.pointsDelta === undefined
+        ? null
+        : (await AuthService.getRepository().refreshByIdAsync(record.userId))?.points ?? null;
+    }
+
+    await this.ensureSchema();
+    const queryable = async (client: Pool | PoolClient): Promise<void> => {
+      await client.query(
+        `INSERT INTO public.citizen_mascots
+           (user_id, mascot_id, mascot_type, name, level, current_exp, vitality,
+            equipped, owned_accessories, last_interacted_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           mascot_type = EXCLUDED.mascot_type, name = EXCLUDED.name, level = EXCLUDED.level,
+           current_exp = EXCLUDED.current_exp, vitality = EXCLUDED.vitality,
+           equipped = EXCLUDED.equipped, owned_accessories = EXCLUDED.owned_accessories,
+           last_interacted_at = EXCLUDED.last_interacted_at, updated_at = NOW()`,
+        [
+          record.userId, record.id, record.type, record.name, record.level, record.currentExp,
+          record.vitality, JSON.stringify(record.equipped), JSON.stringify(record.ownedAccessories),
+          record.lastInteractedAt,
+        ],
+      );
+    };
+
+    let updatedPoints: number | null = null;
+    if (options.pointsDelta !== undefined) {
+      const client = await this.db.connect();
+      try {
+        await client.query('BEGIN');
+        if (options.purchaseAccessoryId) {
+          const mascotResult = await client.query(
+            `SELECT mascot_id, mascot_type, name, level, current_exp, vitality,
+                    equipped, owned_accessories, last_interacted_at
+             FROM public.citizen_mascots WHERE user_id = $1 FOR UPDATE`,
+            [record.userId],
+          );
+          const current = mascotResult.rows[0];
+          if (!current) throw new Error('Mascot not found for accessory purchase.');
+          const currentOwned: string[] = Array.isArray(current.owned_accessories)
+            ? current.owned_accessories
+            : JSON.parse(String(current.owned_accessories));
+          if (currentOwned.includes(options.purchaseAccessoryId)) {
+            throw new Error('You already own this accessory!');
+          }
+          record.id = String(current.mascot_id);
+          record.type = current.mascot_type;
+          record.name = current.name;
+          record.level = Number(current.level);
+          record.currentExp = Number(current.current_exp);
+          record.vitality = Number(current.vitality);
+          record.equipped = current.equipped;
+          record.ownedAccessories = [...currentOwned, options.purchaseAccessoryId];
+          record.lastInteractedAt = new Date(current.last_interacted_at).toISOString();
+        }
+        const userResult = await client.query(
+          'SELECT points FROM public.users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+          [record.userId],
+        );
+        if (!userResult.rows[0]) throw new Error('Citizen not found');
+        const currentPoints = Number(userResult.rows[0].points);
+        updatedPoints = currentPoints + options.pointsDelta;
+        if (updatedPoints < 0) {
+          throw new Error(`Insufficient Urja Mudra! Required: ${Math.abs(options.pointsDelta)}, Available: ${currentPoints}`);
+        }
+        await client.query(
+          'UPDATE public.users SET points = $2, updated_at = NOW() WHERE id = $1',
+          [record.userId, updatedPoints],
+        );
+        await queryable(client);
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+      AuthService.getRepository().cachePoints(record.userId, updatedPoints);
+    } else {
+      await queryable(this.db);
+    }
+    this.save(record);
+    return updatedPoints;
+  }
+
   public clear(): void {
     this.mascots.clear();
   }
@@ -394,6 +560,10 @@ export class MascotRepository {
 export class MascotService {
   private static repository = new MascotRepository();
 
+  public static configure(db: Pool | null, allowTestMemory: boolean): void {
+    this.repository.configure(db, allowTestMemory);
+  }
+
   public static getRepository(): MascotRepository {
     return this.repository;
   }
@@ -401,8 +571,8 @@ export class MascotService {
   /**
    * Get or automatically initialize citizen's mascot
    */
-  public static getOrCreateMascot(userId: string, defaultName = 'Chirpy', type: 'sparrow' | 'squirrel' = 'sparrow'): MascotState {
-    let mascot = this.repository.findByUserId(userId);
+  public static async getOrCreateMascot(userId: string, defaultName = 'Chirpy', type: 'sparrow' | 'squirrel' = 'sparrow'): Promise<MascotState> {
+    let mascot = await this.repository.findByUserIdAsync(userId);
 
     if (!mascot) {
       mascot = {
@@ -423,7 +593,8 @@ export class MascotService {
         ownedAccessories: [],
         lastInteractedAt: new Date().toISOString(),
       };
-      this.repository.save(mascot);
+      await this.repository.saveAsync(mascot);
+      mascot = await this.repository.findByUserIdAsync(userId) ?? mascot;
     }
 
     return this.buildState(mascot);
@@ -432,23 +603,23 @@ export class MascotService {
   /**
    * Update mascot name and/or switch companion species
    */
-  public static updateMascot(userId: string, updates: { name?: string; type?: 'sparrow' | 'squirrel' }): MascotState {
-    const mascot = this.getOrCreateMascot(userId);
+  public static async updateMascot(userId: string, updates: { name?: string; type?: 'sparrow' | 'squirrel' }): Promise<MascotState> {
+    const mascot = await this.getOrCreateMascot(userId);
     const updated: MascotRecord = {
       ...mascot,
       name: updates.name?.trim() || mascot.name,
       type: updates.type || mascot.type,
     };
 
-    this.repository.save(updated);
+    await this.repository.saveAsync(updated);
     return this.buildState(updated);
   }
 
   /**
    * Citizen taps mascot: boosts vitality and triggers contextual dialogue
    */
-  public static interact(userId: string): InteractResponse {
-    const mascot = this.getOrCreateMascot(userId);
+  public static async interact(userId: string): Promise<InteractResponse> {
+    const mascot = await this.getOrCreateMascot(userId);
 
     // Tapping gives +5 vitality up to max 100
     const newVitality = Math.min(100, mascot.vitality + 5);
@@ -457,7 +628,7 @@ export class MascotService {
       vitality: newVitality,
       lastInteractedAt: new Date().toISOString(),
     };
-    this.repository.save(updated);
+    await this.repository.saveAsync(updated);
 
     const mood = this.calculateMood(newVitality);
     const expression: MascotExpression = 'curious';
@@ -469,7 +640,7 @@ export class MascotService {
       mood,
       expression,
       activeProps,
-      pointsAwarded: 2, // 2 micro bonus points
+      pointsAwarded: 0,
       dialogue,
     };
   }
@@ -477,10 +648,10 @@ export class MascotService {
   /**
    * Get available accessories in the Urja Wardrobe
    */
-  public static getWardrobe(userId: string): WardrobeResponse {
-    const mascot = this.getOrCreateMascot(userId);
-    const user = AuthService.getRepository().findById(userId);
-    const citizenPoints = user?.points || 0;
+  public static async getWardrobe(userId: string): Promise<WardrobeResponse> {
+    const mascot = await this.getOrCreateMascot(userId);
+    const user = await AuthService.getRepository().refreshByIdAsync(userId);
+    const citizenPoints = user?.points ?? 0;
 
     const items: WardrobeItem[] = WARDROBE_CATALOG.map((item) => {
       const isOwned = mascot.ownedAccessories.includes(item.id);
@@ -507,8 +678,8 @@ export class MascotService {
   /**
    * Buy an accessory using citizen Urja Mudra coins
    */
-  public static buyAccessory(userId: string, accessoryId: string): BuyAccessoryResponse {
-    const mascot = this.getOrCreateMascot(userId);
+  public static async buyAccessory(userId: string, accessoryId: string): Promise<BuyAccessoryResponse> {
+    const mascot = await this.getOrCreateMascot(userId);
     const item = WARDROBE_CATALOG.find((catalogItem) => catalogItem.id === accessoryId);
 
     if (!item) {
@@ -524,7 +695,7 @@ export class MascotService {
     }
 
     const authRepo = AuthService.getRepository();
-    const user = authRepo.findById(userId);
+    const user = await authRepo.refreshByIdAsync(userId);
 
     if (!user) {
       throw new Error('Citizen not found');
@@ -534,17 +705,15 @@ export class MascotService {
       throw new Error(`Insufficient Urja Mudra! Required: ${item.price}, Available: ${user.points}`);
     }
 
-    // Atomic transaction: Deduct points and grant accessory
-    authRepo.updateUser(userId, {
-      points: user.points - item.price,
-    });
-
     mascot.ownedAccessories.push(accessoryId);
-    this.repository.save(mascot);
+    const remainingPoints = await this.repository.saveAsync(mascot, {
+      pointsDelta: -item.price,
+      purchaseAccessoryId: accessoryId,
+    });
 
     return {
       success: true,
-      remainingPoints: user.points - item.price,
+      remainingPoints: remainingPoints ?? user.points - item.price,
       ownedAccessories: mascot.ownedAccessories,
       item: {
         ...item,
@@ -557,12 +726,12 @@ export class MascotService {
   /**
    * Equip or unequip an owned accessory to a designated slot
    */
-  public static equipAccessory(
+  public static async equipAccessory(
     userId: string,
     slot: 'HEAD' | 'FACE' | 'NECK' | 'HELD' | 'FX',
     accessoryId: string | null | undefined
-  ): EquipAccessoryResponse {
-    const mascot = this.getOrCreateMascot(userId);
+  ): Promise<EquipAccessoryResponse> {
+    const mascot = await this.getOrCreateMascot(userId);
 
     const targetAccessoryId = accessoryId && accessoryId.trim() !== '' ? accessoryId : null;
 
@@ -579,7 +748,7 @@ export class MascotService {
 
     const slotKey = slot.toLowerCase() as 'head' | 'face' | 'neck' | 'held' | 'fx';
     mascot.equipped[slotKey] = targetAccessoryId;
-    this.repository.save(mascot);
+    await this.repository.saveAsync(mascot);
 
     return {
       success: true,
@@ -590,8 +759,8 @@ export class MascotService {
   /**
    * Get all seasonal outfits with owned & equipped statuses
    */
-  public static getOutfits(userId: string): OutfitsResponse {
-    const mascot = this.getOrCreateMascot(userId);
+  public static async getOutfits(userId: string): Promise<OutfitsResponse> {
+    const mascot = await this.getOrCreateMascot(userId);
 
     const outfits: OutfitItem[] = OUTFITS_CATALOG.map((o) => {
       const requiredPieces = [o.head, o.face, o.neck, o.held, o.fx].filter((p): p is string => Boolean(p));
@@ -633,8 +802,8 @@ export class MascotService {
   /**
    * Equip a seasonal outfit bundle
    */
-  public static equipOutfit(userId: string, outfitId: string): EquipOutfitResponse {
-    const mascot = this.getOrCreateMascot(userId);
+  public static async equipOutfit(userId: string, outfitId: string): Promise<EquipOutfitResponse> {
+    const mascot = await this.getOrCreateMascot(userId);
     const outfit = OUTFITS_CATALOG.find((o) => o.id === outfitId);
 
     if (!outfit) {
@@ -672,7 +841,7 @@ export class MascotService {
       mascot.equipped.fx = null;
     }
 
-    this.repository.save(mascot);
+    await this.repository.saveAsync(mascot);
 
     return {
       success: true,
@@ -684,10 +853,16 @@ export class MascotService {
   /**
    * Award CO2 savings to mascot, leveling up based on real emissions prevented
    */
-  public static addCo2Savings(userId: string, kgCo2Saved: number): MascotState {
-    const mascot = this.getOrCreateMascot(userId);
+  public static async addCo2Savings(userId: string, kgCo2Saved: number): Promise<MascotState> {
+    if (!Number.isFinite(kgCo2Saved) || kgCo2Saved <= 0) {
+      throw new RangeError('CO2 savings must be a positive finite number of kilograms.');
+    }
+    const mascot = await this.getOrCreateMascot(userId);
     const addedExp = Math.round(kgCo2Saved * 100);
     const newExp = mascot.currentExp + addedExp;
+    if (!Number.isSafeInteger(addedExp) || addedExp < 1 || newExp > 2_147_483_647) {
+      throw new RangeError('CO2 savings exceed the supported mascot experience range.');
+    }
 
     // Calculate level based on exponential square curve
     const newLevel = Math.min(100, Math.floor(Math.sqrt(newExp / 100)) + 1);
@@ -699,7 +874,7 @@ export class MascotService {
       vitality: Math.min(100, mascot.vitality + 10), // Saving energy restores companion vitality
     };
 
-    this.repository.save(updated);
+    await this.repository.saveAsync(updated);
     return this.buildState(updated);
   }
 

@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/weather_service.dart';
-import '../../constants/auth_config.dart';
+import '../../services/api_client.dart';
 import '../auth/google_login_screen.dart';
 import '../dashboard/carbon_dashboard_sheet.dart';
 import '../dashboard/monthly_electricity_tracker_sheet.dart';
@@ -59,6 +57,13 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   Timer? _dialogueResetTimer;
   Timer? _idleSleepTimer;
   Timer? _expressionResetTimer;
+  Timer? _environmentTimer;
+  Timer? _weatherRefreshTimer;
+  Timer? _idleExpressionTimer;
+  bool? _lastNightTime;
+  bool? _lastNestSleepTime;
+  bool _scheduledSleepActive = false;
+  int _idleExpressionIndex = 0;
 
   late final AnimationController _bubbleAnimController;
   late final Animation<double> _bubbleScale;
@@ -77,13 +82,16 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     "Soaking dal/chana for 30 minutes cuts LPG gas cooking stove time in half! 🥘",
     "A clean refrigerator door seal stops cooling leaks and saves ₹200/month! 🧊",
   ];
-  int _tipIndex = 0;
-
   bool get _isNightTime {
     if (!_state.enableNightDimming) return false;
     final now = DateTime.now();
     final hour = now.hour;
-    return hour >= 21 || hour < 6 || (_state.enableSleepReminder && hour >= _state.sleepTime.hour);
+    final minutesNow = hour * 60 + now.minute;
+    final sleepTime = _state.sleepTime;
+    final minutesUntilSleep = sleepTime.hour * 60 + sleepTime.minute;
+    return hour >= 21 ||
+        hour < 6 ||
+        (_state.enableSleepReminder && minutesNow >= minutesUntilSleep);
   }
 
   bool get _isNightTimeNestSleep {
@@ -105,10 +113,22 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _bubbleAnimController.forward();
 
     _state.addListener(_onStateChange);
-    _loadWeatherAndStartupTip();
+    _refreshEnvironment(force: true);
+    _refreshWeather(showStartupMessage: true);
     _loadBackendMascot();
     _resetIdleTimer();
-
+    _environmentTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _refreshEnvironment(),
+    );
+    _weatherRefreshTimer = Timer.periodic(
+      const Duration(minutes: 30),
+      (_) => _refreshWeather(),
+    );
+    _idleExpressionTimer = Timer.periodic(
+      const Duration(seconds: 18),
+      (_) => _showIdleExpression(),
+    );
   }
 
   @override
@@ -116,6 +136,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _dialogueResetTimer?.cancel();
     _idleSleepTimer?.cancel();
     _expressionResetTimer?.cancel();
+    _environmentTimer?.cancel();
+    _weatherRefreshTimer?.cancel();
+    _idleExpressionTimer?.cancel();
     _chatInputController.dispose();
     _bubbleAnimController.dispose();
     _state.removeListener(_onStateChange);
@@ -123,16 +146,98 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   void _onStateChange() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    _sparrowKey.currentState?.setSoundEnabled(_state.soundEnabled);
   }
 
-  void _showExpression(String expression, {Duration duration = const Duration(seconds: 5)}) {
+  String get _ambientExpression {
+    switch (_currentWeather?.companionMood) {
+      case 'rain':
+      case 'cold':
+        return 'curious';
+      case 'hot':
+        return 'thinking';
+      case 'windy':
+        return 'excited';
+      default:
+        return 'happy';
+    }
+  }
+
+  void _showIdleExpression() {
+    if (_state.isSleeping ||
+        DateTime.now().difference(_lastInteractionTime) <
+            const Duration(seconds: 12)) {
+      return;
+    }
+    const expressions = ['curious', 'thinking', 'happy', 'excited'];
+    final expression = expressions[_idleExpressionIndex++ % expressions.length];
+    _showExpression(expression, duration: const Duration(seconds: 12));
+  }
+
+  void _onSparrowStageLoaded(bool loaded) {
+    if (!loaded || !mounted) return;
+    final sparrow = _sparrowKey.currentState;
+    sparrow?.setSoundEnabled(_state.soundEnabled);
+    sparrow?.setNight(_isNightTime);
+    sparrow?.setWeather(_currentWeather?.companionMood);
+    sparrow?.setSleepLocked(_isNightTimeNestSleep);
+    if (_state.isSleeping) {
+      sparrow?.sleep();
+    } else {
+      sparrow?.setExpression(_ambientExpression);
+    }
+  }
+
+  void _refreshEnvironment({bool force = false}) {
+    final isNight = _isNightTime;
+    final shouldSleep = _isNightTimeNestSleep;
+    final nightChanged = force || _lastNightTime != isNight;
+    final sleepWindowChanged = force || _lastNestSleepTime != shouldSleep;
+
+    if (nightChanged) {
+      _lastNightTime = isNight;
+      _sparrowKey.currentState?.setNight(isNight);
+    }
+    if (sleepWindowChanged) {
+      _lastNestSleepTime = shouldSleep;
+      if (shouldSleep) {
+        _scheduledSleepActive = true;
+        _idleSleepTimer?.cancel();
+        _sparrowKey.currentState?.setSleepLocked(true);
+        _state.setSleeping(true);
+        _sparrowKey.currentState?.sleep();
+        _say(
+          "Zzz... 🌙 Cheechee is resting in the sanctuary nest until 6:00 AM.",
+          duration: const Duration(seconds: 10),
+        );
+      } else if (_scheduledSleepActive) {
+        _scheduledSleepActive = false;
+        _sparrowKey.currentState?.setSleepLocked(false);
+        _state.setSleeping(false);
+        _sparrowKey.currentState?.wake();
+        _sparrowKey.currentState?.setExpression(_ambientExpression);
+        _say("Good morning! 🌿 Cheechee is awake and ready for a new day.");
+        _resetIdleTimer();
+      }
+    }
+    if (nightChanged || sleepWindowChanged) setState(() {});
+  }
+
+  void _showExpression(
+    String expression, {
+    Duration duration = const Duration(seconds: 5),
+  }) {
     _expressionResetTimer?.cancel();
     _sparrowKey.currentState?.setExpression(expression);
-    if (expression == 'sleep' || expression == 'resting' || expression == 'nest') return;
+    if (expression == 'sleep' ||
+        expression == 'resting' ||
+        expression == 'nest')
+      return;
     _expressionResetTimer = Timer(duration, () {
       if (mounted && !_state.isSleeping) {
-        _sparrowKey.currentState?.setExpression('happy');
+        _sparrowKey.currentState?.setExpression(_ambientExpression);
       }
     });
   }
@@ -147,44 +252,49 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   }
 
   void _putSparrowToSleep() {
+    if (_isNightTimeNestSleep) {
+      _refreshEnvironment(force: true);
+      return;
+    }
     _state.setSleeping(true);
     _sparrowKey.currentState?.sleep();
-    _say("Zzz... (Sparrow dozed off after 2 min. Tap me to wake up! 😴)", duration: const Duration(seconds: 10));
+    _say(
+      "Zzz... (Sparrow dozed off after 2 min. Tap me to wake up! 😴)",
+      duration: const Duration(seconds: 10),
+    );
   }
 
   void _wakeUpSparrow() {
+    if (_isNightTimeNestSleep) {
+      _sparrowKey.currentState?.sleep();
+      _say("Shhh... 🌙 Cheechee is sleeping until 6:00 AM.");
+      return;
+    }
     _state.setSleeping(false);
-    HapticFeedback.mediumImpact();
+    if (_state.soundEnabled) HapticFeedback.mediumImpact();
     _sparrowKey.currentState?.wake();
     _showExpression('curious');
     _say("Yawn... Chirp! 🌿 I'm awake and ready to guard your energy! ⚡");
     _resetIdleTimer();
   }
 
-  Future<void> _loadWeatherAndStartupTip() async {
+  Future<void> _refreshWeather({bool showStartupMessage = false}) async {
     final weather = await WeatherService.fetchCurrentWeather();
     if (!mounted) return;
 
     setState(() {
       _currentWeather = weather;
-      _state.setWeatherFx(weather.weatherFx);
     });
-
-    if (weather.weatherFx != null) {
-      _sparrowKey.currentState?.wear('fx', weather.weatherFx);
+    _sparrowKey.currentState?.setWeather(weather.companionMood);
+    if (!_state.isSleeping) {
+      _sparrowKey.currentState?.setExpression(_ambientExpression);
     }
-
-    _sparrowKey.currentState?.setNight(_isNightTime);
-
-    if (_isNightTimeNestSleep) {
-      _state.setSleeping(true);
-      _sparrowKey.currentState?.sleep();
-      _say("Zzz... 🌙 Cheechee is cozy asleep in the sanctuary nest (11 PM - 6 AM). Shhh, resting for tomorrow's green quests!", duration: const Duration(seconds: 10));
-    } else if (_isNightTime) {
-      _say("Good evening! 🌙 Checking all idle appliances before bedtime keeps Gujarat green!");
-    } else {
-      final tip = _startupTips[_tipIndex % _startupTips.length];
-      _say("Chirp! 🌿 Weather today: ${weather.condition} (${weather.temperature}°C). $tip");
+    if (showStartupMessage && !_isNightTimeNestSleep) {
+      final tip = _startupTips.first;
+      final weatherSummary = weather.isLive
+          ? '${weather.condition}, ${weather.temperature?.toStringAsFixed(0) ?? '—'}°C'
+          : 'Live weather is unavailable, so I will not guess the conditions';
+      _say("Chirp! 🌿 $weatherSummary. $tip");
     }
   }
 
@@ -206,72 +316,89 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     });
   }
 
-  
   void _onSendMessage(String text) {
     if (text.trim().isEmpty) return;
     _chatInputController.clear();
     FocusScope.of(context).unfocus();
     _resetIdleTimer();
-    HapticFeedback.mediumImpact();
+    if (_state.soundEnabled) HapticFeedback.mediumImpact();
 
     final q = text.toLowerCase();
     String reply = '';
     String expression = 'happy';
 
-    if (q.contains('ac') || q.contains('air conditioner') || q.contains('cool')) {
-      reply = 'Setting AC to 24°C saves ~24% power and ₹1,800/yr in Gujarat! ❄️';
+    if (q.contains('ac') ||
+        q.contains('air conditioner') ||
+        q.contains('cool')) {
+      reply =
+          'Setting AC to 24°C saves ~24% power and ₹1,800/yr in Gujarat! ❄️';
       expression = 'cheering';
-    } else if (q.contains('vampire') || q.contains('standby') || q.contains('plug') || q.contains('charger')) {
-      reply = 'Unplugging idle phone/laptop chargers cuts phantom load and saves ₹800/yr! 🔌';
+    } else if (q.contains('vampire') ||
+        q.contains('standby') ||
+        q.contains('plug') ||
+        q.contains('charger')) {
+      reply =
+          'Unplugging idle phone/laptop chargers cuts phantom load and saves ₹800/yr! 🔌';
       expression = 'thinking';
     } else if (q.contains('solar') || q.contains('sun') || q.contains('roof')) {
-      reply = 'Midday (11 AM - 3 PM) is prime Gujarat solar generation! Run heavy appliances now! ☀️';
+      reply =
+          'Midday (11 AM - 3 PM) is prime Gujarat solar generation! Run heavy appliances now! ☀️';
       expression = 'celebrating';
     } else if (q.contains('water') || q.contains('tap') || q.contains('bath')) {
-      reply = "Every drop saved protects the Narmada basin. Aerators cut tap flow 50%! 💧";
+      reply =
+          "Every drop saved protects the Narmada basin. Aerators cut tap flow 50%! 💧";
       expression = 'watering';
-    } else if (q.contains('feed') || q.contains('food') || q.contains('seeds') || q.contains('hungry')) {
-      triggerFeed();
-      return;
-    } else if (q.contains('metro') || q.contains('commute') || q.contains('travel') || q.contains('bike')) {
-      reply = 'Metro and EV travel prevent ~1.8 kg CO2e every 10 km! Great choice! 🚇';
+    } else if (q.contains('metro') ||
+        q.contains('commute') ||
+        q.contains('travel') ||
+        q.contains('bike')) {
+      reply =
+          'Metro and EV travel prevent ~1.8 kg CO2e every 10 km! Great choice! 🚇';
       expression = 'cheering';
     } else {
-      reply = 'Chirp! 🌿 Little eco actions every day keep Gujarat clean and green! 🍃';
+      reply =
+          'Chirp! 🌿 Little eco actions every day keep Gujarat clean and green! 🍃';
       expression = 'happy';
     }
 
     _showExpression(expression);
     _say(reply, duration: const Duration(seconds: 8));
-    _state.addCoins(5);
-    _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
-    _interactWithBackendMascot();
   }
 
   void _onSparrowPetted(String expression) {
     if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
     if (_isNightTimeNestSleep) {
+      _lastInteractionTime = DateTime.now();
       if (_state.soundEnabled) HapticFeedback.lightImpact();
-      _say("Zzz... 💤 Cheechee is resting in the nest until 6:00 AM! Shhh... 🌙", duration: const Duration(seconds: 4));
+      _say(
+        "Zzz... 💤 Cheechee is resting in the nest until 6:00 AM! Shhh... 🌙",
+        duration: const Duration(seconds: 4),
+      );
       return;
     }
 
+    _lastInteractionTime = DateTime.now();
+    _resetIdleTimer();
     if (_state.isSleeping) {
       _wakeUpSparrow();
       return;
     }
 
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
+    if (_state.soundEnabled) {
+      if (expression == 'excited' || expression == 'cheering') {
+        HapticFeedback.mediumImpact();
+      } else {
+        HapticFeedback.selectionClick();
+      }
+    }
     _interactWithBackendMascot();
     _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
-
 
     final tone = _state.mascotBehaviorTone;
     String petMsg = "Aww! 🥰 Purr-chirp! You petted me! Energy boosted!";
     if (tone == 'Coach') {
-      petMsg = "Chirp! ⚡ Feeling energized! Let's hit our daily kWh reduction goal!";
+      petMsg =
+          "Chirp! ⚡ Feeling energized! Let's hit our daily kWh reduction goal!";
     } else if (tone == 'Zen Guardian') {
       petMsg = "Breathe in peace, breathe out carbon. 🍃 Thank you, guardian.";
     }
@@ -284,25 +411,27 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     if (token == null || token.isEmpty || _backendMascotLoading) return;
     _backendMascotLoading = true;
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-      final request = await client.getUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/state'));
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) return;
-      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final response = await ApiClient.instance.get('/mascot/state');
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted)
+        return;
+      final decoded = response.decodeJson();
       final data = decoded['data'] is Map<String, dynamic>
           ? decoded['data'] as Map<String, dynamic>
           : decoded;
       final vitality = data['vitality'];
-      if (vitality is num) _state.setVitality((vitality > 1 ? vitality / 100 : vitality).toDouble());
+      if (vitality is num)
+        _state.setVitality(
+          (vitality > 1 ? vitality / 100 : vitality).toDouble(),
+        );
       final expression = data['expression'] as String?;
-      if (expression != null && expression.isNotEmpty) _showExpression(expression.toLowerCase());
+      if (expression != null && expression.isNotEmpty)
+        _showExpression(expression.toLowerCase());
       final dialogue = data['dialogue'];
-      final line = dialogue is Map<String, dynamic> ? dialogue['text'] as String? : dialogue as String?;
-      if (line != null && line.isNotEmpty) _say(line, duration: const Duration(seconds: 8));
+      final line = dialogue is Map<String, dynamic>
+          ? dialogue['text'] as String?
+          : dialogue as String?;
+      if (line != null && line.isNotEmpty)
+        _say(line, duration: const Duration(seconds: 8));
     } catch (e) {
       debugPrint('[Mascot] Backend state unavailable: $e');
     } finally {
@@ -314,107 +443,24 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     final token = AuthService.instance.accessToken;
     if (token == null || token.isEmpty) return;
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-      final request = await client.postUrl(Uri.parse('${AuthConfig.apiBaseUrl}/mascot/interact'));
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      request.headers.contentType = ContentType.json;
-      request.write('{}');
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) return;
-      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final response = await ApiClient.instance.post(
+        '/mascot/interact',
+        body: const {},
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted)
+        return;
+      final decoded = response.decodeJson();
       final data = decoded['data'] is Map<String, dynamic>
           ? decoded['data'] as Map<String, dynamic>
           : decoded;
       final dialogue = data['dialogue'];
-      final line = dialogue is Map<String, dynamic> ? dialogue['text'] as String? : dialogue as String?;
+      final line = dialogue is Map<String, dynamic>
+          ? dialogue['text'] as String?
+          : dialogue as String?;
       if (line != null && line.isNotEmpty) _say(line);
     } catch (e) {
       debugPrint('[Mascot] Backend interaction unavailable: $e');
     }
-  }
-
-  void triggerPet() {
-    if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
-    if (_state.isSleeping) {
-      _wakeUpSparrow();
-      return;
-    }
-    if (_state.soundEnabled) HapticFeedback.mediumImpact();
-    _sparrowKey.currentState?.pet();
-    _state.setVitality((_state.vitality + 0.05).clamp(0.0, 1.0));
-    _interactWithBackendMascot();
-    _say("Aww! 🥰 Purr-chirp! You petted Cheechee! Vitality boosted!");
-  }
-
-  void triggerWater() {
-    if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
-    if (_state.isSleeping) {
-      _wakeUpSparrow();
-      return;
-    }
-    if (_state.soundEnabled) HapticFeedback.mediumImpact();
-    _showExpression('watering');
-    _state.addCoins(5);
-    _say("Nurturing the green sapling! 💧 Every drop saved protects Gujarat's Narmada basin!");
-  }
-
-  void triggerCelebrate() {
-    if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
-    if (_state.isSleeping) {
-      _wakeUpSparrow();
-      return;
-    }
-    if (_state.soundEnabled) HapticFeedback.heavyImpact();
-    _showExpression('celebrating');
-    _say("Chirp hooray! 🎉 +${_state.co2eSavedKg.toStringAsFixed(1)} kg CO2e saved! Level ${_state.mascotLevel} Companion!");
-  }
-
-  // Trigger nest
-  void triggerNest() {
-    if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    _showExpression('nest');
-    _say("Resting cozy in the sanctuary nest 🪺 Vampire load standby switches are OFF!");
-  }
-
-
-  void triggerFeed() {
-    if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
-    if (_state.isSleeping) {
-      _wakeUpSparrow();
-      return;
-    }
-    if (_state.soundEnabled) HapticFeedback.mediumImpact();
-    _state.setVitality((_state.vitality + 0.15).clamp(0.0, 1.0));
-    _showExpression('happy');
-    _say("Nom nom! 🌾 Delicious organic seeds! Vitality restored to ${(_state.vitality * 100).toInt()}%!");
-  }
-
-  void triggerNextTip() {
-    if (_isInteractionCooldown) return;
-    _lastInteractionTime = DateTime.now();
-    _resetIdleTimer();
-    if (_state.isSleeping) {
-      _wakeUpSparrow();
-      return;
-    }
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    _tipIndex++;
-    final tip = _startupTips[_tipIndex % _startupTips.length];
-    _showExpression('thinking');
-    _say("Mission LiFE Tip: $tip", duration: const Duration(seconds: 7));
   }
 
   void _openDashboard() {
@@ -493,11 +539,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
 
     // 2. Add to notification history in state
-    _state.addNotification(
-      title: title,
-      message: message,
-      type: 'nudge',
-    );
+    _state.addNotification(title: title, message: message, type: 'nudge');
 
     _say("Sparrow alert: $title Check your notification shade! ⚡");
   }
@@ -522,7 +564,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
     if (didLevelUp) {
       _sparrowKey.currentState?.levelUp(_state.mascotLevel);
-      _say("🎉 LEVEL UP! I'm now Level ${_state.mascotLevel}! Real carbon saved! 🌟");
+      _say(
+        "🎉 LEVEL UP! I'm now Level ${_state.mascotLevel}! Real carbon saved! 🌟",
+      );
     } else {
       _showExpression('excited');
       _say("Awesome! +$coins 🪙 & +${co2}kg CO2e prevented! 🍃");
@@ -531,6 +575,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final isCompact = media.size.height < 720;
+    final safeBottom = media.padding.bottom;
+
     return Listener(
       onPointerDown: (_) => _resetIdleTimer(),
       child: Scaffold(
@@ -567,7 +615,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x120B132B), Colors.transparent, Color(0x330B132B)],
+                  colors: [
+                    Color(0x120B132B),
+                    Colors.transparent,
+                    Color(0x330B132B),
+                  ],
                   stops: [0, 0.48, 1],
                 ),
               ),
@@ -578,11 +630,12 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               key: _sparrowKey,
               onSparrowPetted: _onSparrowPetted,
               onSparrowWoken: _wakeUpSparrow,
+              onLoaded: _onSparrowStageLoaded,
             ),
 
             // Top Game Bar HUD & Settings Menu Button
             Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
+              top: media.padding.top + 8,
               left: 16,
               right: 16,
               child: _buildTopGameHud(),
@@ -591,7 +644,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Live Weather Status Pill (Top Left under HUD)
             if (_currentWeather != null)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 76,
+                top: media.padding.top + 76,
                 left: 20,
                 child: _buildWeatherPill(),
               ),
@@ -599,7 +652,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // In-App Ambient Nudge Banner (e.g. Charger Unplug / Bedtime Sweep)
             if (_activeNudgeAlert != null)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 124,
+                top: media.padding.top + 124,
                 left: 16,
                 right: 16,
                 child: _buildAmbientNudgeBanner(),
@@ -608,7 +661,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Companion Speech Bubble
             if (_activeNudgeAlert == null)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 124,
+                top: media.padding.top + 124,
                 left: 20,
                 right: 20,
                 child: _buildSpeechBubble(),
@@ -617,7 +670,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Floating Action Pills (Left side: Domains)
             Positioned(
               left: 16,
-              bottom: MediaQuery.of(context).size.height < 720 ? 205 : 236,
+              bottom: (isCompact ? 205 : 236) + safeBottom,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -656,7 +709,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Floating Action Pills (Right side)
             Positioned(
               right: 16,
-              bottom: MediaQuery.of(context).size.height < 720 ? 205 : 236,
+              bottom: (isCompact ? 205 : 236) + safeBottom,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -671,16 +724,26 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             // Cozy Nest Indicator (11 PM - 6 AM)
             if (_isNightTimeNestSleep)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 76,
+                top: media.padding.top + 76,
                 right: 20,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E1B4B).withValues(alpha: 0.92),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF818CF8), width: 1.2),
+                    border: Border.all(
+                      color: const Color(0xFF818CF8),
+                      width: 1.2,
+                    ),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
                     ],
                   ),
                   child: const Row(
@@ -703,13 +766,13 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
             // Vitality Bar & Clean Navigation to Garden
             Positioned(
-              bottom: 20,
+              bottom: 20 + safeBottom,
               left: 16,
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildCompanionActionDock(),
+                  _buildTapHint(),
                   const SizedBox(height: 8),
                   _buildVitalityCard(),
                   const SizedBox(height: 12),
@@ -741,8 +804,16 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: const [
-            BoxShadow(color: Color(0x66321D10), blurRadius: 12, offset: Offset(0, 4)),
-            BoxShadow(color: Colors.white70, blurRadius: 0, offset: Offset(0, 1)),
+            BoxShadow(
+              color: Color(0x66321D10),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.white70,
+              blurRadius: 0,
+              offset: Offset(0, 1),
+            ),
           ],
         ),
         child: Row(
@@ -764,7 +835,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-    Widget _buildTopGameHud() {
+  Widget _buildTopGameHud() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -852,7 +923,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                       child: LinearProgressIndicator(
                         value: _state.levelProgress,
                         backgroundColor: const Color(0xFFE2E8F0),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF16A34A)),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF16A34A),
+                        ),
                       ),
                     ),
                   ),
@@ -878,7 +951,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: const Center(
-                child: Icon(Icons.notifications_outlined, color: Color(0xFF334155), size: 18),
+                child: Icon(
+                  Icons.notifications_outlined,
+                  color: Color(0xFF334155),
+                  size: 18,
+                ),
               ),
             ),
           ),
@@ -916,11 +993,19 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                             avatar,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.person_rounded, color: Color(0xFF16A34A), size: 18),
+                              child: Icon(
+                                Icons.person_rounded,
+                                color: Color(0xFF16A34A),
+                                size: 18,
+                              ),
                             ),
                           )
                         : const Center(
-                            child: Icon(Icons.person_rounded, color: Color(0xFF16A34A), size: 18),
+                            child: Icon(
+                              Icons.person_rounded,
+                              color: Color(0xFF16A34A),
+                              size: 18,
+                            ),
                           ),
                   ),
                 ),
@@ -937,7 +1022,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Sign Out',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text('Are you sure you want to sign out from URJA ONE?'),
         actions: [
           TextButton(
@@ -945,9 +1033,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              AuthService.instance.logout();
+              await AuthService.instance.logout();
+              if (!mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const GoogleLoginScreen()),
                 (route) => false,
@@ -956,7 +1045,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Sign Out'),
           ),
@@ -967,6 +1058,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
 
   Widget _buildWeatherPill() {
     final w = _currentWeather!;
+    final weatherText = w.isLive
+        ? '${w.temperature?.toStringAsFixed(0) ?? '—'}°C • ${w.condition}'
+        : w.condition;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -987,7 +1081,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           Text(w.icon, style: const TextStyle(fontSize: 13)),
           const SizedBox(width: 6),
           Text(
-            '${w.district} • ${w.temperature}°C • ${w.condition}',
+            '${w.district} • $weatherText',
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -1060,7 +1154,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               icon: const Icon(Icons.check, size: 14),
               label: Text(
                 'Turn Off Now (+$coins 🪙)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF22C55E),
@@ -1068,7 +1165,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
             ),
           ),
@@ -1100,7 +1200,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_state.isSleeping ? '😴' : '🐥', style: const TextStyle(fontSize: 20)),
+              Text(
+                _state.isSleeping ? '😴' : '🐥',
+                style: const TextStyle(fontSize: 20),
+              ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -1156,8 +1259,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  
-
   Widget _buildFloatingDashboardButton() {
     return GestureDetector(
       onTap: _openDashboard,
@@ -1194,69 +1295,35 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  
-
-  Widget _buildCompanionActionDock() {
+  Widget _buildTapHint() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF86EFAC), width: 1.4),
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF86EFAC)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x181B6B44),
-            blurRadius: 14,
-            offset: Offset(0, 3),
+            color: Color(0x101B6B44),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildActionDockButton(icon: '🐥', label: 'Pet', onTap: triggerPet),
-          _buildActionDockButton(icon: '🌾', label: 'Feed', onTap: triggerFeed),
-          _buildActionDockButton(icon: '💧', label: 'Water', onTap: triggerWater),
-          _buildActionDockButton(icon: '🥳', label: 'Cheer', onTap: triggerCelebrate),
-          _buildActionDockButton(icon: '💡', label: 'Tip', onTap: triggerNextTip),
-          _buildActionDockButton(icon: '🪺', label: 'Nest', onTap: triggerNest),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionDockButton({
-    required String icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F8F5),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFD1FAE5), width: 1.0),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF1B6B44),
-                fontWeight: FontWeight.w800,
-                fontSize: 10,
-              ),
+          Icon(Icons.touch_app_rounded, color: Color(0xFF1B6B44), size: 18),
+          SizedBox(width: 7),
+          Text(
+            'Tap Cheechee to interact',
+            style: TextStyle(
+              color: Color(0xFF1B6B44),
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1287,7 +1354,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
-              color: Color(0xFF344033),
+                color: Color(0xFF344033),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1362,14 +1429,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  
-
   Widget _buildChatBox() {
     final chips = [
       '💡 AC 24°C',
       '🔌 Vampire Load',
       '☀️ Solar Window',
-      '🌾 Feed Seeds',
       '💧 Save Water',
       '🚴 Metro Commute',
     ];
@@ -1403,7 +1467,10 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 return GestureDetector(
                   onTap: () => _onSendMessage(label),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(10),
@@ -1434,11 +1501,20 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                   height: 34,
                   child: TextField(
                     controller: _chatInputController,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF0F172A),
+                    ),
                     decoration: InputDecoration(
                       hintText: "Ask Cheechee (e.g. 'How to save power?')...",
-                      hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      hintStyle: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
@@ -1469,7 +1545,11 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(
-                    child: Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                    child: Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
               ),
@@ -1498,10 +1578,30 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavTab(icon: Icons.cruelty_free_rounded, label: 'Mascot', isSelected: true, onTap: () {}),
-          _buildNavTab(icon: Icons.bar_chart_rounded, label: 'Dashboard', isSelected: false, onTap: _openDashboard),
-          _buildNavTab(icon: Icons.power_rounded, label: 'Log', isSelected: false, onTap: () => ApplianceRegistrySheet.show(context)),
-          _buildNavTab(icon: Icons.settings_rounded, label: 'Setting', isSelected: false, onTap: _openFullMenuScreen),
+          _buildNavTab(
+            icon: Icons.cruelty_free_rounded,
+            label: 'Mascot',
+            isSelected: true,
+            onTap: () {},
+          ),
+          _buildNavTab(
+            icon: Icons.bar_chart_rounded,
+            label: 'Dashboard',
+            isSelected: false,
+            onTap: _openDashboard,
+          ),
+          _buildNavTab(
+            icon: Icons.power_rounded,
+            label: 'Log',
+            isSelected: false,
+            onTap: () => ApplianceRegistrySheet.show(context),
+          ),
+          _buildNavTab(
+            icon: Icons.settings_rounded,
+            label: 'Setting',
+            isSelected: false,
+            onTap: _openFullMenuScreen,
+          ),
         ],
       ),
     );
@@ -1530,13 +1630,17 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Icon(
               icon,
               size: 15,
-              color: isSelected ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+              color: isSelected
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFF64748B),
             ),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                color: isSelected
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF64748B),
                 fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                 fontSize: 11,
               ),
@@ -1546,5 +1650,4 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       ),
     );
   }
-
 }

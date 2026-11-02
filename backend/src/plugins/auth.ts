@@ -5,7 +5,10 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 export interface UserPayload {
   id: string;
   email: string;
-  role: 'CITIZEN' | 'ADMIN';
+  role: 'CITIZEN' | 'ADMIN' | 'PROVIDER_ADMIN' | 'CITY_ADMIN';
+  tenantId?: string;
+  tenantType?: 'PROVIDER' | 'CITY';
+  adminAccountId?: string;
 }
 
 declare module 'fastify' {
