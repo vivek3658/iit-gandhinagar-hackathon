@@ -694,7 +694,7 @@ export class AuthRepository {
         );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[AuthRepository] PostgreSQL persistUser error:', msg);
+        console.warn('[AuthRepository] PostgreSQL persistUser non-fatal warning:', msg);
       }
     }
   }
@@ -728,7 +728,8 @@ export class AuthRepository {
           [record.tokenHash, record.userId, record.expiresAt, record.revokedAt]
         );
       } catch (err: unknown) {
-        console.error('[AuthRepository] PostgreSQL persistRefreshToken error:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('[AuthRepository] PostgreSQL persistRefreshToken non-fatal warning:', msg);
       }
     }
   }

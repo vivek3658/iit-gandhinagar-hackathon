@@ -10,6 +10,51 @@ declare module 'fastify' {
   }
 }
 
+export function parsePostgresUrl(rawUrl: string): {
+  user?: string;
+  password?: string;
+  host: string;
+  port: number;
+  database: string;
+  ssl?: { rejectUnauthorized: boolean };
+} | null {
+  if (!rawUrl) return null;
+  const clean = rawUrl.trim().replace(/^["']|["']$/g, '');
+  const m = clean.match(
+    /^(?:postgres(?:ql)?:\/\/)(?:([^:]+)(?::(.*))?@)?([^/:?#]+)(?::(\d+))?(?:\/([^?#]*))?(?:\?(.*))?$/
+  );
+  if (!m) return null;
+
+  const [, user, rawPass, host, portStr, dbName] = m;
+  if (!host) return null;
+
+  let password = rawPass;
+  if (password && password.startsWith('[') && password.endsWith(']')) {
+    password = password.slice(1, -1);
+  }
+  if (password) {
+    try {
+      password = decodeURIComponent(password);
+    } catch {
+      // Keep as-is if decodeURIComponent fails
+    }
+  }
+
+  const isSsl =
+    host.includes('supabase.co') ||
+    host.includes('pooler.supabase.com') ||
+    process.env.NODE_ENV === 'production';
+
+  return {
+    user: user ? decodeURIComponent(user) : 'postgres',
+    password: password || undefined,
+    host,
+    port: portStr ? Number(portStr) : 5432,
+    database: dbName ? decodeURIComponent(dbName) : 'postgres',
+    ssl: isSsl ? { rejectUnauthorized: false } : undefined,
+  };
+}
+
 export default fp(async (fastify) => {
   const config = fastify.config;
 
@@ -43,29 +88,37 @@ export default fp(async (fastify) => {
 
   if (pgUrl && (pgUrl.startsWith('postgres://') || pgUrl.startsWith('postgresql://'))) {
     try {
-      const isSsl = pgUrl.includes('supabase.co') || pgUrl.includes('pooler.supabase.com') || config?.NODE_ENV === 'production';
-      pool = new Pool({
-        connectionString: pgUrl,
-        ssl: isSsl ? { rejectUnauthorized: false } : undefined,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
-      });
-
-      pool.on('error', (err) => {
-        fastify.log.error({ err }, '[PostgreSQL] Unexpected error on idle client');
-      });
-
-      // Verify connection asynchronously without blocking server boot
-      pool.connect()
-        .then((client) => {
-          fastify.log.info('[PostgreSQL] Connection pool established successfully');
-          client.release();
-        })
-        .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          fastify.log.warn({ err: msg }, '[PostgreSQL] Could not establish initial connection to DATABASE_URL');
+      const parsedConfig = parsePostgresUrl(pgUrl);
+      if (parsedConfig) {
+        pool = new Pool({
+          user: parsedConfig.user,
+          password: parsedConfig.password,
+          host: parsedConfig.host,
+          port: parsedConfig.port,
+          database: parsedConfig.database,
+          ssl: parsedConfig.ssl,
+          max: 10,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 5000,
         });
+
+        pool.on('error', (err) => {
+          fastify.log.warn({ err: err.message }, '[PostgreSQL] Connection warning on idle client');
+        });
+
+        // Verify connection asynchronously without blocking server boot
+        pool.connect()
+          .then((client) => {
+            fastify.log.info('[PostgreSQL] Connection pool established successfully');
+            client.release();
+          })
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            fastify.log.warn({ err: msg }, '[PostgreSQL] Could not establish initial connection to DATABASE_URL');
+          });
+      } else {
+        fastify.log.warn('[PostgreSQL] DATABASE_URL format could not be parsed into discrete parameters. Operating in fallback mode.');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       fastify.log.warn({ err: msg }, '[PostgreSQL] Failed to configure pool for DATABASE_URL');

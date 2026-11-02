@@ -35,7 +35,10 @@ Configure the following environment variables in your deployment dashboard (e.g.
    - `NODE_ENV` = `production`
    - `JWT_SECRET` = `<your-strong-secret-key>`
    - `GOOGLE_CLIENT_ID` = `<your-web-client-id>`
+   - `DATABASE_URL` = `<your PostgreSQL connection string>`
 6. Click **Deploy**. Vercel will automatically run `npm run build` using `vercel.json` and deploy the Fastify backend as a global serverless API.
+
+`DATABASE_URL` must be the PostgreSQL connection string from your database provider (for Supabase on Vercel, use its pooler connection string). Set it in Vercel's Environment Variables for the deployment environment and redeploy after changing it. Do not include surrounding quotes or placeholder brackets; URL-encode reserved characters in the username or password.
 
 ### Option B: Via Vercel CLI
 ```bash

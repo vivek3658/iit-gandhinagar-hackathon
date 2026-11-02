@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app';
+import { parsePostgresUrl } from '../src/plugins/db';
 
 describe('Health Module & Core Gateway', () => {
   let app: FastifyInstance;
@@ -66,5 +67,24 @@ describe('Health Module & Core Gateway', () => {
     expect(body.openapi).toBe('3.1.0');
     expect(body.info.title).toContain('UrjaVatika');
     expect(body.paths['/health']).toBeDefined();
+  });
+
+  it('parsePostgresUrl parses URLs with special characters and removes literal brackets', () => {
+    const url1 = 'postgresql://postgres:[my_pass#123]@db.urppcoxoeswbfpbeabpz.supabase.co:5432/postgres';
+    const parsed1 = parsePostgresUrl(url1);
+    expect(parsed1).not.toBeNull();
+    expect(parsed1?.user).toBe('postgres');
+    expect(parsed1?.password).toBe('my_pass#123');
+    expect(parsed1?.host).toBe('db.urppcoxoeswbfpbeabpz.supabase.co');
+    expect(parsed1?.port).toBe(5432);
+    expect(parsed1?.database).toBe('postgres');
+    expect(parsed1?.ssl).toEqual({ rejectUnauthorized: false });
+
+    const url2 = 'postgresql://postgres.myproject:pass?word@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
+    const parsed2 = parsePostgresUrl(url2);
+    expect(parsed2).not.toBeNull();
+    expect(parsed2?.user).toBe('postgres.myproject');
+    expect(parsed2?.password).toBe('pass?word');
+    expect(parsed2?.port).toBe(6543);
   });
 });
