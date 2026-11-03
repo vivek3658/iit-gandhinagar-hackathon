@@ -29,6 +29,17 @@ describe('Learning chapters and daily waste-sorting game', () => {
     expect(chapters.length).toBeGreaterThan(0);
     expect(chapters[0].version).toBe(1);
     expect(chapters[0].correctAnswerId).toBeUndefined();
+    expect(chapters.map((chapter) => chapter.id)).toEqual(
+      expect.arrayContaining([
+        'renewable-energy',
+        'co2e-basics',
+        'carbon-myths',
+        'small-green-steps',
+      ]),
+    );
+    expect(chapters.find((chapter) => chapter.id === 'carbon-myths')?.content).toEqual(
+      expect.arrayContaining([expect.stringContaining('Myth:')]),
+    );
   });
 
   it('awards a chapter-version reward once and only after a correct answer', async () => {

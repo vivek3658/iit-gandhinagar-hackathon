@@ -11,7 +11,11 @@ export class ProvidersController {
     reply: FastifyReply,
   ) {
     const { category, district } = request.query;
-    const providers = ProvidersService.listProviders(category, district);
+    const providers = await ProvidersService.listDirectoryProviders(
+      request.server.db,
+      category,
+      district,
+    );
     return reply.status(200).send({
       success: true,
       providers,

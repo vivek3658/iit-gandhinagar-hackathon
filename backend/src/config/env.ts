@@ -9,6 +9,7 @@ export const EnvSchema = Type.Object({
   LOG_LEVEL: Type.String({ default: 'info' }),
   CORS_ORIGIN: Type.String({ default: '*' }),
   JWT_SECRET: Type.String({ default: 'dev-jwt-secret-key-must-be-at-least-32-characters-long' }),
+  ADMIN_USERNAME: Type.Optional(Type.String({ minLength: 3, maxLength: 64 })),
   ADMIN_EMAIL: Type.Optional(Type.String({ minLength: 3, maxLength: 254 })),
   ADMIN_PASSWORD_HASH: Type.Optional(Type.String()),
   CRON_SECRET: Type.Optional(Type.String({ minLength: 32 })),

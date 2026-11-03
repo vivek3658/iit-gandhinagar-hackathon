@@ -69,9 +69,10 @@ export const AdminProvidersListResponseSchema = Type.Object({
 export type AdminProvidersListResponse = Static<typeof AdminProvidersListResponseSchema>;
 
 export const AdminLoginBodySchema = Type.Object({
-  email: Type.String({ format: 'email', maxLength: 254 }),
+  username: Type.Optional(Type.String({ minLength: 3, maxLength: 254 })),
+  email: Type.Optional(Type.String({ format: 'email', maxLength: 254 })),
   password: Type.String({ minLength: 1, maxLength: 256 }),
-});
+}, { minProperties: 2 });
 
 export const AdminLoginResponseSchema = Type.Object({
   accessToken: Type.String(),

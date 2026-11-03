@@ -52,6 +52,24 @@ type TenantOverview = {
   wasteReminderOptIns: number;
   scopeLabel: string;
 };
+type PlatformKpis = {
+  totalRegisteredCitizens: number;
+  activeSanctuariesCount: number | null;
+  totalCo2eSavedKg: number | null;
+  totalPeakMwhShifted: number | null;
+  totalCoinsInCirculation: number;
+  districtBreakdown: Record<string, number>;
+  providerSubscribers: Record<string, number> | null;
+};
+type Provider = {
+  id: string;
+  name: string;
+  category: string;
+  districts: string[];
+  code: string;
+  contactPhone: string;
+  status?: string;
+};
 type ApiResult<T> = T & { message?: string };
 
 async function api<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
@@ -80,6 +98,8 @@ export default function OperatorPage() {
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [tenantAdmins, setTenantAdmins] = useState<TenantAdmin[]>([]);
   const [tenantOverview, setTenantOverview] = useState<TenantOverview | null>(null);
+  const [platformKpis, setPlatformKpis] = useState<PlatformKpis | null>(null);
+  const [providers, setProviders] = useState<Provider[]>([]);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
@@ -101,18 +121,21 @@ export default function OperatorPage() {
       }
     } catch (tenantError) {
       try {
-        const adminData = await api<{ kpis: { totalRegisteredCitizens: number; totalCoinsInCirculation: number } }>('admin/kpis');
+        const adminData = await api<{ kpis: PlatformKpis }>('admin/kpis');
         setIdentity({ role: 'ADMIN', tenantId: null, tenantType: null });
+        setPlatformKpis(adminData.kpis);
         setTenantOverview(null);
         setMessage(`Platform data ready: ${adminData.kpis.totalRegisteredCitizens} citizens, ${adminData.kpis.totalCoinsInCirculation} coins.`);
-        const [campaignData, auditData, adminsData] = await Promise.all([
+        const [campaignData, auditData, adminsData, providerData] = await Promise.all([
           api<{ campaigns: Campaign[] }>('admin/campaigns'),
           api<{ items: AuditItem[] }>('admin/audit'),
           api<{ admins: TenantAdmin[] }>('admin/tenant-admins'),
+          api<{ providers: Provider[] }>('admin/providers'),
         ]);
         setCampaigns(campaignData.campaigns);
         setAudit(auditData.items);
         setTenantAdmins(adminsData.admins);
+        setProviders(providerData.providers);
       } catch {
         setIdentity(null);
         setError(tenantError instanceof Error ? tenantError.message : 'Sign in to continue.');
@@ -133,7 +156,7 @@ export default function OperatorPage() {
       const response = await fetch('/api/operator/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
+        body: JSON.stringify({ username: form.get('username'), password: form.get('password') }),
       });
       const result = await response.json() as { message?: string };
       if (!response.ok) {
@@ -236,6 +259,37 @@ export default function OperatorPage() {
     }
   }
 
+  async function submitProvider(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      const result = await api<Provider>('admin/providers', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: form.get('providerId'),
+          name: form.get('providerName'),
+          category: form.get('providerCategory'),
+          districts: String(form.get('providerDistricts'))
+            .split(',')
+            .map((district) => district.trim())
+            .filter(Boolean),
+          code: form.get('providerCode'),
+          contactPhone: form.get('providerPhone'),
+          peakHours: form.get('providerPeakHours') || undefined,
+          supplyWindow: form.get('providerSupplyWindow') || undefined,
+          reason: form.get('providerReason'),
+        }),
+      });
+      setMessage(`${result.name} added to the provider directory.`);
+      formElement.reset();
+      const updated = await api<{ providers: Provider[] }>('admin/providers');
+      setProviders(updated.providers);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Provider could not be created.');
+    }
+  }
+
   async function deactivateTenantAdmin(adminId: string) {
     try {
       await api<{ success: boolean }>(`admin/tenant-admins/${adminId}/deactivate`, { method: 'POST' });
@@ -283,7 +337,7 @@ export default function OperatorPage() {
           <h1>Operator sign in</h1>
           <p>Use your platform, city, or utility-provider administrator account.</p>
           <form onSubmit={login}>
-            <label>Email<input name="email" type="email" autoComplete="username" required /></label>
+            <label>Username or email<input name="username" type="text" autoComplete="username" required /></label>
             <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
             <button className="operator-button" type="submit">Sign in securely</button>
           </form>
@@ -310,6 +364,46 @@ export default function OperatorPage() {
         {identity.role === 'CITY_ADMIN' && <div><small>WASTE OPT-INS</small><strong>{tenantOverview?.wasteReminderOptIns ?? 0}</strong></div>}
         {identity.role === 'CITY_ADMIN' && <div><small>ACTIVE SCHEDULES</small><strong>{schedules.filter((schedule) => schedule.isActive).length}</strong></div>}
       </section>
+
+      {identity.role === 'ADMIN' && platformKpis && (
+        <section className="operator-card operator-wide operator-analytics">
+          <div className="operator-eyebrow">Platform impact • live directory metrics</div>
+          <h2>Community at a glance</h2>
+          <div className="operator-kpi-grid">
+            <div><small>REGISTERED CITIZENS</small><strong>{platformKpis.totalRegisteredCitizens.toLocaleString()}</strong></div>
+            <div><small>GREEN COINS</small><strong>{platformKpis.totalCoinsInCirculation.toLocaleString()}</strong></div>
+            <div><small>CO₂e SAVED</small><strong>{platformKpis.totalCo2eSavedKg == null ? 'Not measured' : `${platformKpis.totalCo2eSavedKg.toLocaleString()} kg`}</strong></div>
+          </div>
+          <div className="operator-chart-heading">
+            <div><div className="operator-eyebrow">Participation by district</div><p>Registered citizens by profile district</p></div>
+            <span>LIVE PROFILE DATA</span>
+          </div>
+          {Object.keys(platformKpis.districtBreakdown).length === 0 ? (
+            <p className="operator-muted">District participation will appear as citizens complete their profiles.</p>
+          ) : (
+            <div className="operator-district-chart" role="img" aria-label="Registered citizens by district">
+              {Object.entries(platformKpis.districtBreakdown)
+                .sort((left, right) => right[1] - left[1])
+                .slice(0, 8)
+                .map(([district, count]) => {
+                  const max = Math.max(...Object.values(platformKpis.districtBreakdown));
+                  return (
+                    <div className="operator-district-row" key={district}>
+                      <span>{district}</span>
+                      <div className="operator-bar-track">
+                        <div className="operator-bar-3d" style={{ width: `${Math.max(4, (count / max) * 100)}%` }} />
+                      </div>
+                      <strong>{count}</strong>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+          {platformKpis.totalCo2eSavedKg == null && (
+            <p className="operator-data-note">CO₂e is shown as unavailable until verified emissions data is connected; no estimated totals are substituted.</p>
+          )}
+        </section>
+      )}
 
       <div className="operator-grid">
         <section className="operator-card">
@@ -362,6 +456,39 @@ export default function OperatorPage() {
               <label>Allowed districts (comma separated)<input name="districts" placeholder="Ahmedabad, Gandhinagar" required /></label>
               <button className="operator-button" type="submit">Create account</button>
             </form>
+          </section>
+        )}
+
+        {identity.role === 'ADMIN' && (
+          <section className="operator-card">
+            <div className="operator-eyebrow">Utility directory</div>
+            <h2>Add a service provider</h2>
+            <p>New providers are stored in the shared directory and become available to citizen accounts and provider-admin provisioning.</p>
+            <form onSubmit={submitProvider}>
+              <label>Provider ID<input name="providerId" pattern="[a-z0-9][a-z0-9_-]*" placeholder="surat_solar" required /></label>
+              <label>Organization name<input name="providerName" minLength={2} maxLength={120} required /></label>
+              <label>Service category<select name="providerCategory"><option>ELECTRICITY</option><option>GAS</option><option>WATER</option><option>TRANSIT</option></select></label>
+              <label>Official code<input name="providerCode" minLength={2} required /></label>
+              <label>Contact phone<input name="providerPhone" minLength={3} required /></label>
+              <label>Districts served (comma separated)<input name="providerDistricts" placeholder="Surat, Navsari" required /></label>
+              <label>Peak hours (optional)<input name="providerPeakHours" placeholder="18:00–21:00" /></label>
+              <label>Water supply window (optional)<input name="providerSupplyWindow" placeholder="06:00–08:00" /></label>
+              <label>Reason for audit<input name="providerReason" minLength={5} maxLength={240} required /></label>
+              <button className="operator-button" type="submit">Add provider</button>
+            </form>
+          </section>
+        )}
+
+        {identity.role === 'ADMIN' && (
+          <section className="operator-card">
+            <div className="operator-eyebrow">Active directory • {providers.length} providers</div>
+            <h2>Service providers</h2>
+            {providers.slice(0, 12).map((provider) => (
+              <div className="operator-row" key={provider.id}>
+                <div><strong>{provider.name}</strong><small>{provider.category} · {provider.districts.join(', ')}</small></div>
+                <span>{provider.status ?? 'ACTIVE'}</span>
+              </div>
+            ))}
           </section>
         )}
 

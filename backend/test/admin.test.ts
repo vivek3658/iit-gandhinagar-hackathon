@@ -70,6 +70,37 @@ describe('Admin authentication and authorization', () => {
     });
     expect(valid.statusCode).toBe(200);
     expect(JSON.parse(valid.payload).accessToken).toBeTruthy();
+
+    const usernameLogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/auth/login',
+      payload: { username: 'admin@example.test', password: testPassword },
+    });
+    expect(usernameLogin.statusCode).toBe(200);
+  });
+
+  it('requires a platform admin to create a provider directory entry', async () => {
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/auth/login',
+      payload: { email: 'admin@example.test', password: testPassword },
+    });
+    const token = (JSON.parse(login.payload) as { accessToken: string }).accessToken;
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/providers',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        id: 'test_solar_provider',
+        name: 'Test Solar Provider',
+        category: 'ELECTRICITY',
+        districts: ['Ahmedabad'],
+        code: 'TESTSOLAR',
+        contactPhone: '1800-000-0000',
+        reason: 'Test provider directory validation',
+      },
+    });
+    expect(response.statusCode).toBe(503);
   });
 
   it('returns unavailable instead of fabricated metrics when PostgreSQL is absent', async () => {

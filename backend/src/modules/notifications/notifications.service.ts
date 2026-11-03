@@ -255,7 +255,9 @@ export class NotificationsService {
       throw new Error('Provider campaign tenant does not match the authenticated administrator.');
     }
     const provider =
-      tenant?.tenantType === 'PROVIDER' ? ProvidersService.getProviderById(tenant.tenantId) : null;
+      tenant?.tenantType === 'PROVIDER'
+        ? await ProvidersService.getDirectoryProviderById(tenant.tenantId, db)
+        : null;
     if (tenant?.tenantType === 'PROVIDER' && !provider)
       throw new Error('Provider tenant is not in the provider directory.');
     if (tenant?.tenantType === 'CITY' && !body.targetDistrict) {
@@ -305,7 +307,10 @@ export class NotificationsService {
         params.push(body.targetDistrict);
       } else {
         if (body.targetProviderId) {
-          const targetProvider = ProvidersService.getProviderById(body.targetProviderId);
+          const targetProvider = await ProvidersService.getDirectoryProviderById(
+            body.targetProviderId,
+            db,
+          );
           if (!targetProvider) throw new Error('Provider target is not in the provider directory.');
           if (targetProvider.category === 'TRANSIT') {
             params.push(body.targetProviderId);

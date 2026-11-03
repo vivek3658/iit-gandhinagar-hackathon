@@ -19,6 +19,7 @@ class LearningChapter {
     required this.version,
     required this.title,
     required this.summary,
+    this.content = const [],
     required this.question,
     required this.options,
     required this.coinReward,
@@ -28,6 +29,7 @@ class LearningChapter {
   final int version;
   final String title;
   final String summary;
+  final List<String> content;
   final String question;
   final List<LearningOption> options;
   final int coinReward;
@@ -39,6 +41,9 @@ class LearningChapter {
     version: (json['version'] as num).toInt(),
     title: json['title'] as String,
     summary: json['summary'] as String,
+    content: (json['content'] as List<dynamic>? ?? [json['summary'] as String])
+        .map((paragraph) => paragraph as String)
+        .toList(),
     question: json['question'] as String,
     options: (json['options'] as List)
         .map(

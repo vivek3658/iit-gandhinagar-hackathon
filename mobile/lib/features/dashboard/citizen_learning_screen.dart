@@ -106,6 +106,33 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
                       height: 1.4,
                     ),
                   ),
+                  if (chapter.content.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.28,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final paragraph in chapter.content)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Text(
+                                  paragraph,
+                                  style: const TextStyle(
+                                    color: UrjaTheme.ink,
+                                    fontSize: 13,
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   Text(
                     chapter.question,
@@ -115,22 +142,28 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
                     ),
                   ),
                   const SizedBox(height: 10),
-                  for (final option in chapter.options)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Card(
-                        color: selectedAnswer == option.id
-                            ? UrjaTheme.mint
-                            : Colors.white,
-                        child: RadioListTile<String>(
-                          value: option.id,
-                          groupValue: selectedAnswer,
-                          title: Text(option.label),
-                          onChanged: (value) =>
-                              setSheetState(() => selectedAnswer = value),
-                        ),
-                      ),
+                  RadioGroup<String>(
+                    groupValue: selectedAnswer,
+                    onChanged: (value) =>
+                        setSheetState(() => selectedAnswer = value),
+                    child: Column(
+                      children: [
+                        for (final option in chapter.options)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Card(
+                              color: selectedAnswer == option.id
+                                  ? UrjaTheme.mint
+                                  : Colors.white,
+                              child: RadioListTile<String>(
+                                value: option.id,
+                                title: Text(option.label),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
                   const SizedBox(height: 5),
                   Text(
                     'Reward: ${chapter.coinReward} Green Coins · awarded once per chapter version',

@@ -8,6 +8,7 @@ import type {
   AdminProvidersListResponse,
   CreateTenantAdminBody,
 } from './admin.schema';
+import type { CreateProviderBody, UtilityProvider } from '../providers/providers.schema';
 
 const scryptAsync = promisify(scrypt);
 
@@ -175,7 +176,10 @@ export class AdminService {
     const districts = [...new Set(body.districts.map((district) => district.trim()).filter(Boolean))];
     if (districts.length === 0) throw new Error('At least one valid district must be assigned.');
     if (body.tenantType === 'PROVIDER') {
-      const provider = ProvidersService.getProviderById(body.tenantId);
+      const provider = await ProvidersService.getDirectoryProviderById(
+        body.tenantId,
+        db,
+      );
       if (!provider) throw new Error('Provider tenant ID is not in the provider directory.');
       const allowedDistricts = new Set(provider.districts.map((district) => district.toLowerCase()));
       if (districts.some((district) => !allowedDistricts.has(district.toLowerCase()))) {
@@ -335,7 +339,10 @@ export class AdminService {
       );
       counts = result.rows[0] ?? { active_citizens: 0, campaign_opt_ins: 0, waste_reminder_opt_ins: 0 };
     } else {
-      const provider = ProvidersService.getProviderById(tenant.tenantId);
+      const provider = await ProvidersService.getDirectoryProviderById(
+        tenant.tenantId,
+        db,
+      );
       if (!provider) throw new Error('Provider tenant is not in the provider directory.');
       const providerDistricts = new Set(provider.districts.map((district) => district.toLowerCase()));
       const providerColumn = provider.category === 'ELECTRICITY'
@@ -409,12 +416,12 @@ export class AdminService {
   }
 
   public static async verifyAdminCredentials(
-    email: string,
+    username: string,
     password: string,
-    configuredEmail: string | undefined,
+    configuredUsername: string | undefined,
     configuredPasswordHash: string | undefined,
   ): Promise<boolean> {
-    if (!configuredEmail || !configuredPasswordHash) {
+    if (!configuredUsername || !configuredPasswordHash) {
       throw new AdminConfigurationError('Admin login credentials are not configured');
     }
 
@@ -437,8 +444,9 @@ export class AdminService {
 
     const derivedHash = (await scryptAsync(password, salt, expectedHash.length)) as Buffer;
     const passwordMatches = timingSafeEqual(derivedHash, expectedHash);
-    const emailMatches = email.trim().toLowerCase() === configuredEmail.trim().toLowerCase();
-    return passwordMatches && emailMatches;
+    const usernameMatches =
+      username.trim().toLowerCase() === configuredUsername.trim().toLowerCase();
+    return passwordMatches && usernameMatches;
   }
 
   public static async getKpis(db: Pool | null): Promise<AdminKpisResponse> {
@@ -495,8 +503,10 @@ export class AdminService {
     };
   }
 
-  public static listAdminProviders(): AdminProvidersListResponse {
-    const providers = ProvidersService.listProviders().map((provider) => ({
+  public static async listAdminProviders(
+    db: Pool | null,
+  ): Promise<AdminProvidersListResponse> {
+    const providers = (await ProvidersService.listDirectoryProviders(db)).map((provider) => ({
       id: provider.id,
       name: provider.name,
       category: provider.category,
@@ -506,5 +516,38 @@ export class AdminService {
     }));
 
     return { success: true, providers, totalProviders: providers.length };
+  }
+
+  public static async createProvider(
+    db: Pool | null,
+    actor: AdminIdentity,
+    body: CreateProviderBody,
+  ): Promise<UtilityProvider> {
+    if (!db) throw new Error('PostgreSQL is required to create utility providers.');
+    if (actor.role !== 'ADMIN') {
+      throw new Error('Platform administrator access is required.');
+    }
+    await this.ensureSchema(db);
+    const provider = await ProvidersService.createDirectoryProvider(db, body);
+    await db.query(
+      `INSERT INTO public.admin_audit_log
+         (actor_id, actor_email, tenant_type, tenant_id, action, resource_type,
+          resource_id, reason, after_data)
+       VALUES ($1, $2, 'PLATFORM', NULL, 'UTILITY_PROVIDER_CREATED',
+               'UTILITY_PROVIDER', $3, $4, $5::jsonb)`,
+      [
+        actor.id,
+        actor.email,
+        provider.id,
+        body.reason,
+        JSON.stringify({
+          name: provider.name,
+          category: provider.category,
+          districts: provider.districts,
+          code: provider.code,
+        }),
+      ],
+    );
+    return provider;
   }
 }

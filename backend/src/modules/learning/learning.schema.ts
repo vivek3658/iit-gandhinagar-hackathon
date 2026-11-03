@@ -5,6 +5,7 @@ export const LearningChapterSchema = Type.Object({
   version: Type.Integer(),
   title: Type.String(),
   summary: Type.String(),
+  content: Type.Array(Type.String({ minLength: 1, maxLength: 600 })),
   question: Type.String(),
   options: Type.Array(Type.Object({ id: Type.String(), label: Type.String() })),
   coinReward: Type.Integer(),

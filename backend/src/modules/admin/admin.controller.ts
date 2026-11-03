@@ -4,6 +4,7 @@ import type { CreateTenantAdminBody } from './admin.schema';
 import type { TenantAdminRecord } from './admin.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { CampaignBody } from '../notifications/notifications.schema';
+import type { CreateProviderBody } from '../providers/providers.schema';
 
 function isAdminIdentity(value: unknown): value is AdminIdentity {
   return (
@@ -20,23 +21,38 @@ function isAdminIdentity(value: unknown): value is AdminIdentity {
 
 export class AdminController {
   public static async login(
-    request: FastifyRequest<{ Body: { email: string; password: string } }>,
+    request: FastifyRequest<{
+      Body: { username?: string; email?: string; password: string };
+    }>,
     reply: FastifyReply,
   ) {
     try {
-      const email = request.body.email.trim().toLowerCase();
-      const configuredEmail = request.server.config.ADMIN_EMAIL?.trim().toLowerCase();
-      if (configuredEmail && configuredEmail === email) {
+      const identifier = (request.body.username ?? request.body.email ?? '')
+        .trim()
+        .toLowerCase();
+      const configuredIdentifiers = [
+        request.server.config.ADMIN_USERNAME,
+        request.server.config.ADMIN_EMAIL,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => value.trim().toLowerCase());
+      if (configuredIdentifiers.includes(identifier)) {
         const valid = await AdminService.verifyAdminCredentials(
-          email,
+          identifier,
           request.body.password,
-          request.server.config.ADMIN_EMAIL,
+          identifier,
           request.server.config.ADMIN_PASSWORD_HASH,
         );
-        if (!valid) return reply.unauthorized('Invalid email or password');
+        if (!valid) return reply.unauthorized('Invalid username or password');
         return reply.send({
           accessToken: request.server.jwt.sign(
-            { id: `admin:${email}`, email, role: 'ADMIN' },
+            {
+              id: `admin:${identifier}`,
+              email:
+                request.server.config.ADMIN_EMAIL ??
+                (identifier.includes('@') ? identifier : `${identifier}@urja.local`),
+              role: 'ADMIN',
+            },
             { expiresIn: '15m' },
           ),
           tokenType: 'Bearer' as const,
@@ -47,10 +63,10 @@ export class AdminController {
 
       const tenantAdmin = await AdminService.authenticateTenantAdmin(
         request.server.db,
-        email,
+        identifier,
         request.body.password,
       );
-      if (!tenantAdmin) return reply.unauthorized('Invalid email or password');
+      if (!tenantAdmin) return reply.unauthorized('Invalid username or password');
       return reply.send({
         accessToken: request.server.jwt.sign(
           {
@@ -153,8 +169,49 @@ export class AdminController {
     if (request.user?.role !== 'ADMIN') {
       return reply.forbidden('Administrator access is required');
     }
-    const data = AdminService.listAdminProviders();
-    return reply.status(200).send(data);
+    try {
+      const data = await AdminService.listAdminProviders(request.server.db);
+      return reply.status(200).send(data);
+    } catch (error) {
+      request.log.error({ err: error }, 'Could not load utility providers');
+      return reply.serviceUnavailable('Utility provider directory is unavailable');
+    }
+  }
+
+  public static async createProvider(request: FastifyRequest, reply: FastifyReply) {
+    const identity = request.user;
+    if (!isAdminIdentity(identity) || identity.role !== 'ADMIN') {
+      return reply.forbidden('Platform administrator access is required');
+    }
+    try {
+      const provider = await AdminService.createProvider(
+        request.server.db,
+        identity,
+        request.body as CreateProviderBody,
+      );
+      return reply.status(201).send(provider);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Could not create utility provider.';
+      if (
+        message.includes('already exists')
+      ) {
+        return reply.badRequest(message);
+      }
+      if (message.includes('PostgreSQL is required')) {
+        return reply.serviceUnavailable('PostgreSQL is required to create utility providers');
+      }
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        return reply.badRequest('That provider ID already exists in the directory.');
+      }
+      request.log.error({ err: error }, 'Could not create utility provider');
+      return reply.serviceUnavailable('Utility provider could not be created');
+    }
   }
 
   public static async createTenantAdmin(request: FastifyRequest, reply: FastifyReply) {

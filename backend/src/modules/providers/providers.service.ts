@@ -1,5 +1,6 @@
 import type {
   CitizenProviderLinks,
+  CreateProviderBody,
   LinkProvidersBody,
   ProviderCategory,
   UtilityProvider,
@@ -260,15 +261,86 @@ export class ProvidersService {
   // User link repository
   private static userLinks = new Map<string, CitizenLinkRecord>();
 
-  public static listProviders(category?: ProviderCategory, district?: string): UtilityProvider[] {
-    return this.providers
-      .filter((p) => {
-        if (category && p.category !== category) return false;
-        if (district && !p.districts.some((d) => d.toLowerCase() === district.toLowerCase()))
+  public static async listDirectoryProviders(
+    db: Pool | null,
+    category?: ProviderCategory,
+    district?: string,
+  ): Promise<UtilityProvider[]> {
+    const providers = [...this.providers];
+    if (db) {
+      await this.ensureSchema(db);
+      const result = await db.query(
+        `SELECT id, name, category, districts, code, contact_phone, peak_hours,
+                supply_window
+         FROM public.utility_provider_directory
+         WHERE is_active = TRUE
+         ORDER BY name`,
+      );
+      providers.push(...result.rows.map((row) => this.providerFromRow(row)));
+    }
+
+    return providers
+      .filter((provider) => {
+        if (category && provider.category !== category) return false;
+        if (
+          district &&
+          !provider.districts.some(
+            (servedDistrict) =>
+              servedDistrict.toLowerCase() === district.toLowerCase(),
+          )
+        ) {
           return false;
+        }
         return true;
       })
       .map((provider) => ({ ...provider, activeAlertCount: null }));
+  }
+
+  public static async getDirectoryProviderById(
+    id: string,
+    db: Pool | null,
+  ): Promise<UtilityProvider | null> {
+    const builtIn = this.getProviderById(id);
+    if (builtIn || !db) return builtIn;
+    await this.ensureSchema(db);
+    const result = await db.query(
+      `SELECT id, name, category, districts, code, contact_phone, peak_hours,
+              supply_window
+       FROM public.utility_provider_directory
+       WHERE id = $1 AND is_active = TRUE`,
+      [id],
+    );
+    return result.rows[0] ? this.providerFromRow(result.rows[0]) : null;
+  }
+
+  public static async createDirectoryProvider(
+    db: Pool | null,
+    body: CreateProviderBody,
+  ): Promise<UtilityProvider> {
+    if (!db) throw new Error('PostgreSQL is required to create utility providers.');
+    if (this.getProviderById(body.id)) {
+      throw new Error('That provider ID already exists in the directory.');
+    }
+    await this.ensureSchema(db);
+    const districts = [...new Set(body.districts.map((district) => district.trim()))];
+    const result = await db.query(
+      `INSERT INTO public.utility_provider_directory
+         (id, name, category, districts, code, contact_phone, peak_hours, supply_window)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
+       RETURNING id, name, category, districts, code, contact_phone, peak_hours,
+                 supply_window`,
+      [
+        body.id,
+        body.name.trim(),
+        body.category,
+        JSON.stringify(districts),
+        body.code.trim(),
+        body.contactPhone.trim(),
+        body.peakHours?.trim() || null,
+        body.supplyWindow?.trim() || null,
+      ],
+    );
+    return this.providerFromRow(result.rows[0]);
   }
 
   public static getProviderById(id: string): UtilityProvider | null {
@@ -316,20 +388,31 @@ export class ProvidersService {
       linkedAt: new Date().toISOString(),
     };
 
-    return this.toCitizenLinks(record);
+    return this.toCitizenLinks(record, db);
   }
 
-  private static toCitizenLinks(record: CitizenLinkRecord): CitizenProviderLinks {
+  private static async toCitizenLinks(
+    record: CitizenLinkRecord,
+    db: Pool | null,
+  ): Promise<CitizenProviderLinks> {
     return {
       userId: record.userId,
       electricityProvider: record.electricityProviderId
-        ? this.getProviderById(record.electricityProviderId)
+        ? await this.getDirectoryProviderById(record.electricityProviderId, db)
         : null,
-      gasProvider: record.gasProviderId ? this.getProviderById(record.gasProviderId) : null,
-      waterProvider: record.waterProviderId ? this.getProviderById(record.waterProviderId) : null,
-      transitProviders: record.transitProviderIds
-        .map((id) => this.getProviderById(id))
-        .filter((p): p is UtilityProvider => p !== null),
+      gasProvider: record.gasProviderId
+        ? await this.getDirectoryProviderById(record.gasProviderId, db)
+        : null,
+      waterProvider: record.waterProviderId
+        ? await this.getDirectoryProviderById(record.waterProviderId, db)
+        : null,
+      transitProviders: (
+        await Promise.all(
+          record.transitProviderIds.map((id) =>
+            this.getDirectoryProviderById(id, db),
+          ),
+        )
+      ).filter((provider): provider is UtilityProvider => provider !== null),
       consumerNumbers: { ...record.consumerNumbers },
       linkedAt: record.linkedAt,
     };
@@ -371,11 +454,15 @@ export class ProvidersService {
       linkedAt: new Date().toISOString(),
     };
 
-    this.validateProviderCategory(updated.electricityProviderId, 'ELECTRICITY');
-    this.validateProviderCategory(updated.gasProviderId, 'GAS');
-    this.validateProviderCategory(updated.waterProviderId, 'WATER');
+    await this.validateProviderCategory(
+      updated.electricityProviderId,
+      'ELECTRICITY',
+      db,
+    );
+    await this.validateProviderCategory(updated.gasProviderId, 'GAS', db);
+    await this.validateProviderCategory(updated.waterProviderId, 'WATER', db);
     for (const id of updated.transitProviderIds) {
-      this.validateProviderCategory(id, 'TRANSIT');
+      await this.validateProviderCategory(id, 'TRANSIT', db);
     }
 
     if (db) {
@@ -406,12 +493,16 @@ export class ProvidersService {
     } else {
       throw new Error('PostgreSQL is required for provider-link data.');
     }
-    return this.toCitizenLinks(updated);
+    return this.toCitizenLinks(updated, db);
   }
 
-  private static validateProviderCategory(id: string | null, category: ProviderCategory): void {
+  private static async validateProviderCategory(
+    id: string | null,
+    category: ProviderCategory,
+    db: Pool | null,
+  ): Promise<void> {
     if (!id) return;
-    const provider = this.getProviderById(id);
+    const provider = await this.getDirectoryProviderById(id, db);
     if (!provider || provider.category !== category) {
       throw new Error(`Provider "${id}" is not a valid ${category} provider.`);
     }
@@ -431,6 +522,19 @@ export class ProvidersService {
             transit_provider_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
             consumer_numbers JSONB NOT NULL DEFAULT '{}'::jsonb,
             linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS public.utility_provider_directory (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL CHECK (category IN ('ELECTRICITY', 'GAS', 'WATER', 'TRANSIT')),
+            districts JSONB NOT NULL,
+            code TEXT NOT NULL,
+            contact_phone TEXT NOT NULL,
+            peak_hours TEXT,
+            supply_window TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           )
         `,
         )
@@ -442,5 +546,24 @@ export class ProvidersService {
       this.schemaReady.set(db, ready);
     }
     await ready;
+  }
+
+  private static providerFromRow(row: Record<string, unknown>): UtilityProvider {
+    const districts =
+      typeof row.districts === 'string'
+        ? (JSON.parse(row.districts) as string[])
+        : (row.districts as string[]);
+    return {
+      id: String(row.id),
+      name: String(row.name),
+      category: row.category as ProviderCategory,
+      districts,
+      code: String(row.code),
+      contactPhone: String(row.contact_phone),
+      peakHours: row.peak_hours == null ? undefined : String(row.peak_hours),
+      supplyWindow:
+        row.supply_window == null ? undefined : String(row.supply_window),
+      activeAlertCount: null,
+    };
   }
 }

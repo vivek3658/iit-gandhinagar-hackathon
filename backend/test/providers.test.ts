@@ -106,6 +106,7 @@ describe('Providers & Admin Modules Integration Tests', () => {
       targetDistrict: 'Ahmedabad',
       incentiveCoins: 20,
       urgency: 'HIGH',
+      reason: 'Test authorization boundary',
     };
 
     const res = await app.inject({

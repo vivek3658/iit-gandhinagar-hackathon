@@ -25,6 +25,27 @@ export const UtilityProviderSchema = Type.Object({
 
 export type UtilityProvider = Static<typeof UtilityProviderSchema>;
 
+export const CreateProviderBodySchema = Type.Object({
+  id: Type.String({
+    minLength: 2,
+    maxLength: 80,
+    pattern: '^[a-z0-9][a-z0-9_-]*$',
+  }),
+  name: Type.String({ minLength: 2, maxLength: 120 }),
+  category: ProviderCategorySchema,
+  districts: Type.Array(Type.String({ minLength: 2, maxLength: 64 }), {
+    minItems: 1,
+    maxItems: 30,
+  }),
+  code: Type.String({ minLength: 2, maxLength: 32 }),
+  contactPhone: Type.String({ minLength: 3, maxLength: 32 }),
+  peakHours: Type.Optional(Type.String({ maxLength: 64 })),
+  supplyWindow: Type.Optional(Type.String({ maxLength: 64 })),
+  reason: Type.String({ minLength: 5, maxLength: 240 }),
+});
+
+export type CreateProviderBody = Static<typeof CreateProviderBodySchema>;
+
 export const ListProvidersQuerySchema = Type.Object({
   category: Type.Optional(ProviderCategorySchema),
   district: Type.Optional(

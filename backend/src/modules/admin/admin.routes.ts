@@ -22,6 +22,10 @@ import {
   CampaignListSchema,
   CampaignResponseSchema,
 } from '../notifications/notifications.schema';
+import {
+  CreateProviderBodySchema,
+  UtilityProviderSchema,
+} from '../providers/providers.schema';
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.post(
@@ -105,6 +109,20 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       preHandler: [app.authenticate],
     },
     AdminController.listProviders,
+  );
+
+  app.post(
+    '/providers',
+    {
+      schema: {
+        tags: ['Admin'],
+        security: [{ bearerAuth: [] }],
+        body: CreateProviderBodySchema,
+        response: { 201: UtilityProviderSchema, 400: AdminErrorResponseSchema },
+      },
+      preHandler: [app.authenticate],
+    },
+    AdminController.createProvider,
   );
 
   app.post('/tenant-admins', {

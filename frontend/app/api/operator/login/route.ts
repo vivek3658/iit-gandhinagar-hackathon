@@ -5,9 +5,9 @@ export async function POST(request: NextRequest) {
   if (!apiRoot) {
     return NextResponse.json({ message: 'URJA_API_URL is not configured on the web server.' }, { status: 503 });
   }
-  const body = await request.json() as { email?: string; password?: string };
-  if (!body.email || !body.password) {
-    return NextResponse.json({ message: 'Email and password are required.' }, { status: 400 });
+  const body = await request.json() as { username?: string; email?: string; password?: string };
+  if ((!body.username && !body.email) || !body.password) {
+    return NextResponse.json({ message: 'Username and password are required.' }, { status: 400 });
   }
   let upstream: Response;
   try {
