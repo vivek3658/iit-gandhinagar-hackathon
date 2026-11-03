@@ -52,9 +52,10 @@ class _InitialRouteScreenState extends State<_InitialRouteScreen> {
   Future<void> _restoreAndRoute() async {
     final auth = AuthService.instance;
     final hadSavedSession = auth.isLoggedIn && !auth.isGuestMode;
+    var sessionRestored = false;
 
-    if (auth.isLoggedIn && !auth.isGuestMode && auth.refreshToken != null) {
-      await auth.restoreSession();
+    if (hadSavedSession && auth.refreshToken != null) {
+      sessionRestored = await auth.restoreSession();
     }
 
     if (!mounted) return;
@@ -62,7 +63,7 @@ class _InitialRouteScreenState extends State<_InitialRouteScreen> {
     final Widget destination;
     if (auth.isGuestMode) {
       destination = const MainTwoScreenShell();
-    } else if (auth.isLoggedIn) {
+    } else if (auth.isLoggedIn && (!hadSavedSession || sessionRestored)) {
       destination = auth.isProfileComplete
           ? const MainTwoScreenShell()
           : const CitizenProfileSetupScreen();

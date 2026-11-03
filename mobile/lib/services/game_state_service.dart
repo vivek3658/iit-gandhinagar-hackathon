@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -20,7 +21,10 @@ class GameStateService extends ChangeNotifier {
   static final GameStateService instance = GameStateService._internal();
 
   GameStateService._internal() {
+    final auth = AuthService.instance;
+    _storageUserKey = _identityKey(auth);
     _loadFromLocalStorage();
+    auth.addListener(_onAuthChanged);
 
     NotificationService.instance.onChargerDisconnected.listen((_) {
       if (_enableChargerReminder) {
@@ -50,7 +54,66 @@ class GameStateService extends ChangeNotifier {
     });
 
     // Asynchronously synchronize with remote Fastify backend if online
-    syncWithBackend();
+    if (auth.accessToken != null) unawaited(syncWithBackend());
+  }
+
+  String _storageUserKey = 'signed-out';
+
+  String _identityKey(AuthService auth) {
+    if (auth.isGuestMode) return 'guest';
+    return auth.currentUser?.id ?? 'signed-out';
+  }
+
+  void _onAuthChanged() {
+    final auth = AuthService.instance;
+    final nextKey = _identityKey(auth);
+    if (nextKey == _storageUserKey) return;
+
+    _storageUserKey = nextKey;
+    _resetAccountState();
+    _loadFromLocalStorage();
+    notifyListeners();
+    if (auth.accessToken != null && !auth.isGuestMode) {
+      unawaited(syncWithBackend());
+    }
+  }
+
+  void _resetAccountState() {
+    _mascotLevel = 1;
+    _co2eSavedKg = 0;
+    _coins = 250;
+    _vitality = 0.85;
+    _activeWeatherFx = 'rain';
+    _isSleeping = false;
+    _electricityProvider = 'Torrent Power (Gujarat)';
+    _hasSolar = true;
+    _solarCapacityKw = 3.2;
+    _hasBatteryStorage = false;
+    _enableChargerReminder = true;
+    _enableSleepReminder = true;
+    _sleepTime = const TimeOfDay(hour: 22, minute: 30);
+    _mascotBehaviorTone = 'Zen Guardian';
+    _soundEnabled = true;
+    _enableNightDimming = true;
+    _idleTimeoutSeconds = 120;
+    _ownedItems
+      ..clear()
+      ..addAll({'acorn', 'readers', 'plaid', 'leaves'});
+    _equippedHead = null;
+    _equippedFace = null;
+    _equippedNeck = null;
+    _equippedHeld = null;
+    _equippedFx = null;
+    _equippedOutfit = 'natural';
+    for (final slot in _gardenGridSlots) {
+      slot['id'] = null;
+      slot['r'] = 0;
+    }
+    _gardenGridSlots[4]['id'] = 'SPARROW_HOME';
+    _gardenInventory.clear();
+    _gardenScrollLocked = true;
+    _targetReductionPercent = 15;
+    _notificationHistory.clear();
   }
 
   // --- Mascot State ---
@@ -108,13 +171,7 @@ class GameStateService extends ChangeNotifier {
   bool _gardenScrollLocked =
       true; // Prevents accidental page scrolling when in garden
 
-  // --- Monthly Electricity Consumption Ledger (Units / kWh) ---
-  final Map<String, double> _monthlyUnitsLedger = {
-    '2026-07': 315.0,
-    '2026-08': 298.0,
-    '2026-09': 282.0,
-    '2026-10': 268.0,
-  };
+  // --- Personal electricity reduction goal ---
   double _targetReductionPercent = 15.0; // 15% reduction goal
 
   // --- Notification Center & Push History ---
@@ -172,8 +229,6 @@ class GameStateService extends ChangeNotifier {
       List.unmodifiable(_gardenGridSlots);
   List<String> get gardenInventory => List.unmodifiable(_gardenInventory);
   bool get gardenScrollLocked => _gardenScrollLocked;
-  Map<String, double> get monthlyUnitsLedger =>
-      Map.unmodifiable(_monthlyUnitsLedger);
   double get targetReductionPercent => _targetReductionPercent;
   List<Map<String, dynamic>> get notificationHistory =>
       List.unmodifiable(_notificationHistory);
@@ -182,22 +237,23 @@ class GameStateService extends ChangeNotifier {
   // LOCAL PERSISTENCE SYSTEM (Never resets on refresh)
   // ==========================================
   File _getStorageFile() {
+    final userKey = _storageUserKey.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     try {
       final dir = Directory('/data/user/0/com.geda.urjavatika.urja/files');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
       }
-      return File('${dir.path}/urja_game_state.json');
+      return File('${dir.path}/urja_game_state_$userKey.json');
     } catch (_) {}
     try {
       final dir2 = Directory('/data/data/com.geda.urjavatika.urja/files');
       if (!dir2.existsSync()) {
         dir2.createSync(recursive: true);
       }
-      return File('${dir2.path}/urja_game_state.json');
+      return File('${dir2.path}/urja_game_state_$userKey.json');
     } catch (_) {}
     try {
-      return File('${Directory.systemTemp.path}/urja_game_state.json');
+      return File('${Directory.systemTemp.path}/urja_game_state_$userKey.json');
     } catch (_) {
       return File('urja_game_state.json');
     }
@@ -256,13 +312,6 @@ class GameStateService extends ChangeNotifier {
         }
       }
 
-      if (json['monthlyUnitsLedger'] is Map) {
-        final map = json['monthlyUnitsLedger'] as Map;
-        map.forEach((k, v) {
-          if (v is num) _monthlyUnitsLedger[k.toString()] = v.toDouble();
-        });
-      }
-
       if (json['electricityProvider'] is String) {
         _electricityProvider = json['electricityProvider'] as String;
       }
@@ -280,6 +329,7 @@ class GameStateService extends ChangeNotifier {
 
   void _saveToLocalStorage() {
     try {
+      if (AuthService.instance.currentUser == null) return;
       final file = _getStorageFile();
       final json = {
         'coins': _coins,
@@ -295,7 +345,6 @@ class GameStateService extends ChangeNotifier {
         'equippedOutfit': _equippedOutfit,
         'gardenGridSlots': _gardenGridSlots,
         'gardenInventory': _gardenInventory,
-        'monthlyUnitsLedger': _monthlyUnitsLedger,
         'electricityProvider': _electricityProvider,
         'hasSolar': _hasSolar,
         'solarCapacityKw': _solarCapacityKw,
@@ -338,11 +387,14 @@ class GameStateService extends ChangeNotifier {
   }
 
   Future<void> syncWithBackend() async {
-    final token = AuthService.instance.accessToken;
+    final auth = AuthService.instance;
+    final token = auth.accessToken;
+    final accountKey = _storageUserKey;
     if (token == null || token.isEmpty) return;
     try {
       // 1. Fetch remote Mascot State
       final mascotResp = await ApiClient.instance.get('/mascot/state');
+      if (_storageUserKey != accountKey) return;
       if (mascotResp.statusCode < 200 || mascotResp.statusCode >= 300) {
         throw HttpException(
           'Could not sync mascot state (${mascotResp.statusCode}): ${mascotResp.body}',
@@ -378,6 +430,7 @@ class GameStateService extends ChangeNotifier {
 
       // 2. Fetch remote Wardrobe
       final wardrobeResp = await ApiClient.instance.get('/mascot/wardrobe');
+      if (_storageUserKey != accountKey) return;
       if (wardrobeResp.statusCode < 200 || wardrobeResp.statusCode >= 300) {
         throw HttpException(
           'Could not sync wardrobe (${wardrobeResp.statusCode}): ${wardrobeResp.body}',
@@ -402,6 +455,7 @@ class GameStateService extends ChangeNotifier {
 
       // 3. Fetch remote Garden Sanctuary
       final gardenResp = await ApiClient.instance.get('/garden');
+      if (_storageUserKey != accountKey) return;
       if (gardenResp.statusCode < 200 || gardenResp.statusCode >= 300) {
         throw HttpException(
           'Could not sync garden (${gardenResp.statusCode}): ${gardenResp.body}',
@@ -436,6 +490,7 @@ class GameStateService extends ChangeNotifier {
         }
       }
 
+      if (_storageUserKey != accountKey) return;
       notifyListeners();
     } catch (e) {
       debugPrint('[GameStateService] Sync backend failed: $e');
@@ -491,30 +546,6 @@ class GameStateService extends ChangeNotifier {
     if (range <= 0) return 1.0;
     final progress = (_co2eSavedKg - currentLevelBaselineKg) / range;
     return progress.clamp(0.0, 1.0);
-  }
-
-  /// Latest recorded monthly electricity consumption (kWh)
-  double get latestMonthlyUnits {
-    if (_monthlyUnitsLedger.isEmpty) return 250.0;
-    final sortedKeys = _monthlyUnitsLedger.keys.toList()..sort();
-    return _monthlyUnitsLedger[sortedKeys.last]!;
-  }
-
-  /// Target electricity units after applying reduction goal
-  double get targetMonthlyUnits {
-    return latestMonthlyUnits * (1.0 - (_targetReductionPercent / 100.0));
-  }
-
-  /// Potential monthly electricity bill savings (₹) at average Gujarat residential tariff ₹7.5/kWh
-  double get projectedMonthlyRupeesSaved {
-    final diff = latestMonthlyUnits - targetMonthlyUnits;
-    return (diff * 7.5).clamp(0.0, 99999.0);
-  }
-
-  /// Potential monthly CO2e prevented (kg) at Western Grid emission factor 0.82 kg/kWh
-  double get projectedMonthlyCo2SavedKg {
-    final diff = latestMonthlyUnits - targetMonthlyUnits;
-    return (diff * 0.82).clamp(0.0, 9999.0);
   }
 
   void setWeatherFx(String? fx) {
@@ -869,12 +900,6 @@ class GameStateService extends ChangeNotifier {
         }
       }
     }
-    notifyListeners();
-  }
-
-  // --- Monthly Electricity Meter Units Ledger ---
-  void recordMonthlyUnits(String monthKey, double units) {
-    _monthlyUnitsLedger[monthKey] = units;
     notifyListeners();
   }
 

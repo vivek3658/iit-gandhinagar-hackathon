@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -30,6 +31,9 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   WebViewController? _controller;
   bool _isReady = false;
   final List<String> _pendingScripts = [];
+  Offset? _pointerDownPosition;
+  DateTime? _pointerDownAt;
+  DateTime? _lastBridgeInteractionAt;
 
   bool get isReady => _isReady;
 
@@ -73,6 +77,7 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
         onMessageReceived: (JavaScriptMessage message) {
           try {
             final data = jsonDecode(message.message) as Map<String, dynamic>;
+            _lastBridgeInteractionAt = DateTime.now();
             if (data['type'] == 'wake') {
               widget.onSparrowWoken?.call();
             } else if (data['type'] == 'pet') {
@@ -101,6 +106,39 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
       ..loadFlutterAsset('assets/web/sparrow.html');
 
     _controller = controller;
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerDownPosition = event.position;
+    _pointerDownAt = DateTime.now();
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    final start = _pointerDownPosition;
+    final startedAt = _pointerDownAt;
+    _pointerDownPosition = null;
+    _pointerDownAt = null;
+    if (start == null ||
+        startedAt == null ||
+        (event.position - start).distance > 18 ||
+        DateTime.now().difference(startedAt) > const Duration(seconds: 1)) {
+      return;
+    }
+
+    Timer(const Duration(milliseconds: 250), () {
+      if (!mounted || (_lastBridgeInteractionAt?.isAfter(startedAt) ?? false)) {
+        return;
+      }
+      _runOrQueue('if (window.Sparrow) window.Sparrow.pet();');
+      final fallbackAt = DateTime.now();
+      Timer(const Duration(milliseconds: 250), () {
+        if (!mounted ||
+            (_lastBridgeInteractionAt?.isAfter(fallbackAt) ?? false)) {
+          return;
+        }
+        widget.onSparrowPetted?.call('petted');
+      });
+    });
   }
 
   /// Triggers the 3D pet reaction (heart particles + happy chirp animation).
@@ -228,11 +266,22 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        WebViewWidget(
-          controller: _controller!,
-          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-            Factory<OneSequenceGestureRecognizer>(() => TapGestureRecognizer()),
+        Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _onPointerDown,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: (_) {
+            _pointerDownPosition = null;
+            _pointerDownAt = null;
           },
+          child: WebViewWidget(
+            controller: _controller!,
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+              Factory<OneSequenceGestureRecognizer>(
+                () => TapGestureRecognizer(),
+              ),
+            },
+          ),
         ),
         if (!_isReady)
           const Center(

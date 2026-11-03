@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../services/auth_service.dart';
+import '../../services/citizen_data_service.dart';
 import '../../services/game_state_service.dart';
 
 /// Monthly Electricity Meter Units Tracker & Reduction Plot Graph.
@@ -9,8 +11,7 @@ import '../../services/game_state_service.dart';
 /// - Clean White & Emerald Green UI designed for Hackathon Judges
 /// - Interactive custom canvas plot showing historical consumption trajectory
 /// - Dynamic target reduction line (-5% to -40% reduction goal)
-/// - Projected rupee bill savings & CO2e prevented KPIs
-/// - Log 1st day of month meter units reading
+/// - User-entered monthly electricity readings from the backend
 class MonthlyElectricityTrackerSheet extends StatefulWidget {
   const MonthlyElectricityTrackerSheet({super.key});
 
@@ -23,6 +24,16 @@ class _MonthlyElectricityTrackerSheetState
     extends State<MonthlyElectricityTrackerSheet> {
   final GameStateService _state = GameStateService.instance;
   final TextEditingController _unitsController = TextEditingController();
+  List<UtilityReading> _readings = [];
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReadings();
+  }
 
   @override
   void dispose() {
@@ -30,7 +41,45 @@ class _MonthlyElectricityTrackerSheetState
     super.dispose();
   }
 
-  void _saveNewReading() {
+  Future<void> _loadReadings() async {
+    final auth = AuthService.instance;
+    if (!auth.isLoggedIn || auth.isGuestMode) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Sign in to save and view readings across your devices.';
+      });
+      return;
+    }
+
+    try {
+      final readings = await CitizenDataService.instance.getReadings();
+      if (!mounted) return;
+      setState(() {
+        _readings = readings;
+        _loading = false;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _saveNewReading() async {
+    if (_saving) return;
+    final auth = AuthService.instance;
+    if (!auth.isLoggedIn || auth.isGuestMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sign in to save readings to your account.'),
+        ),
+      );
+      return;
+    }
     final text = _unitsController.text.trim();
     if (text.isEmpty) return;
 
@@ -45,19 +94,56 @@ class _MonthlyElectricityTrackerSheetState
       return;
     }
 
-    HapticFeedback.mediumImpact();
+    setState(() => _saving = true);
     final now = DateTime.now();
-    final monthKey =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}";
-    _state.recordMonthlyUnits(monthKey, parsed);
-    _unitsController.clear();
+    try {
+      await CitizenDataService.instance.addReading(
+        utility: 'ELECTRICITY',
+        value: parsed,
+        unit: 'kWh',
+        periodStart: DateTime(now.year, now.month, 1),
+        periodEnd: now,
+      );
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      _unitsController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Electricity reading saved to your account.'),
+          backgroundColor: Color(0xFF1B6B44),
+        ),
+      );
+      await _loadReadings();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('⚡ Logged $parsed units for $monthKey! Target graph updated.'),
-        backgroundColor: const Color(0xFF1B6B44),
-      ),
-    );
+  Map<String, double> _electricityLedger() {
+    final electricityReadings =
+        _readings.where((reading) => reading.utility == 'ELECTRICITY').toList()
+          ..sort((a, b) {
+            final byPeriod = a.periodEnd.compareTo(b.periodEnd);
+            return byPeriod == 0
+                ? a.createdAt.compareTo(b.createdAt)
+                : byPeriod;
+          });
+    final ledger = <String, double>{};
+    for (final reading in electricityReadings) {
+      final month = reading.periodEnd.length >= 7
+          ? reading.periodEnd.substring(0, 7)
+          : reading.periodEnd;
+      ledger[month] = reading.value;
+    }
+    return ledger;
   }
 
   @override
@@ -65,11 +151,11 @@ class _MonthlyElectricityTrackerSheetState
     return ListenableBuilder(
       listenable: _state,
       builder: (context, _) {
-        final ledger = _state.monthlyUnitsLedger;
-        final currentUnits = _state.latestMonthlyUnits;
-        final targetUnits = _state.targetMonthlyUnits;
-        final rupeesSaved = _state.projectedMonthlyRupeesSaved;
-        final co2Saved = _state.projectedMonthlyCo2SavedKg;
+        final ledger = _electricityLedger();
+        final currentUnits = ledger.isEmpty ? null : ledger.values.last;
+        final targetUnits = currentUnits == null
+            ? null
+            : currentUnits * (1.0 - (_state.targetReductionPercent / 100.0));
 
         return Container(
           constraints: BoxConstraints(
@@ -128,7 +214,7 @@ class _MonthlyElectricityTrackerSheetState
                             ),
                           ),
                           Text(
-                            '1st of Month Meter Units & Target Curve',
+                            'Saved readings & personal target curve',
                             style: TextStyle(
                               color: Color(0xFF1B6B44),
                               fontSize: 12,
@@ -157,7 +243,10 @@ class _MonthlyElectricityTrackerSheetState
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAF9),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFD1FAE5), width: 1.2),
+                        border: Border.all(
+                          color: const Color(0xFFD1FAE5),
+                          width: 1.2,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,9 +273,14 @@ class _MonthlyElectricityTrackerSheetState
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Text('Actual',
-                                      style: TextStyle(
-                                          color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.w600)),
+                                  const Text(
+                                    'Recorded',
+                                    style: TextStyle(
+                                      color: Color(0xFF475569),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   const SizedBox(width: 10),
                                   Container(
                                     width: 10,
@@ -194,9 +288,14 @@ class _MonthlyElectricityTrackerSheetState
                                     color: const Color(0xFFD97706),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Text('Target Goal',
-                                      style: TextStyle(
-                                          color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.w600)),
+                                  const Text(
+                                    'Target Goal',
+                                    style: TextStyle(
+                                      color: Color(0xFF475569),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -205,13 +304,29 @@ class _MonthlyElectricityTrackerSheetState
                           SizedBox(
                             height: 160,
                             width: double.infinity,
-                            child: CustomPaint(
-                              painter: _ElectricityPlotPainter(
-                                ledger: ledger,
-                                targetReductionPercent:
-                                    _state.targetReductionPercent,
-                              ),
-                            ),
+                            child: _loading
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : ledger.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      _error ??
+                                          'Your saved electricity readings will appear here.',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  )
+                                : CustomPaint(
+                                    painter: _ElectricityPlotPainter(
+                                      ledger: ledger,
+                                      targetReductionPercent:
+                                          _state.targetReductionPercent,
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
@@ -243,11 +358,15 @@ class _MonthlyElectricityTrackerSheetState
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFE8F5E9),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFF86EFAC)),
+                                  border: Border.all(
+                                    color: const Color(0xFF86EFAC),
+                                  ),
                                 ),
                                 child: Text(
                                   '-${_state.targetReductionPercent.toInt()}%',
@@ -275,12 +394,15 @@ class _MonthlyElectricityTrackerSheetState
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Current: ${currentUnits.toInt()} kWh',
+                                'Latest: ${currentUnits?.toStringAsFixed(0) ?? '—'} kWh',
                                 style: const TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               Text(
-                                'Goal: ${targetUnits.toInt()} kWh',
+                                'Goal: ${targetUnits?.toStringAsFixed(0) ?? '—'} kWh',
                                 style: const TextStyle(
                                   color: Color(0xFFD97706),
                                   fontWeight: FontWeight.bold,
@@ -295,29 +417,24 @@ class _MonthlyElectricityTrackerSheetState
 
                     const SizedBox(height: 14),
 
-                    // Projected Savings KPI Cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricCard(
-                            emoji: '💰',
-                            label: 'Potential Bill Cut',
-                            value: '₹${rupeesSaved.toStringAsFixed(0)}',
-                            sub: 'monthly savings',
-                            accentColor: const Color(0xFFD97706),
-                          ),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: const Text(
+                        'This chart shows readings you enter and a personal target. '
+                        'Bill savings and CO₂e reductions are not calculated without '
+                        'verified tariff and emissions data.',
+                        style: TextStyle(
+                          color: Color(0xFF854D0E),
+                          fontSize: 11,
+                          height: 1.4,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildMetricCard(
-                            emoji: '🌱',
-                            label: 'CO2e Prevented',
-                            value: '${co2Saved.toStringAsFixed(1)} kg',
-                            sub: 'Gujarat air cleaned',
-                            accentColor: const Color(0xFF16A34A),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
 
                     const SizedBox(height: 14),
@@ -334,7 +451,7 @@ class _MonthlyElectricityTrackerSheetState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Log 1st Day of Month Meter Reading',
+                            'Log This Month’s Electricity Use',
                             style: TextStyle(
                               color: Color(0xFF0F2B1A),
                               fontWeight: FontWeight.w800,
@@ -343,8 +460,11 @@ class _MonthlyElectricityTrackerSheetState
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Enter total electricity units (kWh) from your electricity bill or meter.',
-                            style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                            'Enter electricity use from your bill. This is a user-entered reading, not a live meter feed.',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -361,33 +481,40 @@ class _MonthlyElectricityTrackerSheetState
                                   decoration: InputDecoration(
                                     suffixText: 'kWh',
                                     suffixStyle: const TextStyle(
-                                        color: Color(0xFF16A34A), fontWeight: FontWeight.bold),
+                                      color: Color(0xFF16A34A),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                     filled: true,
                                     fillColor: Colors.white,
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 10),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: const BorderSide(
-                                          color: Color(0xFFD1FAE5)),
+                                        color: Color(0xFFD1FAE5),
+                                      ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: const BorderSide(
-                                          color: Color(0xFFCBD5E1)),
+                                        color: Color(0xFFCBD5E1),
+                                      ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: const BorderSide(
-                                          color: Color(0xFF16A34A), width: 1.5),
+                                        color: Color(0xFF16A34A),
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               ElevatedButton(
-                                onPressed: _saveNewReading,
+                                onPressed: _saving ? null : _saveNewReading,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF16A34A),
                                   foregroundColor: Colors.white,
@@ -395,11 +522,15 @@ class _MonthlyElectricityTrackerSheetState
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
                                 ),
-                                child: const Text(
-                                  'Save Reading',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                child: Text(
+                                  _saving ? 'Saving…' : 'Save Reading',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
@@ -414,58 +545,6 @@ class _MonthlyElectricityTrackerSheetState
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMetricCard({
-    required String emoji,
-    required String label,
-    required String value,
-    required String sub,
-    required Color accentColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F8F5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD1FAE5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: accentColor,
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
-          ),
-          Text(
-            sub,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -491,10 +570,7 @@ class _ElectricityPlotPainter extends CustomPainter {
 
     // Combine historical values + 1 projected point for future goal
     final allValues = [...values, targetVal];
-    final labels = [
-      ...sortedKeys.map((k) => k.replaceFirst('2026-', '')),
-      'Goal'
-    ];
+    final labels = [...sortedKeys.map((k) => k.substring(5)), 'Goal'];
 
     final maxVal = (allValues.reduce(math.max) * 1.15).ceilToDouble();
     final minVal = (allValues.reduce(math.min) * 0.85).floorToDouble();
@@ -519,7 +595,11 @@ class _ElectricityPlotPainter extends CustomPainter {
       final gridVal = (minVal + (i / 3.0) * valRange).toInt();
       textPainter.text = TextSpan(
         text: '$gridVal',
-        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: Color(0xFF94A3B8),
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+        ),
       );
       textPainter.layout();
       textPainter.paint(canvas, Offset(0, y - 6));
@@ -629,10 +709,7 @@ class _ElectricityPlotPainter extends CustomPainter {
         ),
       );
       textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, plotH + 8),
-      );
+      textPainter.paint(canvas, Offset(x - textPainter.width / 2, plotH + 8));
     }
   }
 

@@ -159,9 +159,39 @@ const WASTE_ITEMS: { id: string; label: string; guidance: string; bucket: WasteB
     bucket: 'ORGANIC',
   },
   {
+    id: 'vegetable-scraps',
+    label: 'Vegetable scraps',
+    guidance: 'Keep food scraps separate; follow your local wet-waste collection rules.',
+    bucket: 'ORGANIC',
+  },
+  {
+    id: 'tea-leaves',
+    label: 'Used tea leaves',
+    guidance: 'Drain excess liquid before placing in organic waste.',
+    bucket: 'ORGANIC',
+  },
+  {
     id: 'clean-bottle',
     label: 'Clean, dry plastic bottle',
     guidance: 'Keep recyclables clean and dry; local accepted plastics vary.',
+    bucket: 'DRY_RECYCLABLE',
+  },
+  {
+    id: 'clean-cardboard',
+    label: 'Clean cardboard',
+    guidance: 'Flatten and keep paper/cardboard dry for collection.',
+    bucket: 'DRY_RECYCLABLE',
+  },
+  {
+    id: 'glass-jar',
+    label: 'Empty glass jar',
+    guidance: 'Handle carefully and check your local glass collection rules.',
+    bucket: 'DRY_RECYCLABLE',
+  },
+  {
+    id: 'aluminium-can',
+    label: 'Empty drink can',
+    guidance: 'Rinse and dry recyclable metal containers where accepted.',
     bucket: 'DRY_RECYCLABLE',
   },
   {
@@ -171,16 +201,34 @@ const WASTE_ITEMS: { id: string; label: string; guidance: string; bucket: WasteB
     bucket: 'SPECIAL_HANDLING',
   },
   {
+    id: 'old-mobile',
+    label: 'Old mobile phone',
+    guidance: 'Use an authorized e-waste collection or take-back point.',
+    bucket: 'SPECIAL_HANDLING',
+  },
+  {
+    id: 'cfl-bulb',
+    label: 'CFL bulb',
+    guidance: 'Do not break it; use an authorized collection point for safe handling.',
+    bucket: 'SPECIAL_HANDLING',
+  },
+  {
     id: 'soiled-tissue',
     label: 'Soiled tissue paper',
     guidance: 'Usually residual waste; follow your local municipal instructions.',
     bucket: 'RESIDUAL',
   },
   {
-    id: 'clean-cardboard',
-    label: 'Clean, dry cardboard',
-    guidance: 'Keep paper dry; local collection rules may differ.',
-    bucket: 'DRY_RECYCLABLE',
+    id: 'snack-wrapper',
+    label: 'Multi-layer snack wrapper',
+    guidance: 'Usually not accepted with clean recyclables; check local instructions.',
+    bucket: 'RESIDUAL',
+  },
+  {
+    id: 'broken-ceramic',
+    label: 'Broken ceramic cup',
+    guidance: 'Wrap securely to prevent injury and follow residual-waste guidance.',
+    bucket: 'RESIDUAL',
   },
 ];
 

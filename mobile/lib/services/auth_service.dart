@@ -227,10 +227,10 @@ class AuthService extends ChangeNotifier {
   Future<bool> signInWithGoogle([String? providedIdToken]) async {
     _lastSignInError = null;
     String? token = providedIdToken;
-    GoogleSignInAccount? account;
 
     try {
       if (token == null) {
+        GoogleSignInAccount? account;
         try {
           account = await _googleSignIn.signIn();
         } catch (pickErr) {
@@ -623,6 +623,12 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
+      await _googleSignIn.signOut();
+    } catch (error) {
+      debugPrint('[AuthService] Google account sign-out failed: $error');
+    }
+
+    try {
       final file = _getAuthStorageFile();
       if (file.existsSync()) file.deleteSync();
     } catch (_) {}
@@ -630,6 +636,7 @@ class AuthService extends ChangeNotifier {
     _refreshToken = null;
     _currentUser = null;
     _isGuestMode = false;
+    _lastSignInError = null;
     notifyListeners();
   }
 }

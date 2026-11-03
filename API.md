@@ -44,7 +44,7 @@ Analytics fields without an actual data source (live meter telemetry, solar gene
 
 ## Platform administration
 
-- `POST /api/v1/admin/auth/login` issues a short-lived platform, provider, or city-admin token. Platform login requires `ADMIN_EMAIL` and an scrypt `ADMIN_PASSWORD_HASH`; tenant accounts are provisioned by a platform admin.
+- `POST /api/v1/admin/auth/login` issues a short-lived platform, provider, or city-admin token. Platform login requires `ADMIN_USERNAME` or `ADMIN_EMAIL` and an scrypt `ADMIN_PASSWORD_HASH`; tenant accounts are provisioned by a platform admin.
 - `GET /api/v1/admin/kpis` and `GET /api/v1/admin/providers` require a platform-admin token. Unsupported metrics are explicitly unavailable.
 - `POST /api/v1/admin/tenant-admins`, `GET /api/v1/admin/tenant-admins`, and `POST /api/v1/admin/tenant-admins/:adminId/deactivate` manage tenant accounts and require a platform-admin token. Provision a provider account only for an existing provider-directory ID; city accounts receive explicit district assignments.
 - `GET /api/v1/admin/tenant/me` validates the current tenant role and assignment. `GET /api/v1/admin/audit` returns platform-wide records to platform admins and tenant-scoped records to provider/city admins.

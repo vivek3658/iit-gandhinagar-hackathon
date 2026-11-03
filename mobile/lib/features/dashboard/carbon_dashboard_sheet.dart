@@ -190,7 +190,7 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
                       _buildDomainTabBar(),
                       _buildInteractiveBarGraph(),
                       const SizedBox(height: 12),
-                      _buildLatestUtilityCards(),
+                      _buildImpactSnapshot(),
                       const SizedBox(height: 18),
                       _buildRealTimeMetricsRow(),
                       const SizedBox(height: 18),
@@ -329,7 +329,7 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
             children: [
               Expanded(
                 child: Text(
-                  'SAVED $utility READINGS (${unit ?? ''})',
+                  '$utility USAGE HISTORY (${unit ?? ''})',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -418,47 +418,157 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
     );
   }
 
-  Widget _buildLatestUtilityCards() {
+  Widget _buildImpactSnapshot() {
     final readings = _data?.utilityReadings ?? [];
     final electricity = _latestUtilityReading(readings, 'ELECTRICITY');
     final water = _latestUtilityReading(readings, 'WATER');
     final gas = _latestUtilityReading(readings, 'GAS');
+    final emissionsAvailable = _data?.dataAvailability['emissions'] == true;
+    final carbonKg = (_data?.carbonLedger ?? []).fold<double>(
+      0,
+      (total, entry) => total + ((entry['kgCo2e'] as num?)?.toDouble() ?? 0),
+    );
 
-    return Row(
+    Widget metric({
+      required String title,
+      required String value,
+      required String subtitle,
+      required Color color,
+      required IconData icon,
+    }) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x10174B35),
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 19),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    String readingValue(Map<String, dynamic>? reading) => reading == null
+        ? 'No reading'
+        : '${reading['value']} ${reading['unit']}';
+    String readingDate(Map<String, dynamic>? reading) => reading == null
+        ? 'Add a meter reading'
+        : 'Recorded through ${reading['periodEnd']}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _summaryStatCard(
-            title: 'Electricity',
-            val: electricity == null
-                ? '--'
-                : '${electricity['value']} ${electricity['unit']}',
-            sub: electricity == null
-                ? 'No saved reading'
-                : 'Through ${electricity['periodEnd']}',
-            color: const Color(0xFF16A34A),
-          ),
+        _buildSectionTitle('YOUR HOUSEHOLD SNAPSHOT'),
+        const SizedBox(height: 8),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 2.15,
+          children: [
+            metric(
+              title: 'CO₂e saved',
+              value: emissionsAvailable && carbonKg > 0
+                  ? '${carbonKg.toStringAsFixed(1)} kg'
+                  : 'Not measured',
+              subtitle: 'Verified emissions data',
+              color: const Color(0xFF16834E),
+              icon: Icons.eco_rounded,
+            ),
+            metric(
+              title: 'Money saved',
+              value: 'Not measured',
+              subtitle: 'Needs a baseline and tariff',
+              color: const Color(0xFFB7791F),
+              icon: Icons.currency_rupee_rounded,
+            ),
+            metric(
+              title: 'Electricity',
+              value: readingValue(electricity),
+              subtitle: readingDate(electricity),
+              color: const Color(0xFFD97706),
+              icon: Icons.bolt_rounded,
+            ),
+            metric(
+              title: 'Water',
+              value: readingValue(water),
+              subtitle: readingDate(water),
+              color: const Color(0xFF0284C7),
+              icon: Icons.water_drop_rounded,
+            ),
+            metric(
+              title: 'Gas',
+              value: readingValue(gas),
+              subtitle: readingDate(gas),
+              color: const Color(0xFFB45309),
+              icon: Icons.local_fire_department_rounded,
+            ),
+            metric(
+              title: 'Usage trend',
+              value: '${readings.length} readings',
+              subtitle: 'User-entered meter history',
+              color: const Color(0xFF475569),
+              icon: Icons.stacked_bar_chart_rounded,
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _summaryStatCard(
-            title: 'Water',
-            val: water == null ? '--' : '${water['value']} ${water['unit']}',
-            sub: water == null
-                ? 'No saved reading'
-                : 'Through ${water['periodEnd']}',
-            color: const Color(0xFF0284C7),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _summaryStatCard(
-            title: 'Gas',
-            val: gas == null ? '--' : '${gas['value']} ${gas['unit']}',
-            sub: gas == null
-                ? 'No saved reading'
-                : 'Through ${gas['periodEnd']}',
-            color: const Color(0xFFD97706),
-          ),
+        const SizedBox(height: 8),
+        const Text(
+          'The graph shows saved meter readings, not verified savings. CO₂e and bill savings need a measured baseline, tariff, and validated emissions factors.',
+          style: TextStyle(color: Color(0xFF64748B), fontSize: 10, height: 1.4),
         ),
       ],
     );
@@ -494,60 +604,6 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
           fontSize: 12,
           height: 1.4,
         ),
-      ),
-    );
-  }
-
-  Widget _summaryStatCard({
-    required String title,
-    required String val,
-    required String sub,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            val,
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            sub,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }

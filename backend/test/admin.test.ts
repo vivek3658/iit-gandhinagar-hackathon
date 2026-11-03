@@ -4,12 +4,14 @@ import { buildApp } from '../src/app';
 import { AuthService } from '../src/modules/auth/auth.service';
 
 const originalAdminEmail = process.env.ADMIN_EMAIL;
+const originalAdminUsername = process.env.ADMIN_USERNAME;
 const originalAdminHash = process.env.ADMIN_PASSWORD_HASH;
 const testPassword = 'test-admin-password';
 const testSalt = Buffer.alloc(16, 23);
 const testPasswordHash = scryptSync(testPassword, testSalt, 64);
 
 process.env.ADMIN_EMAIL = 'admin@example.test';
+process.env.ADMIN_USERNAME = 'urjaone';
 process.env.ADMIN_PASSWORD_HASH = `scrypt$${testSalt.toString('base64')}$${testPasswordHash.toString('base64')}`;
 
 const app = buildApp({ logger: false });
@@ -32,6 +34,8 @@ describe('Admin authentication and authorization', () => {
     await app.close();
     if (originalAdminEmail === undefined) delete process.env.ADMIN_EMAIL;
     else process.env.ADMIN_EMAIL = originalAdminEmail;
+    if (originalAdminUsername === undefined) delete process.env.ADMIN_USERNAME;
+    else process.env.ADMIN_USERNAME = originalAdminUsername;
     if (originalAdminHash === undefined) delete process.env.ADMIN_PASSWORD_HASH;
     else process.env.ADMIN_PASSWORD_HASH = originalAdminHash;
   });
@@ -55,7 +59,7 @@ describe('Admin authentication and authorization', () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it('issues an admin JWT only for configured email/password credentials', async () => {
+  it('issues an admin JWT only for configured username or email credentials', async () => {
     const invalid = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/auth/login',
@@ -74,9 +78,10 @@ describe('Admin authentication and authorization', () => {
     const usernameLogin = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/auth/login',
-      payload: { username: 'admin@example.test', password: testPassword },
+      payload: { username: 'URJAONE', password: testPassword },
     });
     expect(usernameLogin.statusCode).toBe(200);
+    expect(JSON.parse(usernameLogin.payload).accessToken).toBeTruthy();
   });
 
   it('requires a platform admin to create a provider directory entry', async () => {

@@ -20,6 +20,7 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
   final Map<String, String> _answers = {};
   bool _loading = true;
   bool _submittingGame = false;
+  String? _selectedWasteItemId;
   String? _error;
 
   @override
@@ -420,120 +421,195 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
         onRetry: _load,
       );
     }
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+    if (catalog.buckets.isEmpty || catalog.items.isEmpty) {
+      return const _LearningEmpty(
+        title: 'Sorting game not configured',
+        message:
+            'The server has not published bins or waste items yet. Try again later.',
+      );
+    }
+
+    final unsortedItems = catalog.items
+        .where((item) => !_answers.containsKey(item.id))
+        .toList();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+      child: Column(
         children: [
-          _LearningHero(
-            icon: Icons.sports_esports_rounded,
-            title: 'Waste sorting challenge',
-            message:
-                'Drag each item into the bin where it belongs. Sort all ${catalog.items.length} items to earn up to ${catalog.rewardCoins} Green Coins.',
-          ),
-          const SizedBox(height: 16),
-          if (catalog.buckets.isEmpty || catalog.items.isEmpty)
-            const _LearningEmpty(
-              title: 'Sorting game not configured',
-              message:
-                  'The server has not published buckets or items yet. Try again later.',
-            )
-          else ...[
-            _WasteRoundProgress(
-              completed: _answers.length,
-              total: catalog.items.length,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: UrjaTheme.forest,
+              borderRadius: BorderRadius.circular(18),
             ),
-            const SizedBox(height: 14),
-            if (_answers.length < catalog.items.length) ...[
-              _WasteDraggableItem(
-                item: catalog.items.firstWhere(
-                  (item) => !_answers.containsKey(item.id),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.sports_esports_rounded,
+                  color: Color(0xFFB8E4C3),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'DROP INTO A BIN',
-                style: TextStyle(
-                  color: UrjaTheme.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              for (final bucket in catalog.buckets)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _WasteBucketTarget(
-                    bucket: bucket,
-                    itemCount: _answers.values
-                        .where((answer) => answer == bucket.id)
-                        .length,
-                    onAccept: (item) {
-                      setState(() => _answers[item.id] = bucket.id);
-                    },
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Sort ${catalog.items.length} litter items into the right bins',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-              const SizedBox(height: 8),
-              if (_answers.isNotEmpty) ...[
-                const Text(
-                  'Your bins so far · tap an item to move it back',
-                  style: TextStyle(
-                    color: UrjaTheme.muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final item in catalog.items.where(
-                      (item) => _answers.containsKey(item.id),
-                    ))
-                      ActionChip(
-                        avatar: Text(_wasteItemEmoji(item.label)),
-                        label: Text(item.label),
-                        onPressed: () =>
-                            setState(() => _answers.remove(item.id)),
-                      ),
-                  ],
                 ),
               ],
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: UrjaTheme.mint,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: UrjaTheme.line),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.check_circle_rounded, color: UrjaTheme.forest),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'All items sorted! Submit your round to check your answers.',
-                        style: TextStyle(
-                          color: UrjaTheme.forest,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _WasteRoundProgress(
+                  completed: _answers.length,
+                  total: catalog.items.length,
                 ),
               ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () => setState(() => _answers.clear()),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Start over'),
+              if (_answers.isNotEmpty)
+                IconButton(
+                  tooltip: 'Start over',
+                  onPressed: () => setState(() {
+                    _answers.clear();
+                    _selectedWasteItemId = null;
+                  }),
+                  icon: const Icon(Icons.restart_alt_rounded),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'THE BINS',
+                  style: TextStyle(
+                    color: UrjaTheme.forest,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              Text(
+                _selectedWasteItemId == null
+                    ? 'Tap an item, then tap a bin'
+                    : 'Now choose a bin',
+                style: const TextStyle(
+                  color: UrjaTheme.muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
-            FilledButton.icon(
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 184,
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: catalog.buckets.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1.75,
+              ),
+              itemBuilder: (context, index) {
+                final bucket = catalog.buckets[index];
+                return _WasteBucketTarget(
+                  bucket: bucket,
+                  itemCount: _answers.values
+                      .where((answer) => answer == bucket.id)
+                      .length,
+                  selected: _selectedWasteItemId != null,
+                  onTap: () {
+                    final selected = _selectedWasteItemId;
+                    if (selected == null) {
+                      _showMessage('Tap an unsorted item first.');
+                      return;
+                    }
+                    setState(() {
+                      _answers[selected] = bucket.id;
+                      _selectedWasteItemId = null;
+                    });
+                  },
+                  onAccept: (item) {
+                    setState(() {
+                      _answers[item.id] = bucket.id;
+                      _selectedWasteItemId = null;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'LITTER PILE · drag to a bin or tap to select',
+                  style: TextStyle(
+                    color: UrjaTheme.forest,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              Text(
+                '${unsortedItems.length} left',
+                style: const TextStyle(
+                  color: UrjaTheme.muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Expanded(
+            child: unsortedItems.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Pile cleared! Check your sorting below.',
+                      style: TextStyle(
+                        color: UrjaTheme.forest,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    itemCount: unsortedItems.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 7,
+                          mainAxisSpacing: 7,
+                          childAspectRatio: 0.92,
+                        ),
+                    itemBuilder: (context, index) {
+                      final item = unsortedItems[index];
+                      return _WasteDraggableItem(
+                        item: item,
+                        selected: _selectedWasteItemId == item.id,
+                        onTap: () =>
+                            setState(() => _selectedWasteItemId = item.id),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
               onPressed:
                   _submittingGame || _answers.length != catalog.items.length
                   ? null
@@ -551,30 +627,10 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
                     : 'Check my sort · ${catalog.rewardCoins} coins',
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'This is a learning game. It does not confirm that waste was collected or calculate environmental impact.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: UrjaTheme.muted,
-                fontSize: 10,
-                height: 1.4,
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
-  }
-
-  String _wasteItemEmoji(String label) {
-    final value = label.toLowerCase();
-    if (value.contains('peel')) return '🍌';
-    if (value.contains('bottle')) return '🧴';
-    if (value.contains('battery')) return '🔋';
-    if (value.contains('tissue')) return '🧻';
-    if (value.contains('cardboard')) return '📦';
-    return '🗑️';
   }
 }
 
@@ -881,79 +937,84 @@ class _WasteRoundProgress extends StatelessWidget {
 }
 
 class _WasteDraggableItem extends StatelessWidget {
-  const _WasteDraggableItem({required this.item});
+  const _WasteDraggableItem({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
 
   final WasteGameItem item;
+  final bool selected;
+  final VoidCallback onTap;
 
   String get emoji {
-    final value = item.label.toLowerCase();
-    if (value.contains('peel')) return '🍌';
-    if (value.contains('bottle')) return '🧴';
-    if (value.contains('battery')) return '🔋';
-    if (value.contains('tissue')) return '🧻';
-    if (value.contains('cardboard')) return '📦';
-    return '🗑️';
+    return switch (item.id) {
+      'fruit-peel' => '🍌',
+      'vegetable-scraps' => '🥕',
+      'tea-leaves' => '🍃',
+      'clean-bottle' => '🧴',
+      'clean-cardboard' => '📦',
+      'glass-jar' => '🫙',
+      'aluminium-can' => '🥫',
+      'used-battery' => '🔋',
+      'old-mobile' => '📱',
+      'cfl-bulb' => '💡',
+      'soiled-tissue' => '🧻',
+      'snack-wrapper' => '🍬',
+      'broken-ceramic' => '☕',
+      _ => '🗑️',
+    };
   }
 
-  Widget card({required bool dragging}) => AnimatedContainer(
-    duration: const Duration(milliseconds: 150),
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      color: dragging ? UrjaTheme.mint : Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: UrjaTheme.line, width: 1.5),
-      boxShadow: dragging
-          ? const []
-          : const [
-              BoxShadow(
-                color: Color(0x12174B35),
-                blurRadius: 12,
-                offset: Offset(0, 5),
-              ),
-            ],
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 62,
-          height: 62,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: UrjaTheme.mint,
-            borderRadius: BorderRadius.circular(17),
+  Widget card({required bool dragging}) => Tooltip(
+    message: item.guidance,
+    child: InkWell(
+      onTap: dragging ? null : onTap,
+      borderRadius: BorderRadius.circular(17),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: dragging || selected ? UrjaTheme.mint : Colors.white,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(
+            color: selected ? UrjaTheme.leaf : UrjaTheme.line,
+            width: selected ? 2 : 1,
           ),
-          child: Text(emoji, style: const TextStyle(fontSize: 34)),
+          boxShadow: dragging
+              ? const []
+              : const [
+                  BoxShadow(
+                    color: Color(0x12174B35),
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
         ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.label,
-                style: const TextStyle(
-                  color: UrjaTheme.ink,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: FittedBox(
+                child: Text(emoji, style: const TextStyle(fontSize: 36)),
               ),
-              const SizedBox(height: 4),
-              Text(
-                item.guidance,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: UrjaTheme.muted,
-                  fontSize: 11,
-                  height: 1.35,
-                ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              item.label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: UrjaTheme.ink,
+                fontSize: 10,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 6),
-        const Icon(Icons.open_with_rounded, color: UrjaTheme.forest),
-      ],
+      ),
     ),
   );
 
@@ -963,7 +1024,7 @@ class _WasteDraggableItem extends StatelessWidget {
     feedback: Material(
       color: Colors.transparent,
       child: SizedBox(
-        width: MediaQuery.sizeOf(context).width - 48,
+        width: (MediaQuery.sizeOf(context).width - 42) / 3,
         child: card(dragging: true),
       ),
     ),
@@ -976,11 +1037,15 @@ class _WasteBucketTarget extends StatelessWidget {
   const _WasteBucketTarget({
     required this.bucket,
     required this.itemCount,
+    required this.selected,
+    required this.onTap,
     required this.onAccept,
   });
 
   final WasteBucket bucket;
   final int itemCount;
+  final bool selected;
+  final VoidCallback onTap;
   final ValueChanged<WasteGameItem> onAccept;
 
   IconData get icon => switch (bucket.id) {
@@ -1003,58 +1068,138 @@ class _WasteBucketTarget extends StatelessWidget {
     onAcceptWithDetails: (details) => onAccept(details.data),
     builder: (context, candidates, rejected) {
       final isHovering = candidates.isNotEmpty;
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: isHovering ? color.withValues(alpha: 0.14) : Colors.white,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(
-            color: isHovering ? color : UrjaTheme.line,
-            width: isHovering ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 43,
-              height: 43,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
+      return Semantics(
+        button: true,
+        label: '${bucket.label}, $itemCount items sorted',
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.fromLTRB(7, 5, 7, 4),
+            decoration: BoxDecoration(
+              color: isHovering || (selected && itemCount == 0)
+                  ? color.withValues(alpha: 0.12)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isHovering ? color : UrjaTheme.line,
+                width: isHovering ? 2 : 1,
               ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Text(
-                bucket.label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x10174B35),
+                  blurRadius: 7,
+                  offset: Offset(0, 3),
                 ),
-              ),
+              ],
             ),
-            if (itemCount > 0)
-              CircleAvatar(
-                radius: 13,
-                backgroundColor: color,
-                foregroundColor: Colors.white,
-                child: Text(
-                  '$itemCount',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 70,
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: [
+                      Positioned(
+                        bottom: 1,
+                        left: 10,
+                        right: 10,
+                        child: Container(
+                          height: 37,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                color.withValues(alpha: 0.68),
+                                color,
+                                color.withValues(alpha: 0.78),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(9),
+                              top: Radius.circular(4),
+                            ),
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.75),
+                            ),
+                          ),
+                          child: Icon(icon, color: Colors.white, size: 23),
+                        ),
+                      ),
+                      Positioned(
+                        top: 5,
+                        left: 6,
+                        right: 6,
+                        child: Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(5),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x33101820),
+                                blurRadius: 3,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 1,
+                        child: Container(
+                          width: 18,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              )
-            else
-              Icon(
-                isHovering ? Icons.move_to_inbox_rounded : Icons.add_rounded,
-                color: color,
-              ),
-          ],
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        bucket.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 10,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    if (itemCount > 0) ...[
+                      const SizedBox(width: 3),
+                      CircleAvatar(
+                        radius: 9,
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        child: Text(
+                          '$itemCount',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       );
     },

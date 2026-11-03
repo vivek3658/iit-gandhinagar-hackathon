@@ -59,6 +59,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   bool? _lastNestSleepTime;
   bool _scheduledSleepActive = false;
   int _idleExpressionIndex = 0;
+  String? _appliedWardrobeSignature;
 
   late final AnimationController _bubbleAnimController;
   late final Animation<double> _bubbleScale;
@@ -144,6 +145,33 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     if (!mounted) return;
     setState(() {});
     _sparrowKey.currentState?.setSoundEnabled(_state.soundEnabled);
+    _applyWardrobeToSparrow();
+  }
+
+  void _applyWardrobeToSparrow() {
+    final signature = [
+      _state.equippedOutfit,
+      _state.equippedHead,
+      _state.equippedFace,
+      _state.equippedNeck,
+      _state.equippedHeld,
+      _state.equippedFx,
+    ].join('|');
+    final sparrow = _sparrowKey.currentState;
+    if (sparrow == null) return;
+    if (_appliedWardrobeSignature == signature) return;
+    _appliedWardrobeSignature = signature;
+    final outfit = _state.equippedOutfit;
+    if (outfit != null && outfit != 'natural') {
+      sparrow.dress(outfit);
+      return;
+    }
+    sparrow
+      ..wear('head', _state.equippedHead)
+      ..wear('face', _state.equippedFace)
+      ..wear('neck', _state.equippedNeck)
+      ..wear('held', _state.equippedHeld)
+      ..wear('fx', _state.equippedFx);
   }
 
   String get _ambientExpression {
@@ -174,10 +202,12 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   void _onSparrowStageLoaded(bool loaded) {
     if (!loaded || !mounted) return;
     final sparrow = _sparrowKey.currentState;
+    _appliedWardrobeSignature = null;
     sparrow?.setSoundEnabled(_state.soundEnabled);
     sparrow?.setNight(_isNightTime);
     sparrow?.setWeather(_currentWeather?.companionMood);
     sparrow?.setSleepLocked(_isNightTimeNestSleep);
+    _applyWardrobeToSparrow();
     if (_state.isSleeping) {
       sparrow?.sleep();
     } else {

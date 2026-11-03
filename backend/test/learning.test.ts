@@ -51,6 +51,22 @@ describe('Learning chapters and daily waste-sorting game', () => {
     });
     expect(wrong.statusCode).toBe(400);
 
+    const catalogResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/learning/waste-game/catalog',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(catalogResponse.statusCode).toBe(200);
+    const catalog = JSON.parse(catalogResponse.payload) as {
+      buckets: Array<{ id: string }>;
+      items: Array<{ id: string }>;
+    };
+    expect(catalog.items).toHaveLength(13);
+    expect(new Set(catalog.items.map((item) => item.id)).size).toBe(13);
+    expect(catalog.buckets.map((bucket) => bucket.id)).toEqual(
+      expect.arrayContaining(['ORGANIC', 'DRY_RECYCLABLE', 'SPECIAL_HANDLING', 'RESIDUAL']),
+    );
+
     const payload = { version: 1, answerId: 'same-period' };
     const first = await app.inject({
       method: 'POST',

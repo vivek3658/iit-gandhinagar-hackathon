@@ -14,7 +14,8 @@ Configure the following environment variables in your deployment dashboard (e.g.
 | `PORT` | No | `3000` | Port for the HTTP server to listen on (auto-set by Vercel/Cloud Run) |
 | `HOST` | No | `0.0.0.0` | Bind host address (must be `0.0.0.0` for containers) |
 | `JWT_SECRET` | **Yes** | `min_32_characters_long_secure_random_key` | Secret key used for signing citizen JWT tokens |
-| `ADMIN_EMAIL` | Optional | `admin@example.com` | Email for the initial platform administrator login |
+| `ADMIN_USERNAME` | Optional | `urjaone` | Username for the initial platform administrator login |
+| `ADMIN_EMAIL` | Optional | `admin@example.com` | Email for the initial platform administrator login; either email or username can identify the platform administrator |
 | `ADMIN_PASSWORD_HASH` | Optional | `scrypt$<salt-base64>$<hash-base64>` | 64-byte scrypt password hash; plaintext admin passwords are never stored |
 | `CRON_SECRET` | Required for scheduled campaign delivery | Random secret of at least 32 characters | Authorizes the scheduled outbox-dispatch endpoint |
 | `GOOGLE_CLIENT_ID` | Optional | `382767...apps.googleusercontent.com` | Google OAuth Web Client ID for JWT verification |
