@@ -1,14 +1,36 @@
+import { randomUUID } from 'node:crypto';
 import type {
   DeviceSummaryResponse,
   DeviceTimeLogResponse,
   HighUsageAlertSchema,
   LogHoursBody,
+  RegisteredDeviceRuntimeBody,
+  RegisterDeviceBody,
 } from './devices.schema';
 import type { Static } from '@sinclair/typebox';
 import { ActivityService } from '../activity/activity.service';
 import type { Pool } from 'pg';
 
 type HighUsageAlert = Static<typeof HighUsageAlertSchema>;
+
+interface RegisteredDeviceRecord {
+  id: string;
+  userId: string;
+  name: string;
+  category: RegisterDeviceBody['category'];
+  discoveryMethod: RegisterDeviceBody['discoveryMethod'];
+  ratedPowerW: number | null;
+  createdAt: string;
+  lastLoggedHours: number | null;
+  lastEnergyKwh: number | null;
+  lastLogDate: string | null;
+}
+
+interface RegisteredRuntimeLog {
+  operatingHours: number;
+  energyConsumedKwh: number | null;
+  date: string;
+}
 
 interface MasterApplianceSpec {
   id: string;
@@ -81,6 +103,8 @@ interface DeviceRuntimeLog {
 export class DevicesService {
   private static schemaReady = new WeakMap<Pool, Promise<void>>();
   private userLogs = new Map<string, Map<string, DeviceRuntimeLog[]>>();
+  private readonly registeredDevices = new Map<string, RegisteredDeviceRecord[]>();
+  private readonly registeredLogs = new Map<string, Map<string, RegisteredRuntimeLog>>();
 
   public constructor(
     private readonly db: Pool | null,
@@ -91,7 +115,33 @@ export class DevicesService {
     if (!this.db) return;
     let ready = DevicesService.schemaReady.get(this.db);
     if (!ready) {
-      ready = this.db.query(`
+      ready = this.db
+        .query(
+          `
+        CREATE TABLE IF NOT EXISTS public.citizen_registered_devices (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL CHECK (char_length(name) BETWEEN 2 AND 64),
+          category TEXT NOT NULL CHECK (category IN ('ac', 'fan', 'refrigerator', 'geyser', 'pump', 'tv', 'other')),
+          discovery_method TEXT NOT NULL CHECK (discovery_method IN ('MANUAL', 'BLE', 'MDNS')),
+          rated_power_w NUMERIC CHECK (rated_power_w IS NULL OR (rated_power_w > 0 AND rated_power_w <= 20000)),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_citizen_registered_devices_owner
+          ON public.citizen_registered_devices(user_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS public.citizen_device_runtime_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+          registered_device_id UUID NOT NULL REFERENCES public.citizen_registered_devices(id) ON DELETE CASCADE,
+          log_date DATE NOT NULL,
+          operating_hours NUMERIC NOT NULL CHECK (operating_hours > 0 AND operating_hours <= 24),
+          energy_consumed_kwh NUMERIC CHECK (energy_consumed_kwh IS NULL OR energy_consumed_kwh >= 0),
+          evidence TEXT NOT NULL CHECK (evidence IN ('RATED_POWER_ESTIMATE', 'RUNTIME_ONLY')),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE (user_id, registered_device_id, log_date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_citizen_device_runtime_owner_date
+          ON public.citizen_device_runtime_logs(user_id, log_date DESC);
         CREATE TABLE IF NOT EXISTS public.device_runtime_logs (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -106,10 +156,192 @@ export class DevicesService {
         );
         CREATE INDEX IF NOT EXISTS idx_device_runtime_logs_owner_date
           ON public.device_runtime_logs(user_id, log_date DESC);
-      `).then(() => undefined);
+      `,
+        )
+        .then(() => undefined);
       DevicesService.schemaReady.set(this.db, ready);
     }
     await ready;
+  }
+
+  public async listRegisteredDevices(userId: string): Promise<RegisteredDeviceRecord[]> {
+    if (!this.db) {
+      this.requireTestMemory();
+      return [...(this.registeredDevices.get(userId) ?? [])].sort((a, b) =>
+        b.createdAt.localeCompare(a.createdAt),
+      );
+    }
+
+    await this.ensureSchema();
+    const result = await this.db.query(
+      `SELECT d.id, d.user_id, d.name, d.category, d.discovery_method, d.rated_power_w, d.created_at,
+              latest.operating_hours, latest.energy_consumed_kwh, latest.log_date
+       FROM public.citizen_registered_devices d
+       LEFT JOIN LATERAL (
+         SELECT operating_hours, energy_consumed_kwh, log_date
+         FROM public.citizen_device_runtime_logs
+         WHERE user_id = d.user_id AND registered_device_id = d.id
+         ORDER BY log_date DESC
+         LIMIT 1
+       ) latest ON TRUE
+       WHERE d.user_id = $1
+       ORDER BY d.created_at DESC`,
+      [userId],
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      name: String(row.name),
+      category: row.category as RegisterDeviceBody['category'],
+      discoveryMethod: row.discovery_method as RegisterDeviceBody['discoveryMethod'],
+      ratedPowerW: row.rated_power_w === null ? null : Number(row.rated_power_w),
+      createdAt: new Date(row.created_at).toISOString(),
+      lastLoggedHours: row.operating_hours === null ? null : Number(row.operating_hours),
+      lastEnergyKwh: row.energy_consumed_kwh === null ? null : Number(row.energy_consumed_kwh),
+      lastLogDate: row.log_date === null ? null : new Date(row.log_date).toISOString().slice(0, 10),
+    }));
+  }
+
+  public async registerDevice(
+    userId: string,
+    body: RegisterDeviceBody,
+  ): Promise<RegisteredDeviceRecord> {
+    await this.ensureSchema();
+    if (this.db) {
+      const result = await this.db.query(
+        `INSERT INTO public.citizen_registered_devices
+           (user_id, name, category, discovery_method, rated_power_w)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, user_id, name, category, discovery_method, rated_power_w, created_at`,
+        [userId, body.name.trim(), body.category, body.discoveryMethod, body.ratedPowerW ?? null],
+      );
+      const row = result.rows[0];
+      return {
+        id: String(row.id),
+        userId: String(row.user_id),
+        name: String(row.name),
+        category: row.category as RegisterDeviceBody['category'],
+        discoveryMethod: row.discovery_method as RegisterDeviceBody['discoveryMethod'],
+        ratedPowerW: row.rated_power_w === null ? null : Number(row.rated_power_w),
+        createdAt: new Date(row.created_at).toISOString(),
+        lastLoggedHours: null,
+        lastEnergyKwh: null,
+        lastLogDate: null,
+      };
+    }
+
+    this.requireTestMemory();
+    const device: RegisteredDeviceRecord = {
+      id: randomUUID(),
+      userId,
+      name: body.name.trim(),
+      category: body.category,
+      discoveryMethod: body.discoveryMethod,
+      ratedPowerW: body.ratedPowerW ?? null,
+      createdAt: new Date().toISOString(),
+      lastLoggedHours: null,
+      lastEnergyKwh: null,
+      lastLogDate: null,
+    };
+    this.registeredDevices.set(userId, [device, ...(this.registeredDevices.get(userId) ?? [])]);
+    return device;
+  }
+
+  public async removeRegisteredDevice(userId: string, deviceId: string): Promise<boolean> {
+    if (this.db) {
+      await this.ensureSchema();
+      const result = await this.db.query(
+        'DELETE FROM public.citizen_registered_devices WHERE user_id = $1 AND id = $2',
+        [userId, deviceId],
+      );
+      return (result.rowCount ?? 0) > 0;
+    }
+
+    this.requireTestMemory();
+    const existing = this.registeredDevices.get(userId) ?? [];
+    const remaining = existing.filter((device) => device.id !== deviceId);
+    this.registeredDevices.set(userId, remaining);
+    this.registeredLogs.delete(deviceId);
+    return remaining.length !== existing.length;
+  }
+
+  public async logRegisteredRuntime(
+    userId: string,
+    deviceId: string,
+    body: RegisteredDeviceRuntimeBody,
+  ): Promise<{
+    deviceId: string;
+    operatingHours: number;
+    energyConsumedKwh: number | null;
+    energyEvidence: 'RATED_POWER_ESTIMATE' | 'RUNTIME_ONLY';
+    co2EmissionsKg: null;
+    date: string;
+  } | null> {
+    const date = body.date ?? new Date().toISOString().slice(0, 10);
+    if (this.db) {
+      await this.ensureSchema();
+      const deviceResult = await this.db.query(
+        `SELECT rated_power_w FROM public.citizen_registered_devices
+         WHERE id = $1 AND user_id = $2`,
+        [deviceId, userId],
+      );
+      if (!deviceResult.rows[0]) return null;
+      const ratedPowerW =
+        deviceResult.rows[0].rated_power_w === null
+          ? null
+          : Number(deviceResult.rows[0].rated_power_w);
+      const energyKwh =
+        ratedPowerW === null
+          ? null
+          : Math.round((ratedPowerW * body.operatingHours * 100) / 1000) / 100;
+      const evidence = ratedPowerW === null ? 'RUNTIME_ONLY' : 'RATED_POWER_ESTIMATE';
+      await this.db.query(
+        `INSERT INTO public.citizen_device_runtime_logs
+           (user_id, registered_device_id, log_date, operating_hours, energy_consumed_kwh, evidence)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id, registered_device_id, log_date) DO UPDATE SET
+           operating_hours = EXCLUDED.operating_hours,
+           energy_consumed_kwh = EXCLUDED.energy_consumed_kwh,
+           evidence = EXCLUDED.evidence,
+           created_at = NOW()`,
+        [userId, deviceId, date, body.operatingHours, energyKwh, evidence],
+      );
+      return {
+        deviceId,
+        operatingHours: body.operatingHours,
+        energyConsumedKwh: energyKwh,
+        energyEvidence: evidence,
+        co2EmissionsKg: null,
+        date,
+      };
+    }
+
+    this.requireTestMemory();
+    const device = (this.registeredDevices.get(userId) ?? []).find(
+      (candidate) => candidate.id === deviceId,
+    );
+    if (!device) return null;
+    const energyKwh =
+      device.ratedPowerW === null
+        ? null
+        : Math.round((device.ratedPowerW * body.operatingHours * 100) / 1000) / 100;
+    this.registeredLogs.set(deviceId, this.registeredLogs.get(deviceId) ?? new Map());
+    this.registeredLogs.get(deviceId)!.set(date, {
+      operatingHours: body.operatingHours,
+      energyConsumedKwh: energyKwh,
+      date,
+    });
+    device.lastLoggedHours = body.operatingHours;
+    device.lastEnergyKwh = energyKwh;
+    device.lastLogDate = date;
+    return {
+      deviceId,
+      operatingHours: body.operatingHours,
+      energyConsumedKwh: energyKwh,
+      energyEvidence: device.ratedPowerW === null ? 'RUNTIME_ONLY' : 'RATED_POWER_ESTIMATE',
+      co2EmissionsKg: null,
+      date,
+    };
   }
 
   private requireTestMemory(): void {
@@ -135,9 +367,9 @@ export class DevicesService {
     if (spec.id === 'ac' && body.thermostatTemp) {
       if (body.thermostatTemp < 24) {
         // Each degree below 24 increases compressor load by ~6%
-        effectiveKw = Math.round((effectiveKw * (1 + (24 - body.thermostatTemp) * 0.06)) * 100) / 100;
+        effectiveKw = Math.round(effectiveKw * (1 + (24 - body.thermostatTemp) * 0.06) * 100) / 100;
       } else if (body.thermostatTemp > 24) {
-        effectiveKw = Math.round((effectiveKw * (1 - (body.thermostatTemp - 24) * 0.04)) * 100) / 100;
+        effectiveKw = Math.round(effectiveKw * (1 - (body.thermostatTemp - 24) * 0.04) * 100) / 100;
       }
     }
 
@@ -257,8 +489,11 @@ export class DevicesService {
     const devices = Object.values(APPLIANCE_SPECS).map((spec) => {
       const logs = userMap.get(spec.id) ?? [];
       const recentLogs = logs.slice(-7);
-      const weeklyHours = Math.round(recentLogs.reduce((sum, entry) => sum + entry.operatingHours, 0) * 10) / 10;
-      const dailyHours = recentLogs.length ? Math.round((weeklyHours / recentLogs.length) * 10) / 10 : 0;
+      const weeklyHours =
+        Math.round(recentLogs.reduce((sum, entry) => sum + entry.operatingHours, 0) * 10) / 10;
+      const dailyHours = recentLogs.length
+        ? Math.round((weeklyHours / recentLogs.length) * 10) / 10
+        : 0;
 
       let status: 'OPTIMAL' | 'MODERATE' | 'HIGH_USAGE' = 'OPTIMAL';
       let rec = 'Operating within eco-optimal range.';
@@ -266,7 +501,9 @@ export class DevicesService {
       if (dailyHours > spec.normalMaxDailyHours * 1.2) {
         status = 'HIGH_USAGE';
         rec = `High daily usage! Consider scheduling off-peak or using timer limits.`;
-        warnings.push(`⚠️ ${spec.name} is running ${dailyHours}h/day. Eco threshold is ${spec.normalMaxDailyHours}h.`);
+        warnings.push(
+          `⚠️ ${spec.name} is running ${dailyHours}h/day. Eco threshold is ${spec.normalMaxDailyHours}h.`,
+        );
       } else if (dailyHours > spec.normalMaxDailyHours) {
         status = 'MODERATE';
         rec = 'Approaching upper recommended threshold.';

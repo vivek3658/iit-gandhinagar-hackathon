@@ -55,3 +55,71 @@ export const DeviceSummaryResponseSchema = Type.Object({
 });
 
 export type DeviceSummaryResponse = Static<typeof DeviceSummaryResponseSchema>;
+
+export const RegisteredDeviceSchema = Type.Object({
+  id: Type.String({ format: 'uuid' }),
+  name: Type.String(),
+  category: Type.Union([
+    Type.Literal('ac'),
+    Type.Literal('fan'),
+    Type.Literal('refrigerator'),
+    Type.Literal('geyser'),
+    Type.Literal('pump'),
+    Type.Literal('tv'),
+    Type.Literal('other'),
+  ]),
+  discoveryMethod: Type.Union([
+    Type.Literal('MANUAL'),
+    Type.Literal('BLE'),
+    Type.Literal('MDNS'),
+  ]),
+  ratedPowerW: Type.Union([Type.Number(), Type.Null()]),
+  createdAt: Type.String(),
+  lastLoggedHours: Type.Union([Type.Number(), Type.Null()]),
+  lastEnergyKwh: Type.Union([Type.Number(), Type.Null()]),
+  lastLogDate: Type.Union([Type.String(), Type.Null()]),
+});
+
+export const RegisteredDevicesResponseSchema = Type.Object({
+  devices: Type.Array(RegisteredDeviceSchema),
+});
+
+export const RegisterDeviceBodySchema = Type.Object({
+  name: Type.String({ minLength: 2, maxLength: 64 }),
+  category: Type.Union([
+    Type.Literal('ac'),
+    Type.Literal('fan'),
+    Type.Literal('refrigerator'),
+    Type.Literal('geyser'),
+    Type.Literal('pump'),
+    Type.Literal('tv'),
+    Type.Literal('other'),
+  ]),
+  discoveryMethod: Type.Union([
+    Type.Literal('MANUAL'),
+    Type.Literal('BLE'),
+    Type.Literal('MDNS'),
+  ]),
+  ratedPowerW: Type.Optional(Type.Number({ minimum: 1, maximum: 20000 })),
+});
+
+export type RegisterDeviceBody = Static<typeof RegisterDeviceBodySchema>;
+
+export const RegisteredDeviceRuntimeBodySchema = Type.Object({
+  operatingHours: Type.Number({ minimum: 0.1, maximum: 24 }),
+  date: Type.Optional(Type.String({ format: 'date' })),
+});
+
+export type RegisteredDeviceRuntimeBody = Static<typeof RegisteredDeviceRuntimeBodySchema>;
+
+export const RegisteredDeviceRuntimeResponseSchema = Type.Object({
+  deviceId: Type.String({ format: 'uuid' }),
+  operatingHours: Type.Number(),
+  energyConsumedKwh: Type.Union([Type.Number(), Type.Null()]),
+  energyEvidence: Type.Union([
+    Type.Literal('RATED_POWER_ESTIMATE'),
+    Type.Literal('RUNTIME_ONLY'),
+  ]),
+  co2EmissionsKg: Type.Null(),
+  date: Type.String(),
+});

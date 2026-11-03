@@ -140,6 +140,34 @@ CREATE TABLE IF NOT EXISTS public.device_runtime_logs (
 CREATE INDEX IF NOT EXISTS idx_device_runtime_logs_owner_date
   ON public.device_runtime_logs(user_id, log_date DESC);
 
+CREATE TABLE IF NOT EXISTS public.citizen_registered_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 2 AND 64),
+  category TEXT NOT NULL CHECK (category IN ('ac', 'fan', 'refrigerator', 'geyser', 'pump', 'tv', 'other')),
+  discovery_method TEXT NOT NULL CHECK (discovery_method IN ('MANUAL', 'BLE', 'MDNS')),
+  rated_power_w NUMERIC CHECK (rated_power_w IS NULL OR (rated_power_w > 0 AND rated_power_w <= 20000)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_citizen_registered_devices_owner
+  ON public.citizen_registered_devices(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.citizen_device_runtime_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  registered_device_id UUID NOT NULL REFERENCES public.citizen_registered_devices(id) ON DELETE CASCADE,
+  log_date DATE NOT NULL,
+  operating_hours NUMERIC NOT NULL CHECK (operating_hours > 0 AND operating_hours <= 24),
+  energy_consumed_kwh NUMERIC CHECK (energy_consumed_kwh IS NULL OR energy_consumed_kwh >= 0),
+  evidence TEXT NOT NULL CHECK (evidence IN ('RATED_POWER_ESTIMATE', 'RUNTIME_ONLY')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, registered_device_id, log_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_citizen_device_runtime_owner_date
+  ON public.citizen_device_runtime_logs(user_id, log_date DESC);
+
 CREATE TABLE IF NOT EXISTS public.citizen_gardens (
   user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
   placed_tiles JSONB NOT NULL DEFAULT '[]'::jsonb,
