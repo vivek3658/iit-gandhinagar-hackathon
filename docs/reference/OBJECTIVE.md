@@ -16,4 +16,4 @@ URJA Vatika prototypes that engagement loop through:
 
 These are prototype capabilities, not claims of measured environmental outcomes. Inputs and completed actions are user-reported; footprint and savings figures are estimates and are not independently verified. The app does not establish automatic smart-meter or DISCOM data collection, general-purpose appliance scanning/control, or production-ready scale.
 
-For the evidence and status of each feature, see the [problem-to-capability map](docs/hackathon-submission/problem-fit-and-capabilities.md). The authoritative challenge summary is [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md).
+For the evidence and status of each feature, see the [problem-to-capability map](../../CAPABILITIES.md). The authoritative challenge summary is [PROBLEM_STATEMENT.md](../../PROBLEM_STATEMENT.md).

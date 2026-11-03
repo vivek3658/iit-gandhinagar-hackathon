@@ -6,7 +6,7 @@ The backend is a Fastify v5 application that registers feature routes and option
 
 This repository has **no verified production-capacity result**. Do not treat any throughput, concurrent-user, latency, or availability target in an old diagram, comment, or test title as measured capacity.
 
-The existing [`scalability.test.ts`](backend/test/scalability.test.ts) test uses Fastify's in-process `inject()` API against several app objects. It does not measure a deployed network, independently provisioned application instances, real shared PostgreSQL/Redis, an edge cache, or end-to-end production traffic. Its hard-coded architecture assumptions and capacity calculations are not benchmark evidence.
+The existing [`scalability.test.ts`](../../backend/test/scalability.test.ts) test uses Fastify's in-process `inject()` API against several app objects. It does not measure a deployed network, independently provisioned application instances, real shared PostgreSQL/Redis, an edge cache, or end-to-end production traffic. Its hard-coded architecture assumptions and capacity calculations are not benchmark evidence.
 
 ## What is and is not established
 
@@ -15,7 +15,7 @@ The existing [`scalability.test.ts`](backend/test/scalability.test.ts) test uses
 - **Not load-tested:** throughput, latency under realistic traffic, concurrency limits, database saturation, or recovery during dependency failure.
 - **Not an architectural guarantee:** the maximum connection count of a database pool does not imply a request-rate or user-capacity result.
 
-See the fuller [scale and release evidence](docs/hackathon-submission/scale-and-release.md) and [architecture diagram](docs/hackathon-submission/architecture-and-data.md).
+See the fuller [scale and release evidence](../../RELEASE.md) and [architecture diagram](../../ARCHITECTURE.md).
 
 ## Responsible next steps
 

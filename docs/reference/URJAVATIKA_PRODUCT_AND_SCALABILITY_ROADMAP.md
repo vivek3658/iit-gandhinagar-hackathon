@@ -70,7 +70,7 @@ The Markdown files contain useful product ideas, but some describe planned behav
 | Scale claims | `SCALABILITY.md` and other docs describe Redis, queues, NGINX, and million-request targets, while the tests measure an in-process harness at much lower throughput. | Treat those figures as goals, not verified capacity. Benchmark the deployed database-backed product before selecting infrastructure. |
 | Domain rules and values | Several documents give different emission factors, reward rules, and feature boundaries. | Establish versioned, sourced factors and a single canonical product/rules reference before showing savings or rewards. |
 
-Related references: [README.md](./README.md), [API.md](./API.md), [IMPLEMENTATION_SPEC.md](./IMPLEMENTATION_SPEC.md), [SCALABILITY.md](./SCALABILITY.md), [BEHAVIORAL_NUDGES.md](./BEHAVIORAL_NUDGES.md), [frontend/README.md](./frontend/README.md), and [backend/DEPLOYMENT.md](./backend/DEPLOYMENT.md).
+Related references: [README.md](../../README.md), [API.md](./API.md), [IMPLEMENTATION_SPEC.md](./IMPLEMENTATION_SPEC.md), [SCALABILITY.md](./SCALABILITY.md), [BEHAVIORAL_NUDGES.md](./BEHAVIORAL_NUDGES.md), [frontend/README.md](../../frontend/README.md), and [backend/DEPLOYMENT.md](../../backend/DEPLOYMENT.md).
 
 ## 3. Product principles
 

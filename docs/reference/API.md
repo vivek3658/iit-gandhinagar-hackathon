@@ -7,7 +7,7 @@ The generated OpenAPI document at `GET /docs/json` is the authoritative referenc
 - Local base URL: `http://localhost:3000/api/v1`
 - Authenticated routes require `Authorization: Bearer <access-token>`.
 - Success and error payloads follow the route's generated OpenAPI schema.
-- Production requires PostgreSQL. Configure `DATABASE_URL` and the other required environment variables described in [backend/DEPLOYMENT.md](./backend/DEPLOYMENT.md).
+- Production requires PostgreSQL. Configure `DATABASE_URL` and the other required environment variables described in [backend/DEPLOYMENT.md](../../backend/DEPLOYMENT.md).
 
 ## Persisted citizen data
 
