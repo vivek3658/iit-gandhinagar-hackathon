@@ -38,7 +38,7 @@ console.log(`scrypt$${salt.toString('base64')}$${hash.toString('base64')}`);
 
 Set `ADMIN_INITIAL_PASSWORD` only in the local shell for this command, store the printed hash as the deployment secret `ADMIN_PASSWORD_HASH`, then remove the plaintext variable. Admin JWTs expire after 15 minutes. Create provider/city tenant admins through the platform-admin API after the initial platform account can sign in. Citizen notification consent defaults to off. Campaigns deliver only to opted-in users through the in-app activity feed; no push delivery is configured.
 
-Generate `CRON_SECRET` with a cryptographically secure random generator (at least 32 characters). Vercel Cron is configured in `vercel.json` to invoke the due-notification dispatcher every minute; the Vercel deployment must have the same `CRON_SECRET` value set as an environment variable. When hosting elsewhere, configure an equivalent scheduler to send `Authorization: Bearer <CRON_SECRET>` to `POST /api/v1/notifications/internal/dispatch-due`.
+Generate `CRON_SECRET` with a cryptographically secure random generator (at least 32 characters). The Hobby-compatible Vercel Cron in `vercel.json` runs daily at 12:30 UTC (18:00 India time) and invokes the due-notification dispatcher; the Vercel deployment must have the same `CRON_SECRET` value set as an environment variable. Due campaign messages are delivered at the next daily run. When hosting elsewhere, configure an equivalent scheduler to send `Authorization: Bearer <CRON_SECRET>` to `POST /api/v1/notifications/internal/dispatch-due`.
 
 ---
 

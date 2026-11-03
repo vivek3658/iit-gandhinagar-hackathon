@@ -9,7 +9,7 @@
   "crons": [
     {
       "path": "/api/v1/notifications/internal/dispatch-due",
-      "schedule": "* * * * *"
+      "schedule": "30 12 * * *"
     }
   ],
   "rewrites": [
