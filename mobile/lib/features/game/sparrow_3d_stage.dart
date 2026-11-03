@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -27,8 +29,28 @@ class Sparrow3DStage extends StatefulWidget {
 class Sparrow3DStageState extends State<Sparrow3DStage> {
   WebViewController? _controller;
   bool _isReady = false;
+  final List<String> _pendingScripts = [];
 
   bool get isReady => _isReady;
+
+  void _runOrQueue(String script) {
+    final controller = _controller;
+    if (controller == null) return;
+    if (!_isReady) {
+      _pendingScripts.add(script);
+      return;
+    }
+    controller.runJavaScript(script);
+  }
+
+  void _flushPendingScripts() {
+    final controller = _controller;
+    if (controller == null || !_isReady) return;
+    for (final script in _pendingScripts) {
+      controller.runJavaScript(script);
+    }
+    _pendingScripts.clear();
+  }
 
   @override
   void initState() {
@@ -57,7 +79,9 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
               final expr = data['expression'] as String? ?? 'petted';
               widget.onSparrowPetted?.call(expr);
             }
-          } catch (_) {}
+          } catch (error) {
+            debugPrint('[SparrowWebView] Invalid bridge message: $error');
+          }
         },
       )
       ..setNavigationDelegate(
@@ -65,6 +89,7 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
           onPageFinished: (_) {
             if (mounted) {
               setState(() => _isReady = true);
+              _flushPendingScripts();
               widget.onLoaded?.call(true);
             }
           },
@@ -80,12 +105,12 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
 
   /// Triggers the 3D pet reaction (heart particles + happy chirp animation).
   void pet() {
-    _controller?.runJavaScript("if (window.Sparrow) window.Sparrow.pet();");
+    _runOrQueue("if (window.Sparrow) window.Sparrow.pet();");
   }
 
   /// Puts the sparrow into sound sleep with floating Zzz particles.
   void sleep() {
-    _controller?.runJavaScript(
+    _runOrQueue(
       "if (window.Sparrow && window.Sparrow.sleep) window.Sparrow.sleep();",
     );
   }
@@ -93,14 +118,14 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   /// Prevents taps from waking the sparrow during its scheduled night sleep.
   void setSleepLocked(bool locked) {
     if (!_isReady) return;
-    _controller?.runJavaScript(
+    _runOrQueue(
       'if (window.Sparrow && window.Sparrow.setSleepLocked) window.Sparrow.setSleepLocked($locked);',
     );
   }
 
   /// Wakes the sparrow up with a joyful chirp.
   void wake() {
-    _controller?.runJavaScript(
+    _runOrQueue(
       "if (window.Sparrow && window.Sparrow.wake) window.Sparrow.wake();",
     );
   }
@@ -108,7 +133,7 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   /// Toggles night scene lighting (dims ambient lights and enhances glow).
   void setNight(bool isNight) {
     if (!_isReady) return;
-    _controller?.runJavaScript(
+    _runOrQueue(
       "if (window.Sparrow && window.Sparrow.setNight) window.Sparrow.setNight($isNight);",
     );
   }
@@ -117,7 +142,7 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   void setWeather(String? mood) {
     if (!_isReady) return;
     final value = mood == null ? 'null' : jsonEncode(mood);
-    _controller?.runJavaScript(
+    _runOrQueue(
       'if (window.Sparrow && window.Sparrow.setWeather) window.Sparrow.setWeather($value);',
     );
   }
@@ -125,7 +150,7 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   /// Keeps synthesized companion sounds in sync with the user's sound setting.
   void setSoundEnabled(bool enabled) {
     if (!_isReady) return;
-    _controller?.runJavaScript(
+    _runOrQueue(
       'if (window.Sparrow && window.Sparrow.setSoundEnabled) window.Sparrow.setSoundEnabled($enabled);',
     );
   }
@@ -134,29 +159,28 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   /// Options: 'happy', 'excited', 'curious', 'thinking', 'cheering', 'resting',
   ///          'planting', 'watering', 'celebrating', 'exploring', 'nest', 'angry', 'sleep'.
   void setExpression(String expression) {
-    _controller?.runJavaScript(
-      "if (window.Sparrow) window.Sparrow.set('$expression');",
-    );
+    _runOrQueue("if (window.Sparrow) window.Sparrow.set('$expression');");
   }
 
   /// Previews an accessory on the sparrow without purchasing or saving.
   void preview(String slot, String? itemKey) {
-    final itemParam = itemKey == null ? 'null' : "'$itemKey'";
-    _controller?.runJavaScript(
-      "if (window.Sparrow && window.Sparrow.preview) window.Sparrow.preview('$slot', $itemParam);",
+    final slotParam = jsonEncode(slot);
+    final itemParam = itemKey == null ? 'null' : jsonEncode(itemKey);
+    _runOrQueue(
+      'if (window.Sparrow && window.Sparrow.preview) window.Sparrow.preview($slotParam, $itemParam);',
     );
   }
 
   /// Previews an entire outfit set on the sparrow.
   void previewOutfit(String outfitKey) {
-    _controller?.runJavaScript(
-      "if (window.Sparrow && window.Sparrow.previewOutfit) window.Sparrow.previewOutfit('$outfitKey');",
+    _runOrQueue(
+      'if (window.Sparrow && window.Sparrow.previewOutfit) window.Sparrow.previewOutfit(${jsonEncode(outfitKey)});',
     );
   }
 
   /// Cancels any active preview and restores worn accessories.
   void cancelPreview() {
-    _controller?.runJavaScript(
+    _runOrQueue(
       "if (window.Sparrow && window.Sparrow.cancelPreview) window.Sparrow.cancelPreview();",
     );
   }
@@ -165,23 +189,24 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
   /// slot: 'head', 'face', 'neck', 'held', 'fx'
   /// key: item identifier or null to take off.
   void wear(String slot, String? itemKey) {
-    final itemParam = itemKey == null ? 'null' : "'$itemKey'";
-    _controller?.runJavaScript(
-      "if (window.Sparrow && window.Sparrow.wear) window.Sparrow.wear('$slot', $itemParam);",
+    final slotParam = jsonEncode(slot);
+    final itemParam = itemKey == null ? 'null' : jsonEncode(itemKey);
+    _runOrQueue(
+      'if (window.Sparrow && window.Sparrow.wear) window.Sparrow.wear($slotParam, $itemParam);',
     );
   }
 
   /// Dresses the sparrow in a predefined outfit set:
   /// 'autumn', 'winter', 'rainy', 'festive'.
   void dress(String outfitKey) {
-    _controller?.runJavaScript(
-      "if (window.Sparrow && window.Sparrow.dress) window.Sparrow.dress('$outfitKey');",
+    _runOrQueue(
+      'if (window.Sparrow && window.Sparrow.dress) window.Sparrow.dress(${jsonEncode(outfitKey)});',
     );
   }
 
   /// Triggers a celebratory level-up burst with golden light rings.
   void levelUp(int newLevel) {
-    _controller?.runJavaScript(
+    _runOrQueue(
       "if (window.Sparrow && window.Sparrow.levelUp) window.Sparrow.levelUp($newLevel);",
     );
   }
@@ -203,7 +228,12 @@ class Sparrow3DStageState extends State<Sparrow3DStage> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        WebViewWidget(controller: _controller!),
+        WebViewWidget(
+          controller: _controller!,
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(() => TapGestureRecognizer()),
+          },
+        ),
         if (!_isReady)
           const Center(
             child: SizedBox(

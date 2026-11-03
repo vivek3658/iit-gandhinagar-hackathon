@@ -176,14 +176,18 @@ Object.assign(P0,{
 DEMO.push(['angry',2.6],['frustrated',2.8],['sad',2.6],['crying',3.2],['petted',2.8],['levelup',3.2],['announce',3.4]);
 
 // ---- tap = pet ----
-let pd=null,petT=null,petBack='happy';
+let gesture=null,petT=null,petBack='happy';
 let sleepLocked=false;
 const notifyFlutter=(obj)=>{try{if(window.FlutterBridge&&window.FlutterBridge.postMessage){window.FlutterBridge.postMessage(JSON.stringify(obj))}}catch(e){}};
 const tapReactions=['petted','curious','excited','happy','cheering'];
 let tapReactionIndex=0;
 const pet=()=>{unlockAudio();stop();if(curKey==='sleep'||curKey==='nest'||curKey==='resting'){if(sleepLocked){notifyFlutter({type:'pet',expression:'petted',scheduledSleep:true});return;}chirp('wake');set('happy');notifyFlutter({type:'wake',wasSleeping:true});return;}if(curKey!=='petted')petBack=curKey;const expression=tapReactions[tapReactionIndex++%tapReactions.length];set(expression);chirp(expression==='excited'||expression==='cheering'?'excited':'pet');notifyFlutter({type:'pet',expression});clearTimeout(petT);petT=setTimeout(()=>{if(curKey===expression)set(petBack)},2800);};
-wrap.addEventListener('pointerdown',e=>{unlockAudio();pd={x:e.clientX,y:e.clientY,t:performance.now()}});
-wrap.addEventListener('pointerup',e=>{if(!pd)return;const d=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),dt=performance.now()-pd.t;pd=null;if(d<6&&dt<400)pet()});
+let drag=null;
+wrap.addEventListener('pointerdown',e=>{unlockAudio();gesture={x:e.clientX,y:e.clientY,t:performance.now()};drag=e.clientX;wrap.style.cursor='grabbing';try{wrap.setPointerCapture(e.pointerId)}catch(_){}});
+wrap.addEventListener('pointermove',e=>{if(drag!==null){bird.rotation.y+=(e.clientX-drag)*.01;drag=e.clientX}});
+const finishGesture=e=>{if(!gesture)return;const start=gesture,d=Math.hypot(e.clientX-start.x,e.clientY-start.y),dt=performance.now()-start.t;gesture=null;drag=null;wrap.style.cursor='grab';if(d<10&&dt<700)pet()};
+wrap.addEventListener('pointerup',finishGesture);
+wrap.addEventListener('pointercancel',()=>{gesture=null;drag=null;wrap.style.cursor='grab'});
 Object.assign(window.Sparrow,{poses:Object.keys(P0),pet,setSleepLocked:locked=>{sleepLocked=!!locked},levelUp:n=>{drawLvl('LEVEL UP!',n?'Lv '+(n-1)+' → '+n:'');chirp('excited');window.Sparrow.set('levelup')},announce:t=>{drawBadge(String(t||'NEW!'));window.Sparrow.set('announce')}});
 
 // ---- per-frame ----
@@ -482,9 +486,6 @@ function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta()
 function place(){const asp=cam.aspect;cam.position.set(0,1.7,zoom*(asp<1?1/Math.max(.55,asp)*.8:1));cam.lookAt(0,1.0,0)}
 function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();place()}
 new ResizeObserver(resize).observe(wrap);
-let drag=null;wrap.addEventListener('pointerdown',e=>{drag=e.clientX;wrap.style.cursor='grabbing';wrap.setPointerCapture(e.pointerId)});
-wrap.addEventListener('pointermove',e=>{if(drag!==null){bird.rotation.y+=(e.clientX-drag)*.01;drag=e.clientX}});
-['pointerup','pointercancel'].forEach(n=>wrap.addEventListener(n,()=>{drag=null;wrap.style.cursor='grab'}));
 wrap.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(5,Math.min(14,zoom+e.deltaY*.005));place()},{passive:false});
 set('happy');Object.assign(cur,tar);resize();frame();
 })();

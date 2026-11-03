@@ -7,16 +7,9 @@ import '../../services/notification_service.dart';
 import '../../services/weather_service.dart';
 import '../../services/api_client.dart';
 import '../auth/google_login_screen.dart';
-import '../dashboard/carbon_dashboard_sheet.dart';
-import '../dashboard/monthly_electricity_tracker_sheet.dart';
-import '../appliances/appliance_registry_sheet.dart';
-import '../commute/commute_travel_sheet.dart';
-import '../onboarding/energy_setup_sheet.dart';
-import '../water/water_conservation_sheet.dart';
 import '../menu/sanctuary_menu_screen.dart';
-import '../leaderboard/leaderboard_screen.dart';
 import '../dashboard/daily_quests_sheet.dart';
-import '../settings/user_settings_sheet.dart';
+import '../settings/user_settings_screen.dart';
 import 'sparrow_3d_stage.dart';
 
 /// Screen 1: 3D Mascot Sanctuary & Interactive Companion (WebGL Three.js Game UI)
@@ -32,12 +25,14 @@ class MascotSanctuaryScreen extends StatefulWidget {
   final VoidCallback onScrollToGarden;
   final VoidCallback onSlideToWardrobe;
   final VoidCallback onSlideToActivity;
+  final VoidCallback onOpenDashboard;
 
   const MascotSanctuaryScreen({
     super.key,
     required this.onScrollToGarden,
     required this.onSlideToWardrobe,
     required this.onSlideToActivity,
+    required this.onOpenDashboard,
   });
 
   @override
@@ -463,33 +458,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     }
   }
 
-  void _openDashboard() {
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => CarbonDashboardSheet(
-        onActionCompleted: () {
-          _showExpression('cheering');
-          _say("Carbon prevented! 🍃 Every kg keeps Gujarat green!");
-        },
-      ),
-    );
-  }
-
-  void _openElectricityTracker() {
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => const MonthlyElectricityTrackerSheet(),
-    );
-  }
-
   void _openFullMenuScreen() {
     _resetIdleTimer();
     if (_state.soundEnabled) HapticFeedback.selectionClick();
@@ -498,21 +466,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
       onSlideToActivity: widget.onSlideToActivity,
       onSlideToWardrobe: widget.onSlideToWardrobe,
     );
-  }
-
-  void _openLeaderboard() {
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
-    );
-  }
-
-  void _openDailyQuests() {
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.selectionClick();
-    DailyQuestsSheet.show(context);
   }
 
   /// Displays both an in-app banner AND a real Android System Notification in the notification center
@@ -576,7 +529,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final isCompact = media.size.height < 720;
     final safeBottom = media.padding.bottom;
 
     return Listener(
@@ -667,57 +619,14 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 child: _buildSpeechBubble(),
               ),
 
-            // Floating Action Pills (Left side: Domains)
-            Positioned(
-              left: 16,
-              bottom: (isCompact ? 205 : 236) + safeBottom,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDomainPill(
-                    icon: '💧',
-                    label: 'Water',
-                    color: const Color(0xFF0284C7),
-                    onTap: () => WaterConservationSheet.show(context),
-                  ),
-                  const SizedBox(height: 6),
-                  _buildDomainPill(
-                    icon: '📱',
-                    label: 'Devices',
-                    color: const Color(0xFF059669),
-                    onTap: () => ApplianceRegistrySheet.show(context),
-                  ),
-                  const SizedBox(height: 6),
-                  _buildDomainPill(
-                    icon: '🚴',
-                    label: 'Commute',
-                    color: const Color(0xFFD97706),
-                    onTap: () => CommuteTravelSheet.show(context),
-                  ),
-                  const SizedBox(height: 6),
-                  _buildDomainPill(
-                    icon: '⚡',
-                    label: 'Solar',
-                    color: const Color(0xFFEAB308),
-                    onTap: () => EnergySetupSheet.show(context),
-                  ),
-                ],
-              ),
-            ),
-
-            // Floating Action Pills (Right side)
+            // Keep the learning mission shortcut clear of the Sparrow.
             Positioned(
               right: 16,
-              bottom: (isCompact ? 205 : 236) + safeBottom,
+              bottom: 220 + safeBottom,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _buildFloatingPlotButton(),
-                  const SizedBox(height: 8),
-                  _buildFloatingDashboardButton(),
-                ],
+                children: [_buildDailyMissionsButton()],
               ),
             ),
 
@@ -786,67 +695,22 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     );
   }
 
-  Widget _buildDomainPill({
-    required String icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x66321D10),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-            BoxShadow(
-              color: Colors.white70,
-              blurRadius: 0,
-              offset: Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF344033),
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTopGameHud() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          colors: [Color(0xF21B5138), Color(0xF20F3023)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFB7E778), width: 1.2),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F0F172A),
-            offset: Offset(0, 4),
-            blurRadius: 14,
+            color: Color(0x550B2417),
+            offset: Offset(0, 5),
+            blurRadius: 18,
           ),
         ],
       ),
@@ -859,17 +723,28 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF16A34A),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFC9F27A), Color(0xFF8FD35B)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
                 borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x55233D1D),
+                    offset: Offset(0, 2),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.menu_rounded, color: Colors.white, size: 16),
+                  Icon(Icons.menu_rounded, color: Color(0xFF183B28), size: 16),
                   SizedBox(width: 4),
                   Text(
                     'MENU',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF183B28),
                       fontWeight: FontWeight.w900,
                       fontSize: 11,
                       letterSpacing: 0.5,
@@ -886,9 +761,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: Colors.white.withValues(alpha: 0.09),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: Colors.white24),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -900,7 +775,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                       Text(
                         'Lv ${_state.mascotLevel} Sparrow',
                         style: const TextStyle(
-                          color: Color(0xFF16A34A),
+                          color: Color(0xFFD8F99C),
                           fontWeight: FontWeight.w900,
                           fontSize: 10,
                         ),
@@ -908,7 +783,7 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                       Text(
                         '🪙 ${_state.coins}',
                         style: const TextStyle(
-                          color: Color(0xFFD97706),
+                          color: Color(0xFFFFD66E),
                           fontWeight: FontWeight.w900,
                           fontSize: 10,
                         ),
@@ -922,9 +797,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                       height: 4,
                       child: LinearProgressIndicator(
                         value: _state.levelProgress,
-                        backgroundColor: const Color(0xFFE2E8F0),
+                        backgroundColor: Colors.white24,
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF16A34A),
+                          Color(0xFFC9F27A),
                         ),
                       ),
                     ),
@@ -934,6 +809,29 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             ),
           ),
           const SizedBox(width: 8),
+
+          Tooltip(
+            message: 'Citizen dashboard',
+            child: InkWell(
+              onTap: widget.onOpenDashboard,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(
+                  Icons.dashboard_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
 
           // Wireframe BELL Notification Button
           InkWell(
@@ -946,14 +844,14 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: Colors.white24),
               ),
               child: const Center(
                 child: Icon(
                   Icons.notifications_outlined,
-                  color: Color(0xFF334155),
+                  color: Colors.white,
                   size: 18,
                 ),
               ),
@@ -961,52 +859,56 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
           ),
           const SizedBox(width: 6),
 
-          // Wireframe USER Profile Button (Displays Google profile image if available)
+          // Player profile shortcut with the signed-in Google avatar.
           Builder(
             builder: (context) {
               final user = AuthService.instance.currentUser;
               final avatar = user?.avatarUrl;
 
-              return InkWell(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => const UserSettingsSheet(),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF86EFAC)),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
-                    child: (avatar != null && avatar.isNotEmpty)
-                        ? Image.network(
-                            avatar,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Center(
+              return Tooltip(
+                message: 'Player profile',
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const UserSettingsScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFFFD66E),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: (avatar != null && avatar.isNotEmpty)
+                          ? Image.network(
+                              avatar,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFFD8F99C),
+                                  size: 18,
+                                ),
+                              ),
+                            )
+                          : const Center(
                               child: Icon(
                                 Icons.person_rounded,
-                                color: Color(0xFF16A34A),
+                                color: Color(0xFFD8F99C),
                                 size: 18,
                               ),
                             ),
-                          )
-                        : const Center(
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: Color(0xFF16A34A),
-                              size: 18,
-                            ),
-                          ),
+                    ),
                   ),
                 ),
               );
@@ -1052,6 +954,64 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             child: const Text('Sign Out'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDailyMissionsButton() {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          DailyQuestsSheet.show(context);
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF24583C), Color(0xFF153B2B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFFFD66E), width: 1.2),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x44203420),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.workspace_premium_rounded,
+                color: Color(0xFFFFD66E),
+                size: 17,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'Daily missions',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                ),
+              ),
+              SizedBox(width: 5),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFFD8F99C),
+                size: 16,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1218,78 +1178,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFloatingPlotButton() {
-    return GestureDetector(
-      onTap: _openElectricityTracker,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('📈', style: TextStyle(fontSize: 13)),
-            SizedBox(width: 5),
-            Text(
-              'Meter Plot',
-              style: TextStyle(
-                color: Color(0xFF344033),
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFloatingDashboardButton() {
-    return GestureDetector(
-      onTap: _openDashboard,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('📊', style: TextStyle(fontSize: 13)),
-            SizedBox(width: 5),
-            Text(
-              'CO2e Ledger',
-              style: TextStyle(
-                color: Color(0xFF344033),
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1556,97 +1444,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F0F172A),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavTab(
-            icon: Icons.cruelty_free_rounded,
-            label: 'Mascot',
-            isSelected: true,
-            onTap: () {},
-          ),
-          _buildNavTab(
-            icon: Icons.bar_chart_rounded,
-            label: 'Dashboard',
-            isSelected: false,
-            onTap: _openDashboard,
-          ),
-          _buildNavTab(
-            icon: Icons.power_rounded,
-            label: 'Log',
-            isSelected: false,
-            onTap: () => ApplianceRegistrySheet.show(context),
-          ),
-          _buildNavTab(
-            icon: Icons.settings_rounded,
-            label: 'Setting',
-            isSelected: false,
-            onTap: _openFullMenuScreen,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavTab({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFDCFCE7) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: isSelected
-                  ? const Color(0xFF16A34A)
-                  : const Color(0xFF64748B),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? const Color(0xFF16A34A)
-                    : const Color(0xFF64748B),
-                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

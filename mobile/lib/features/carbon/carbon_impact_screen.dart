@@ -1,458 +1,382 @@
 import 'package:flutter/material.dart';
-import '../../constants/colors.dart';
 
-class CarbonImpactDashboardScreen extends StatelessWidget {
+import '../../constants/urja_theme.dart';
+import '../../services/analytics_service.dart';
+
+class CarbonImpactDashboardScreen extends StatefulWidget {
   const CarbonImpactDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F8F5), // Nature light palette from mockup
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Header: Hamburger + URJA ONE + Bell
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Icon(Icons.menu_rounded, color: UrjaColors.textMain, size: 28),
-                  const Row(
-                    children: [
-                      Text(
-                        'URJA ONE',
-                        style: TextStyle(
-                          color: Color(0xFF1B6B44),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Text('🌿', style: TextStyle(fontSize: 18)),
-                    ],
-                  ),
-                  Stack(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.notifications_none_rounded, color: UrjaColors.textMain),
-                      ),
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+  State<CarbonImpactDashboardScreen> createState() =>
+      _CarbonImpactDashboardScreenState();
+}
 
-              const SizedBox(height: 16),
+class _CarbonImpactDashboardScreenState
+    extends State<CarbonImpactDashboardScreen> {
+  AnalyticsDashboardData? _data;
+  String? _error;
+  bool _loading = true;
 
-              // User Greeting Row with Sparrow Avatar
-              Row(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE8F5E9),
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        image: AssetImage('assets/images/cheerful_bird_512.png'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hello, Vivek! 👋',
-                        style: TextStyle(
-                          color: UrjaColors.textMain,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Together for a greener planet',
-                        style: TextStyle(
-                          color: UrjaColors.textSub,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              // Two Big Stat Cards side-by-side
-              Row(
-                children: [
-                  // Left Card: 8.7 kg CO2e Saved
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Text('🍃', style: TextStyle(fontSize: 18)),
-                              SizedBox(width: 6),
-                              Text(
-                                'CO₂e Saved',
-                                style: TextStyle(color: UrjaColors.textSub, fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            '8.7 kg',
-                            style: TextStyle(
-                              color: UrjaColors.textMain,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              '↑ 12% vs last week',
-                              style: TextStyle(
-                                color: Color(0xFF1B6B44),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Right Card: 18.5 kWh Energy Saved
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Text('⚡', style: TextStyle(fontSize: 18)),
-                              SizedBox(width: 6),
-                              Text(
-                                'Energy Saved',
-                                style: TextStyle(color: UrjaColors.textSub, fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            '18.5 kWh',
-                            style: TextStyle(
-                              color: UrjaColors.textMain,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              '↑ 15% vs last week',
-                              style: TextStyle(
-                                color: Color(0xFFB45309),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Your Impact Over Time Chart Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Your Impact Over Time',
-                          style: TextStyle(
-                            color: UrjaColors.textMain,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F8F5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            children: [
-                              Text('This Month', style: TextStyle(color: UrjaColors.textSub, fontSize: 12, fontWeight: FontWeight.w600)),
-                              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: UrjaColors.textSub),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Bar Chart
-                    SizedBox(
-                      height: 140,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildBar('Week 1', 0.45, '3.8 kg'),
-                          _buildBar('Week 2', 0.60, '5.1 kg'),
-                          _buildBar('Week 3', 0.78, '6.8 kg'),
-                          _buildBar('Week 4', 0.95, '8.7 kg', isPeak: true),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Quick Overview
-              const Text(
-                'Quick Overview',
-                style: TextStyle(
-                  color: UrjaColors.textMain,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              const Row(
-                children: [
-                  Expanded(child: _OverviewMiniCard(icon: '🌳', value: '12', label: 'Trees Equivalent')),
-                  SizedBox(width: 10),
-                  Expanded(child: _OverviewMiniCard(icon: '🚗', value: '32 km', label: 'Car Emissions Avoided')),
-                  SizedBox(width: 10),
-                  Expanded(child: _OverviewMiniCard(icon: '₹', value: '₹67', label: 'Estimated Bill Saved')),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Congratulation Card with 3D Sparrow
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          image: AssetImage('assets/images/cheerful_bird_512.png'),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Great job!',
-                            style: TextStyle(
-                              color: UrjaColors.textMain,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'You saved 8.7 kg CO₂e this month!',
-                            style: TextStyle(
-                              color: Color(0xFF1B6B44),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F3E2E),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  Widget _buildBar(String label, double fill, String weight, {bool isPeak = false}) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (isPeak)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            margin: const EdgeInsets.only(bottom: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B6B44),
-              borderRadius: BorderRadius.circular(8),
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await AnalyticsClientService.instance.getDashboard();
+      if (!mounted) return;
+      setState(() {
+        _data = result;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: UrjaTheme.canvas,
+    appBar: AppBar(
+      title: const Text('Impact & utilities'),
+      actions: [
+        IconButton(
+          onPressed: _loading ? null : _load,
+          tooltip: 'Refresh',
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
+    ),
+    body: RefreshIndicator(
+      onRefresh: _load,
+      color: UrjaTheme.leaf,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        children: [
+          _introCard(),
+          const SizedBox(height: 18),
+          const _SectionLabel('LIVE DATA'),
+          const SizedBox(height: 8),
+          if (_loading && _data == null)
+            const _StatusCard(
+              icon: Icons.sync_rounded,
+              title: 'Loading utility dashboard',
+              message: 'Fetching the latest data linked to your account.',
+            )
+          else if (_error != null && _data == null)
+            _StatusCard(
+              icon: Icons.cloud_off_rounded,
+              title: 'Dashboard unavailable',
+              message: _error!,
+              action: TextButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
+              ),
+            )
+          else
+            _AvailabilityCard(data: _data!),
+          const SizedBox(height: 18),
+          const _SectionLabel('YOUR SAVED READINGS'),
+          const SizedBox(height: 8),
+          if (_data?.utilityReadings.isNotEmpty ?? false)
+            ..._data!.utilityReadings.map(_ReadingCard.new)
+          else
+            const _StatusCard(
+              icon: Icons.receipt_long_rounded,
+              title: 'No utility readings yet',
+              message:
+                  'Add your electricity, water, or gas bill from Track. These records are marked as citizen-entered.',
             ),
-            child: Text(
-              weight,
-              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
-            ),
+          const SizedBox(height: 18),
+          const _SectionLabel('WHAT THIS DASHBOARD CAN CONFIRM'),
+          const SizedBox(height: 8),
+          const _StatusCard(
+            icon: Icons.verified_user_outlined,
+            title: 'Evidence matters',
+            message:
+                'Bills and meter values you enter are not live meter telemetry. Tariffs, energy savings, and CO₂e impact stay unavailable unless a validated data source is connected.',
           ),
-        Container(
-          width: 44,
-          height: 90 * fill,
-          decoration: BoxDecoration(
-            color: isPeak ? const Color(0xFF22C55E) : const Color(0xFF86EFAC),
-            borderRadius: BorderRadius.circular(10),
+          if (_loading) ...[
+            const SizedBox(height: 14),
+            const LinearProgressIndicator(minHeight: 2),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  Widget _introCard() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: UrjaTheme.forest,
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.insights_rounded, color: Color(0xFFA8D9B3), size: 23),
+        SizedBox(height: 12),
+        Text(
+          'A clear picture, not guesswork.',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 6),
         Text(
-          label,
-          style: const TextStyle(color: UrjaColors.textSub, fontSize: 11, fontWeight: FontWeight.w600),
+          'Only data returned by your account is shown here. Missing telemetry is clearly marked unavailable.',
+          style: TextStyle(color: Color(0xFFDCEFE1), fontSize: 12, height: 1.4),
+        ),
+      ],
+    ),
+  );
+}
+
+class _AvailabilityCard extends StatelessWidget {
+  const _AvailabilityCard({required this.data});
+
+  final AnalyticsDashboardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final availability = data.dataAvailability;
+    final metrics = data.realTimeMetrics;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                icon: Icons.electric_meter_rounded,
+                label: 'Live meter',
+                value: availability['liveMeterTelemetry'] == true
+                    ? _format(metrics['todayKwh'], 'kWh')
+                    : 'Unavailable',
+                positive: availability['liveMeterTelemetry'] == true,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _MetricCard(
+                icon: Icons.co2_rounded,
+                label: 'Measured CO₂e',
+                value: availability['emissions'] == true
+                    ? _format(metrics['todayCo2AvoidedKg'], 'kg')
+                    : 'Unavailable',
+                positive: availability['emissions'] == true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                icon: Icons.solar_power_rounded,
+                label: 'Solar generation',
+                value: availability['solarGeneration'] == true
+                    ? _format(metrics['todaySolarKwh'], 'kWh')
+                    : 'Unavailable',
+                positive: availability['solarGeneration'] == true,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _MetricCard(
+                icon: Icons.currency_rupee_rounded,
+                label: 'Tariff data',
+                value: availability['tariff'] == true
+                    ? 'Connected'
+                    : 'Unavailable',
+                positive: availability['tariff'] == true,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
+
+  String _format(Object? value, String unit) {
+    if (value is! num) return 'Unavailable';
+    return '${value.toStringAsFixed(1)} $unit';
+  }
 }
 
-class _OverviewMiniCard extends StatelessWidget {
-  final String icon;
-  final String value;
-  final String label;
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.positive,
+  });
 
-  const _OverviewMiniCard({required this.icon, required this.value, required this.label});
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool positive;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
-        ],
-      ),
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(15),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(icon, style: const TextStyle(fontSize: 22)),
-          const SizedBox(height: 8),
+          Icon(
+            icon,
+            size: 20,
+            color: positive ? UrjaTheme.leaf : UrjaTheme.muted,
+          ),
+          const SizedBox(height: 11),
           Text(
-            value,
-            style: const TextStyle(
-              color: UrjaColors.textMain,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+            label,
+            style: const TextStyle(color: UrjaTheme.muted, fontSize: 11),
           ),
           const SizedBox(height: 4),
           Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: UrjaColors.textSub,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
+            value,
+            style: TextStyle(
+              color: positive ? UrjaTheme.ink : UrjaTheme.muted,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
       ),
+    ),
+  );
+}
+
+class _ReadingCard extends StatelessWidget {
+  const _ReadingCard(this.reading);
+
+  final Map<String, dynamic> reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final utility = reading['utility'] as String? ?? 'UTILITY';
+    final value = (reading['value'] as num?)?.toDouble();
+    final unit = reading['unit'] as String? ?? '';
+    final start = reading['periodStart'] as String? ?? '';
+    final end = reading['periodEnd'] as String? ?? '';
+    final icon = switch (utility) {
+      'ELECTRICITY' => Icons.bolt_rounded,
+      'WATER' => Icons.water_drop_rounded,
+      'GAS' => Icons.local_fire_department_rounded,
+      _ => Icons.receipt_long_rounded,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Card(
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: UrjaTheme.mint,
+            foregroundColor: UrjaTheme.forest,
+            child: Icon(icon),
+          ),
+          title: Text(
+            utility.toLowerCase().replaceAll('_', ' '),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(
+            '$start — $end · Citizen-entered',
+            style: const TextStyle(fontSize: 11, color: UrjaTheme.muted),
+          ),
+          trailing: Text(
+            value == null ? '—' : '${value.toStringAsFixed(1)} $unit',
+            style: const TextStyle(
+              color: UrjaTheme.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
     );
   }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    title,
+    style: const TextStyle(
+      color: UrjaTheme.muted,
+      fontSize: 10,
+      letterSpacing: 1.2,
+      fontWeight: FontWeight.w900,
+    ),
+  );
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: UrjaTheme.leaf, size: 21),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: UrjaTheme.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(
+              color: UrjaTheme.muted,
+              fontSize: 11,
+              height: 1.45,
+            ),
+          ),
+          if (action != null)
+            Align(alignment: Alignment.centerRight, child: action),
+        ],
+      ),
+    ),
+  );
 }

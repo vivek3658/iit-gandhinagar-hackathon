@@ -49,7 +49,7 @@ export const LeagueMemberSchema = Type.Object({
   name: Type.String(),
   avatarUrl: Type.Union([Type.String(), Type.Null()]),
   district: Type.String(),
-  weeklyExp: Type.Number(),
+  weeklyCoins: Type.Number(),
   streakDays: Type.Number(),
   status: LeagueMemberStatusSchema,
   isCurrentUser: Type.Boolean(),
@@ -104,6 +104,7 @@ export const GardenVisitorResponseSchema = Type.Object({
     ward: Type.String(),
     streakDays: Type.Number(),
     totalCo2SavedKg: Type.Number(),
+    cheersReceived: Type.Number(),
   }),
   mascot: Type.Object({
     name: Type.String(),

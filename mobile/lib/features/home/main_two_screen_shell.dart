@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../services/game_state_service.dart';
-import '../activity/activity_feed_notifications_screen.dart';
-import '../game/mascot_sanctuary_screen.dart';
-import '../game/garden_island_screen.dart';
-import '../wardrobe/wardrobe_fitting_screen.dart';
 
-/// Main Multi-Axis Navigation Shell for URJA ONE Game Universe:
-/// - Horizontal Axis:
-///   - Page 0 (Slide Left): Activity Feed & System Notification Center.
-///   - Page 1 (Center Hub): Main Realm (3D Sanctuary <-> 3D Garden Island).
-///   - Page 2 (Slide Right): Dedicated 3D Wardrobe Fitting Room.
-/// - Vertical Axis:
-///   - Page 0: 3D Sparrow Mascot Sanctuary.
-///   - Page 1: 3D Floating Garden Island.
+import '../../constants/urja_theme.dart';
+import '../activity/activity_feed_notifications_screen.dart';
+import '../appliances/device_time_log_sheet.dart';
+import '../appliances/registered_devices_screen.dart';
+import '../carbon/carbon_impact_screen.dart';
+import '../dashboard/citizen_learning_screen.dart';
+import '../dashboard/citizen_records_screen.dart';
+import '../leaderboard/leaderboard_screen.dart';
+import '../settings/user_settings_screen.dart';
+import 'citizen_home_screen.dart';
+import 'sanctuary_play_shell.dart';
+
 class MainTwoScreenShell extends StatefulWidget {
   const MainTwoScreenShell({super.key});
 
@@ -22,209 +20,78 @@ class MainTwoScreenShell extends StatefulWidget {
 }
 
 class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
-  final PageController _verticalController = PageController();
-  final PageController _horizontalController = PageController(initialPage: 1);
+  int _currentIndex = 1;
 
-  int _verticalPage = 0;
-  int _horizontalPage = 1;
+  void _selectTab(int index) => setState(() => _currentIndex = index);
 
-  @override
-  void dispose() {
-    _verticalController.dispose();
-    _horizontalController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToGarden() {
-    _verticalController.animateToPage(
-      1,
-      duration: const Duration(milliseconds: 550),
-      curve: Curves.easeInOutCubic,
-    );
-  }
-
-  void _scrollToSanctuary() {
-    _verticalController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 550),
-      curve: Curves.easeInOutCubic,
-    );
-  }
-
-  void _slideToActivity() {
-    _horizontalController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-    );
-  }
-
-  void _slideToSanctuary() {
-    _horizontalController.animateToPage(
-      1,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-    );
-  }
-
-  void _slideToWardrobe() {
-    _horizontalController.animateToPage(
-      2,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Stack(
-        children: [
-          // Horizontal PageView:
-          // [0: Activity Feed] <-> [1: Center Hub (Sanctuary / Garden)] <-> [2: Wardrobe Studio]
-          PageView(
-            controller: _horizontalController,
-            physics: const BouncingScrollPhysics(),
-            onPageChanged: (page) => setState(() => _horizontalPage = page),
-            children: [
-              // Screen 0: Activity Feed & System Notification Center (Slide Left)
-              ActivityFeedNotificationsScreen(
-                onBackToSanctuary: _slideToSanctuary,
-              ),
-
-              // Screen 1: Center Hub: Mascot Sanctuary <-> 3D Garden Island
-              ListenableBuilder(
-                listenable: GameStateService.instance,
-                builder: (context, _) {
-                  final isGardenPage = _verticalPage == 1;
-                  final isScrollLocked =
-                      GameStateService.instance.gardenScrollLocked;
-                  return PageView(
-                    controller: _verticalController,
-                    scrollDirection: Axis.vertical,
-                    // When on Garden and scroll lock is active, harden the gesture physics
-                    // to prevent accidental page switching during 3D garden manipulation!
-                    physics: (isGardenPage && isScrollLocked)
-                        ? const NeverScrollableScrollPhysics()
-                        : const BouncingScrollPhysics(),
-                    onPageChanged: (page) =>
-                        setState(() => _verticalPage = page),
-                    children: [
-                      MascotSanctuaryScreen(
-                        onScrollToGarden: _scrollToGarden,
-                        onSlideToWardrobe: _slideToWardrobe,
-                        onSlideToActivity: _slideToActivity,
-                      ),
-                      GardenIslandScreen(
-                        onScrollToSanctuary: _scrollToSanctuary,
-                      ),
-                    ],
-                  );
-                },
-              ),
-
-              // Screen 2: Dedicated Wardrobe Fitting Room Screen (Slide Right)
-              WardrobeFittingScreen(onBackToSanctuary: _slideToSanctuary),
-            ],
-          ),
-
-          // Floating Edge Game Universe Navigation Indicators (Right edge in Center Hub)
-          if (_horizontalPage == 1 && _verticalPage == 0)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: MediaQuery.paddingOf(context).bottom + 88,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.96),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: const Color(0xFFDCE8DF)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x160F172A),
-                        blurRadius: 18,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildIndicator(
-                        isActive: _verticalPage == 0,
-                        icon: Icons.flutter_dash_rounded,
-                        label: 'Sanctuary',
-                        tooltip: 'Mascot Sanctuary',
-                        onTap: _scrollToSanctuary,
-                      ),
-                      _buildIndicator(
-                        isActive: _verticalPage == 1,
-                        icon: Icons.park_rounded,
-                        label: 'Garden',
-                        tooltip: 'Floating Island',
-                        onTap: _scrollToGarden,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIndicator({
-    required bool isActive,
-    required IconData icon,
-    required String label,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Tooltip(
-        message: tooltip,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.symmetric(
-            horizontal: isActive ? 14 : 12,
-            vertical: 10,
-          ),
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF16834A) : Colors.transparent,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isActive ? Colors.white : const Color(0xFF64756A),
-              ),
-              if (isActive) ...[
-                const SizedBox(width: 7),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ],
-          ),
+  void _openActivity() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ActivityFeedNotificationsScreen(
+          onBackToSanctuary: () => Navigator.of(context).pop(),
         ),
       ),
     );
   }
+
+  void _openSettings() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const UserSettingsScreen()));
+  }
+
+  void _openLearning() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CitizenLearningScreen()),
+    );
+  }
+
+  void _openRecords() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CitizenRecordsScreen()),
+    );
+  }
+
+  void _openImpact() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CarbonImpactDashboardScreen(),
+      ),
+    );
+  }
+
+  void _openCommunity() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const LeaderboardScreen()));
+  }
+
+  void _openDeviceLog() => DeviceTimeLogSheet.show(context);
+
+  void _openRegisteredDevices() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const RegisteredDevicesScreen()),
+    );
+  }
+
+  late final List<Widget> _screens = [
+    CitizenHomeScreen(
+      onOpenActivity: _openActivity,
+      onOpenSettings: _openSettings,
+      onOpenRecords: _openRecords,
+      onOpenImpact: _openImpact,
+      onOpenDeviceLog: _openDeviceLog,
+      onOpenRegisteredDevices: _openRegisteredDevices,
+      onOpenLearning: _openLearning,
+      onOpenCommunity: _openCommunity,
+      onOpenPlay: () => _selectTab(1),
+    ),
+    SanctuaryPlayShell(onOpenDashboard: () => _selectTab(0)),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: UrjaTheme.canvas,
+    body: IndexedStack(index: _currentIndex, children: _screens),
+  );
 }

@@ -1,20 +1,21 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import {
-  AdminConfigurationError,
-  AdminService,
-  type AdminIdentity,
-} from './admin.service';
+import { AdminConfigurationError, AdminService, type AdminIdentity } from './admin.service';
 import type { CreateTenantAdminBody } from './admin.schema';
 import type { TenantAdminRecord } from './admin.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { CampaignBody } from '../notifications/notifications.schema';
 
 function isAdminIdentity(value: unknown): value is AdminIdentity {
-  return typeof value === 'object' && value !== null &&
-    'id' in value && typeof value.id === 'string' &&
-    'email' in value && typeof value.email === 'string' &&
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    'email' in value &&
+    typeof value.email === 'string' &&
     'role' in value &&
-    ['ADMIN', 'PROVIDER_ADMIN', 'CITY_ADMIN'].includes(String(value.role));
+    ['ADMIN', 'PROVIDER_ADMIN', 'CITY_ADMIN'].includes(String(value.role))
+  );
 }
 
 export class AdminController {
@@ -126,9 +127,10 @@ export class AdminController {
         broadcastId: campaign.id,
         scope: campaign.tenantId ? `${campaign.tenantType}:${campaign.tenantId}` : 'PLATFORM',
         recipientsReached: campaign.recipientCount,
-        message: campaign.scheduledAt > new Date().toISOString()
-          ? 'Campaign scheduled for delivery.'
-          : 'Campaign queued for in-app delivery.',
+        message:
+          campaign.scheduledAt > new Date().toISOString()
+            ? 'Campaign scheduled for delivery.'
+            : 'Campaign queued for in-app delivery.',
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Campaign could not be created.';
@@ -169,10 +171,13 @@ export class AdminController {
       return reply.status(201).send(account);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Could not create tenant admin.';
-      if (message.includes('already exists') || message.includes('directory') ||
+      if (
+        message.includes('already exists') ||
+        message.includes('directory') ||
         message.includes('must be served') ||
-      message.includes('district') ||
-        (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505')) {
+        message.includes('district') ||
+        (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505')
+      ) {
         return reply.badRequest(message);
       }
       request.log.error({ err: error }, 'Could not create tenant administrator');
@@ -199,7 +204,11 @@ export class AdminController {
     }
     const { adminId } = request.params as { adminId: string };
     try {
-      const deactivated = await AdminService.deactivateTenantAdmin(request.server.db, identity, adminId);
+      const deactivated = await AdminService.deactivateTenantAdmin(
+        request.server.db,
+        identity,
+        adminId,
+      );
       if (!deactivated) return reply.notFound('Active tenant administrator was not found.');
       return reply.send({ success: true });
     } catch (error: unknown) {
@@ -215,7 +224,8 @@ export class AdminController {
     }
     try {
       const tenant = await AdminService.authenticateTenantClaims(request.server.db, identity);
-      if (!tenant) return reply.unauthorized('Tenant administrator account is inactive or its access changed');
+      if (!tenant)
+        return reply.unauthorized('Tenant administrator account is inactive or its access changed');
       return reply.send({
         id: tenant.id,
         email: tenant.email,
@@ -252,8 +262,12 @@ export class AdminController {
     try {
       let tenant: TenantAdminRecord | undefined;
       if (identity.role !== 'ADMIN') {
-        tenant = await AdminService.authenticateTenantClaims(request.server.db, identity);
-        if (!tenant) return reply.unauthorized('Tenant administrator account is inactive or its access changed');
+        tenant =
+          (await AdminService.authenticateTenantClaims(request.server.db, identity)) ?? undefined;
+        if (!tenant)
+          return reply.unauthorized(
+            'Tenant administrator account is inactive or its access changed',
+          );
       }
       return reply.send({ items: await AdminService.getAuditLog(request.server.db, tenant) });
     } catch (error: unknown) {
@@ -266,11 +280,15 @@ export class AdminController {
     const identity = request.user;
     if (!isAdminIdentity(identity)) return reply.forbidden('Administrator access is required.');
     try {
-      return reply.status(201).send(await NotificationsService.createCampaign(
-        request.server.db,
-        identity,
-        request.body as CampaignBody,
-      ));
+      return reply
+        .status(201)
+        .send(
+          await NotificationsService.createCampaign(
+            request.server.db,
+            identity,
+            request.body as CampaignBody,
+          ),
+        );
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Campaign is not valid.';
       if (
@@ -293,7 +311,9 @@ export class AdminController {
     const identity = request.user;
     if (!isAdminIdentity(identity)) return reply.forbidden('Administrator access is required.');
     try {
-      return reply.send({ campaigns: await NotificationsService.listCampaigns(request.server.db, identity) });
+      return reply.send({
+        campaigns: await NotificationsService.listCampaigns(request.server.db, identity),
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Campaigns unavailable.';
       if (message.includes('inactive')) return reply.unauthorized(message);

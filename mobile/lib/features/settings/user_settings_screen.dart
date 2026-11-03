@@ -3,11 +3,10 @@ import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
 import '../../services/notification_preferences_service.dart';
-import '../appliances/appliance_registry_sheet.dart';
+import '../appliances/registered_devices_screen.dart';
 import '../auth/google_login_screen.dart';
-import '../commute/commute_travel_sheet.dart';
+import '../dashboard/citizen_records_screen.dart';
 import '../onboarding/energy_setup_sheet.dart';
-import '../water/water_conservation_sheet.dart';
 
 class UserSettingsScreen extends StatefulWidget {
   const UserSettingsScreen({super.key});
@@ -32,6 +31,20 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   bool _notificationPreferencesSaving = false;
   String? _notificationPreferencesError;
 
+  void _openRecords(int tab) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CitizenRecordsScreen(initialTab: tab),
+      ),
+    );
+  }
+
+  void _openDevices() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const RegisteredDevicesScreen()),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,8 +59,8 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       });
     }
     try {
-      final preferences =
-          await NotificationPreferencesService.instance.getPreferences();
+      final preferences = await NotificationPreferencesService.instance
+          .getPreferences();
       if (!mounted) return;
       setState(() {
         _campaignNotificationsEnabled = preferences.campaignsEnabled;
@@ -75,11 +88,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       _notificationPreferencesError = null;
     });
     try {
-      final preferences =
-          await NotificationPreferencesService.instance.updatePreferences(
-        campaignsEnabled: campaignsEnabled,
-        wasteRemindersEnabled: wasteRemindersEnabled,
-      );
+      final preferences = await NotificationPreferencesService.instance
+          .updatePreferences(
+            campaignsEnabled: campaignsEnabled,
+            wasteRemindersEnabled: wasteRemindersEnabled,
+          );
       if (!mounted) return;
       setState(() {
         _campaignNotificationsEnabled = preferences.campaignsEnabled;
@@ -192,13 +205,13 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     final userDistrict = user?.district ?? 'Ahmedabad';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D2116), // Dark eco nature theme
+      backgroundColor: const Color(0xFFF2F7EC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D2116),
+        backgroundColor: const Color(0xFF174B35),
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Settings & Preferences',
+          'Player Profile',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
@@ -222,6 +235,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             userEmail: userEmail,
             userWard: userWard,
             userDistrict: userDistrict,
+            avatarUrl: user?.avatarUrl,
           ),
           const SizedBox(height: 20),
 
@@ -245,9 +259,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 onChanged: _notificationPreferencesSaving
                     ? null
                     : (value) => _saveNotificationPreferences(
-                          campaignsEnabled: value,
-                          wasteRemindersEnabled: _wasteRemindersEnabled,
-                        ),
+                        campaignsEnabled: value,
+                        wasteRemindersEnabled: _wasteRemindersEnabled,
+                      ),
               ),
               const Divider(color: Colors.white12, height: 20),
               _buildSwitchRow(
@@ -259,9 +273,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 onChanged: _notificationPreferencesSaving
                     ? null
                     : (value) => _saveNotificationPreferences(
-                          campaignsEnabled: _campaignNotificationsEnabled,
-                          wasteRemindersEnabled: value,
-                        ),
+                        campaignsEnabled: _campaignNotificationsEnabled,
+                        wasteRemindersEnabled: value,
+                      ),
               ),
             ],
             if (_notificationPreferencesError != null) ...[
@@ -280,7 +294,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             const SizedBox(height: 8),
             const Text(
               'These choices are stored with your account and default to off. Reminders currently arrive in the in-app activity feed, not as push notifications.',
-              style: TextStyle(color: Colors.white60, fontSize: 11, height: 1.4),
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: 11,
+                height: 1.4,
+              ),
             ),
           ]),
           const SizedBox(height: 20),
@@ -437,9 +455,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           _buildCard([
             _buildDomainTile(
               icon: '💧',
-              title: 'Municipal Water & Rainwater Harvesting',
-              subtitle: 'Underground Sump + Overhead Tank • 2,000 L',
-              onTap: () => WaterConservationSheet.show(context),
+              title: 'Water readings',
+              subtitle: 'Review citizen-entered records saved to your account',
+              onTap: () => _openRecords(0),
             ),
             const Divider(color: Colors.white12, height: 16),
             _buildSwitchRow(
@@ -460,9 +478,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           _buildCard([
             _buildDomainTile(
               icon: '📱',
-              title: 'Appliance Registry & Time Logs',
-              subtitle: 'AC, Geyser, Refrigerator, Induction, Sump Pump',
-              onTap: () => ApplianceRegistrySheet.show(context),
+              title: 'Household devices',
+              subtitle: 'Register devices and keep self-reported runtime logs',
+              onTap: _openDevices,
             ),
             const Divider(color: Colors.white12, height: 16),
             _buildSwitchRow(
@@ -504,9 +522,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           _buildCard([
             _buildDomainTile(
               icon: '🚴',
-              title: 'Daily Green Commute Modes',
-              subtitle: 'Walk, Cycle, EV 2-Wheeler, Ahmedabad Metro / BRTS',
-              onTap: () => CommuteTravelSheet.show(context),
+              title: 'Travel records',
+              subtitle: 'Save confirmed trip summaries without GPS routes',
+              onTap: () => _openRecords(2),
             ),
           ]),
           const SizedBox(height: 20),
@@ -577,22 +595,23 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     required String userEmail,
     required String userWard,
     required String userDistrict,
+    required String? avatarUrl,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1B5E20), Color(0xFF143E26)],
+          colors: [Color(0xFF286844), Color(0xFF123A29)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF4ADE80), width: 1.5),
+        border: Border.all(color: const Color(0xFF9BC96B), width: 1.5),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black45,
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            color: Color(0x33172E20),
+            blurRadius: 16,
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -605,11 +624,21 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 height: 60,
                 decoration: BoxDecoration(
                   color: const Color(0xFF2E7D32),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white, width: 2),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFFD66E), width: 2),
                 ),
-                child: const Center(
-                  child: Text('🇮🇳', style: TextStyle(fontSize: 30)),
+                child: ClipOval(
+                  child: avatarUrl != null && avatarUrl.isNotEmpty
+                      ? Image.network(
+                          avatarUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Text('🐦', style: TextStyle(fontSize: 30)),
+                          ),
+                        )
+                      : const Center(
+                          child: Text('🐦', style: TextStyle(fontSize: 30)),
+                        ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -658,18 +687,23 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           ),
           const Divider(color: Colors.white24, height: 24),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildMetricColumn('🪙 Urja Mudra', '${_state.coins}'),
-              Container(width: 1, height: 28, color: Colors.white12),
-              _buildMetricColumn(
-                '🌱 CO₂e Saved',
-                '${_state.co2eSavedKg.toStringAsFixed(1)} kg',
+              Expanded(
+                child: _buildMetricColumn('🪙 Urja Mudra', '${_state.coins}'),
               ),
               Container(width: 1, height: 28, color: Colors.white12),
-              _buildMetricColumn(
-                '🔥 LiFE Streak',
-                '${_state.notificationHistory.length + 5}d',
+              Expanded(
+                child: _buildMetricColumn(
+                  '🌱 CO₂e Saved',
+                  '${_state.co2eSavedKg.toStringAsFixed(1)} kg',
+                ),
+              ),
+              Container(width: 1, height: 28, color: Colors.white12),
+              Expanded(
+                child: _buildMetricColumn(
+                  '🐦 Sparrow level',
+                  'Lv ${_state.mascotLevel}',
+                ),
               ),
             ],
           ),
@@ -683,11 +717,17 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       children: [
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white60, fontSize: 11),
         ),
         const SizedBox(height: 2),
         Text(
           value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             color: Color(0xFFFDE68A),
             fontWeight: FontWeight.w900,
@@ -703,11 +743,11 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       children: [
         const Text('🕊️', style: TextStyle(fontSize: 22)),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Mascot Identity & Vitality',
                 style: TextStyle(
                   color: Colors.white,
@@ -716,8 +756,8 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 ),
               ),
               Text(
-                'Piku the Indian Sparrow • Level 2 Companion',
-                style: TextStyle(color: Colors.white60, fontSize: 11),
+                'Your companion • Level ${_state.mascotLevel}',
+                style: const TextStyle(color: Colors.white60, fontSize: 11),
               ),
             ],
           ),
@@ -728,9 +768,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             color: const Color(0xFF1B6B44),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Text(
-            '95% Vitality',
-            style: TextStyle(
+          child: Text(
+            '${(_state.vitality * 100).round()}% Vitality',
+            style: const TextStyle(
               color: Color(0xFF86EFAC),
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -745,7 +785,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     return Text(
       title,
       style: const TextStyle(
-        color: Color(0xFF86EFAC),
+        color: Color(0xFF174B35),
         fontSize: 11,
         fontWeight: FontWeight.w900,
         letterSpacing: 1.1,

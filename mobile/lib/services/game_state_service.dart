@@ -87,6 +87,7 @@ class GameStateService extends ChangeNotifier {
   String? _equippedFace;
   String? _equippedNeck;
   String? _equippedHeld;
+  String? _equippedFx;
   String? _equippedOutfit = 'natural';
 
   // --- Garden Island State (3x3 Grid, Center Home Locked, 8 Free Plots) ---
@@ -164,6 +165,7 @@ class GameStateService extends ChangeNotifier {
   String? get equippedFace => _equippedFace;
   String? get equippedNeck => _equippedNeck;
   String? get equippedHeld => _equippedHeld;
+  String? get equippedFx => _equippedFx;
   String? get equippedOutfit => _equippedOutfit;
 
   List<Map<String, dynamic>> get gardenGridSlots =>
@@ -225,6 +227,7 @@ class GameStateService extends ChangeNotifier {
       _equippedFace = json['equippedFace'] as String?;
       _equippedNeck = json['equippedNeck'] as String?;
       _equippedHeld = json['equippedHeld'] as String?;
+      _equippedFx = json['equippedFx'] as String?;
       _equippedOutfit = json['equippedOutfit'] as String? ?? _equippedOutfit;
 
       if (json['gardenGridSlots'] is List) {
@@ -288,6 +291,7 @@ class GameStateService extends ChangeNotifier {
         'equippedFace': _equippedFace,
         'equippedNeck': _equippedNeck,
         'equippedHeld': _equippedHeld,
+        'equippedFx': _equippedFx,
         'equippedOutfit': _equippedOutfit,
         'gardenGridSlots': _gardenGridSlots,
         'gardenInventory': _gardenInventory,
@@ -356,6 +360,20 @@ class GameStateService extends ChangeNotifier {
         if (data['level'] is num) _mascotLevel = (data['level'] as num).toInt();
         if (data['co2eSavedKg'] is num)
           _co2eSavedKg = (data['co2eSavedKg'] as num).toDouble();
+        if (data['ownedAccessories'] is List) {
+          for (final item in data['ownedAccessories'] as List) {
+            if (item is String) _ownedItems.add(item);
+          }
+        }
+        final equipped = data['equipped'];
+        if (equipped is Map) {
+          _equippedHead = equipped['head'] as String?;
+          _equippedFace = equipped['face'] as String?;
+          _equippedNeck = equipped['neck'] as String?;
+          _equippedHeld = equipped['held'] as String?;
+          _equippedFx = equipped['fx'] as String?;
+          _equippedOutfit = null;
+        }
       }
 
       // 2. Fetch remote Wardrobe
@@ -367,15 +385,17 @@ class GameStateService extends ChangeNotifier {
       }
       if (wardrobeResp.statusCode == 200) {
         final decoded = wardrobeResp.decodeJson();
-        final owned = decoded['owned'] is List
-            ? decoded['owned'] as List
-            : (decoded['data']?['owned'] as List?);
-        if (owned != null) {
-          for (final item in owned) {
-            if (item is String)
-              _ownedItems.add(item);
-            else if (item is Map && item['id'] is String)
+        final data = decoded['data'] is Map<String, dynamic>
+            ? decoded['data'] as Map<String, dynamic>
+            : decoded;
+        final items = data['items'];
+        if (items is List) {
+          for (final item in items) {
+            if (item is Map &&
+                item['isOwned'] == true &&
+                item['id'] is String) {
               _ownedItems.add(item['id'] as String);
+            }
           }
         }
       }
@@ -623,7 +643,7 @@ class GameStateService extends ChangeNotifier {
 
     _coins -= price;
     _ownedItems.add(itemId);
-    _sendBackendPost('/mascot/wardrobe/buy', {'itemId': itemId});
+    _sendBackendPost('/mascot/wardrobe/buy', {'accessoryId': itemId});
     notifyListeners();
     return true;
   }
@@ -643,11 +663,14 @@ class GameStateService extends ChangeNotifier {
       case 'held':
         _equippedHeld = itemId;
         break;
+      case 'fx':
+        _equippedFx = itemId;
+        break;
     }
     _equippedOutfit = null;
     _sendBackendPost('/mascot/wardrobe/equip', {
-      'slot': slot,
-      'itemId': itemId,
+      'slot': slot.toUpperCase(),
+      'accessoryId': itemId,
     });
     notifyListeners();
   }

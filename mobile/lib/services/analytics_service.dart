@@ -3,24 +3,30 @@ import 'dart:io';
 import 'api_client.dart';
 
 class AnalyticsDashboardData {
+  final Map<String, dynamic> dataAvailability;
   final Map<String, dynamic> realTimeMetrics;
   final List<Map<String, dynamic>> hourlyLoadCurve;
   final List<Map<String, dynamic>> applianceBreakdown;
   final List<Map<String, dynamic>> monthlyTrends;
   final List<Map<String, dynamic>> carbonLedger;
   final Map<String, dynamic> gridTariffInsights;
+  final List<Map<String, dynamic>> utilityReadings;
 
   AnalyticsDashboardData({
+    required this.dataAvailability,
     required this.realTimeMetrics,
     required this.hourlyLoadCurve,
     required this.applianceBreakdown,
     required this.monthlyTrends,
     required this.carbonLedger,
     required this.gridTariffInsights,
+    required this.utilityReadings,
   });
 
   factory AnalyticsDashboardData.fromJson(Map<String, dynamic> json) =>
       AnalyticsDashboardData(
+        dataAvailability:
+            json['dataAvailability'] as Map<String, dynamic>? ?? const {},
         realTimeMetrics:
             json['realTimeMetrics'] as Map<String, dynamic>? ?? const {},
         hourlyLoadCurve: _mapList(json['hourlyLoadCurve']),
@@ -29,6 +35,7 @@ class AnalyticsDashboardData {
         carbonLedger: _mapList(json['carbonLedger']),
         gridTariffInsights:
             json['gridTariffInsights'] as Map<String, dynamic>? ?? const {},
+        utilityReadings: _mapList(json['utilityReadings']),
       );
 
   static List<Map<String, dynamic>> _mapList(Object? value) =>

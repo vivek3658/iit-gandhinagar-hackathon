@@ -1,8 +1,12 @@
 import crypto from 'node:crypto';
-import type { Pool, PoolClient } from 'pg';
+import type { Pool } from 'pg';
 import { AdminService, type AdminIdentity, type TenantAdminRecord } from '../admin/admin.service';
 import { ProvidersService } from '../providers/providers.service';
-import type { CampaignBody, NotificationPreferences, UpdateNotificationPreferencesBody } from './notifications.schema';
+import type {
+  CampaignBody,
+  NotificationPreferences,
+  UpdateNotificationPreferencesBody,
+} from './notifications.schema';
 
 const schemaReady = new WeakMap<Pool, Promise<void>>();
 const linkColumnByCategory = {
@@ -15,7 +19,9 @@ export class NotificationsService {
   private static async ensureSchema(db: Pool): Promise<void> {
     let ready = schemaReady.get(db);
     if (!ready) {
-      ready = db.query(`
+      ready = db
+        .query(
+          `
         CREATE TABLE IF NOT EXISTS public.citizen_notification_preferences (
           user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
           campaigns_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -133,10 +139,13 @@ export class NotificationsService {
           END IF;
         END;
         $migration$;
-      `).then(() => undefined).catch((error: unknown) => {
-        schemaReady.delete(db);
-        throw error;
-      });
+      `,
+        )
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          schemaReady.delete(db);
+          throw error;
+        });
       schemaReady.set(db, ready);
     }
     await ready;
@@ -147,7 +156,10 @@ export class NotificationsService {
     await this.ensureSchema(db);
   }
 
-  public static async getPreferences(db: Pool | null, userId: string): Promise<NotificationPreferences> {
+  public static async getPreferences(
+    db: Pool | null,
+    userId: string,
+  ): Promise<NotificationPreferences> {
     if (!db) throw new Error('PostgreSQL is required to manage notification preferences.');
     await this.prepare(db);
     await db.query(
@@ -199,23 +211,31 @@ export class NotificationsService {
     return tenant;
   }
 
-  public static async createCampaign(
-    db: Pool | null,
-    identity: AdminIdentity,
-    body: CampaignBody,
-  ) {
+  public static async createCampaign(db: Pool | null, identity: AdminIdentity, body: CampaignBody) {
     if (!db) throw new Error('PostgreSQL is required to create notification campaigns.');
-    if (identity.role !== 'ADMIN' && identity.role !== 'PROVIDER_ADMIN' && identity.role !== 'CITY_ADMIN') {
+    if (
+      identity.role !== 'ADMIN' &&
+      identity.role !== 'PROVIDER_ADMIN' &&
+      identity.role !== 'CITY_ADMIN'
+    ) {
       throw new Error('Administrator access is required.');
     }
     if ((body.incentiveCoins ?? 0) > 0) {
-      throw new Error('Campaign incentives are disabled until they can be credited through the reward ledger.');
+      throw new Error(
+        'Campaign incentives are disabled until they can be credited through the reward ledger.',
+      );
     }
     await this.ensureSchema(db);
     const tenant = await this.resolveTenant(db, identity);
     const tenantType = tenant?.tenantType ?? 'PLATFORM';
     const tenantId = tenant?.tenantId ?? null;
-    if (tenant && body.targetDistrict && !tenant.districts.some((district) => district.toLowerCase() === body.targetDistrict?.toLowerCase())) {
+    if (
+      tenant &&
+      body.targetDistrict &&
+      !tenant.districts.some(
+        (district) => district.toLowerCase() === body.targetDistrict?.toLowerCase(),
+      )
+    ) {
       throw new Error('Campaign district is outside this administrator service area.');
     }
     if (tenant?.tenantType === 'PROVIDER' && (body.targetUserId || body.targetUserEmail)) {
@@ -227,13 +247,17 @@ export class NotificationsService {
     if (tenant?.tenantType === 'CITY' && (body.targetUserId || body.targetUserEmail)) {
       throw new Error('City campaigns may target only opted-in residents in the service area.');
     }
-    if (tenant?.tenantType === 'PROVIDER' && body.targetProviderId && body.targetProviderId !== tenant.tenantId) {
+    if (
+      tenant?.tenantType === 'PROVIDER' &&
+      body.targetProviderId &&
+      body.targetProviderId !== tenant.tenantId
+    ) {
       throw new Error('Provider campaign tenant does not match the authenticated administrator.');
     }
-    const provider = tenant?.tenantType === 'PROVIDER'
-      ? ProvidersService.getProviderById(tenant.tenantId)
-      : null;
-    if (tenant?.tenantType === 'PROVIDER' && !provider) throw new Error('Provider tenant is not in the provider directory.');
+    const provider =
+      tenant?.tenantType === 'PROVIDER' ? ProvidersService.getProviderById(tenant.tenantId) : null;
+    if (tenant?.tenantType === 'PROVIDER' && !provider)
+      throw new Error('Provider tenant is not in the provider directory.');
     if (tenant?.tenantType === 'CITY' && !body.targetDistrict) {
       throw new Error('City campaigns must target one configured district.');
     }

@@ -33,6 +33,9 @@ void main() {
     await tester.pumpWidget(const UrjaApp(home: MainTwoScreenShell()));
     await tester.pump();
 
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byTooltip('Mascot Sanctuary'), findsNothing);
+    expect(find.text('Sanctuary'), findsNothing);
     expect(find.text('Tap Cheechee to interact'), findsOneWidget);
     expect(find.text('Feed'), findsNothing);
     expect(find.text('Cheer'), findsNothing);
@@ -56,9 +59,13 @@ void main() {
       expect(find.text('🪙 250'), findsOneWidget);
       expect(find.text('Sparrow Vitality'), findsOneWidget);
 
-      // Verify Floating Ledger & Meter Plot Buttons
-      expect(find.text('CO2e Ledger'), findsOneWidget);
-      expect(find.text('Meter Plot'), findsOneWidget);
+      // Keep household and impact controls off the mascot scene.
+      expect(find.text('Daily missions'), findsOneWidget);
+      expect(find.text('CO2e Ledger'), findsNothing);
+      expect(find.text('Meter Plot'), findsNothing);
+      expect(find.text('Water'), findsNothing);
+      expect(find.text('Devices'), findsNothing);
+      expect(find.text('Commute'), findsNothing);
       expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
 
       // Interact with the companion directly instead of selecting expression buttons.
@@ -70,18 +77,50 @@ void main() {
         findsOneWidget,
       );
 
-      // Guest dashboard state must not invent household analytics.
-      await tester.tap(find.text('CO2e Ledger'));
+      await tester.tap(find.text('Daily missions'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Daily Mission LiFE Quests'), findsOneWidget);
+      Navigator.of(
+        tester.element(find.text('Daily Mission LiFE Quests')),
+      ).pop();
       await tester.pumpAndSettle();
 
-      expect(find.text('Home Utility Dashboard'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
-      expect(find.text('Unplug Wall Charger'), findsNothing);
-      expect(tester.takeException(), isNull);
-      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.tap(find.text('MENU'));
+      await tester.pumpAndSettle();
+      expect(find.text('Explore Urja'), findsOneWidget);
+      Navigator.of(tester.element(find.text('Explore Urja'))).pop();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Player profile'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Player Profile'), findsOneWidget);
+      Navigator.of(tester.element(find.text('Player Profile'))).pop();
       await tester.pumpAndSettle();
     },
   );
+
+  testWidgets('Sanctuary opens the backend-backed citizen dashboard', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const UrjaApp(home: MainTwoScreenShell()));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Citizen dashboard'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Your green day'), findsOneWidget);
+    expect(find.text('Your progress'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('My devices'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('My devices'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Slide Left to Activity Feed, Slide Right to Wardrobe, and Scroll Down to Garden Island',

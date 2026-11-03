@@ -13,10 +13,7 @@ import '../game/sparrow_3d_stage.dart';
 class WardrobeFittingScreen extends StatefulWidget {
   final VoidCallback onBackToSanctuary;
 
-  const WardrobeFittingScreen({
-    super.key,
-    required this.onBackToSanctuary,
-  });
+  const WardrobeFittingScreen({super.key, required this.onBackToSanctuary});
 
   @override
   State<WardrobeFittingScreen> createState() => _WardrobeFittingScreenState();
@@ -219,7 +216,12 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
         'price': 250,
         'reqLevel': 1,
         'desc': 'Acorn cap, round readers & plaid scarf set',
-        'slots': {'head': 'acorn', 'face': 'readers', 'neck': 'plaid', 'held': null},
+        'slots': {
+          'head': 'acorn',
+          'face': 'readers',
+          'neck': 'plaid',
+          'held': null,
+        },
       },
       {
         'id': 'winter',
@@ -237,7 +239,12 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
         'price': 280,
         'reqLevel': 1,
         'desc': 'Yellow rainhat, collar & dewy leaf umbrella set',
-        'slots': {'head': 'rainhat', 'face': null, 'neck': 'collar', 'held': 'leafbrella'},
+        'slots': {
+          'head': 'rainhat',
+          'face': null,
+          'neck': 'collar',
+          'held': 'leafbrella',
+        },
       },
       {
         'id': 'spring',
@@ -255,7 +262,12 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
         'price': 240,
         'reqLevel': 1,
         'desc': 'Straw hat, sunglasses & tropical lei set',
-        'slots': {'head': 'straw', 'face': 'sunnies', 'neck': 'lei', 'held': null},
+        'slots': {
+          'head': 'straw',
+          'face': 'sunnies',
+          'neck': 'lei',
+          'held': null,
+        },
       },
     ],
   };
@@ -280,6 +292,24 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
     _sparrowKey.currentState?.cancelPreview();
   }
 
+  void _onSparrowLoaded(bool loaded) {
+    if (!loaded || !mounted) return;
+
+    final stage = _sparrowKey.currentState;
+    final outfit = _state.equippedOutfit;
+    if (outfit != null && outfit != 'natural') {
+      stage?.dress(outfit);
+      return;
+    }
+
+    stage
+      ?..wear('head', _state.equippedHead)
+      ..wear('face', _state.equippedFace)
+      ..wear('neck', _state.equippedNeck)
+      ..wear('held', _state.equippedHeld)
+      ..wear('fx', _state.equippedFx);
+  }
+
   void _confirmPurchaseOrEquip() {
     if (_previewItem == null) return;
     final item = _previewItem!;
@@ -293,14 +323,18 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('🔒 Locked! Reach Level $reqLevel with real CO2e savings to unlock.'),
+          content: Text(
+            '🔒 Locked! Reach Level $reqLevel with real CO2e savings to unlock.',
+          ),
           backgroundColor: const Color(0xFFDC2626),
         ),
       );
       return;
     }
 
-    final isOwned = isOutfit ? (price == 0) : _state.ownedItems.contains(itemId);
+    final isOwned = isOutfit
+        ? (price == 0)
+        : _state.ownedItems.contains(itemId);
 
     // 2. Purchase if unowned
     if (!isOwned) {
@@ -308,7 +342,9 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🪙 Not enough Urja Mudra coins ($price needed, you have ${_state.coins}). Complete green actions to earn!'),
+            content: Text(
+              '🪙 Not enough Urja Mudra coins ($price needed, you have ${_state.coins}). Complete green actions to earn!',
+            ),
             backgroundColor: const Color(0xFFD97706),
           ),
         );
@@ -355,7 +391,12 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
     HapticFeedback.lightImpact();
 
     if (isOutfit) {
-      _state.equipOutfit('none', {'head': null, 'face': null, 'neck': null, 'held': null});
+      _state.equipOutfit('none', {
+        'head': null,
+        'face': null,
+        'neck': null,
+        'held': null,
+      });
       _sparrowKey.currentState?.dress('none');
     } else {
       final slot = item['slot'] as String;
@@ -401,7 +442,10 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                 left: 0,
                 right: 0,
                 height: MediaQuery.of(context).size.height * 0.44,
-                child: Sparrow3DStage(key: _sparrowKey),
+                child: Sparrow3DStage(
+                  key: _sparrowKey,
+                  onLoaded: _onSparrowLoaded,
+                ),
               ),
 
               // Top Bar Navigation
@@ -422,7 +466,9 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black54,
@@ -444,11 +490,11 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                           padding: const EdgeInsets.only(bottom: 80),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 1.65,
-                          ),
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                childAspectRatio: 1.65,
+                              ),
                           itemCount: currentList.length,
                           itemBuilder: (ctx, i) {
                             final item = currentList[i];
@@ -532,7 +578,10 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF59E0B),
                     borderRadius: BorderRadius.circular(8),
@@ -632,15 +681,26 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFF1F5F9),
+                color: isSelected
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+                  color: isSelected
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFE2E8F0),
                   width: 1.2,
                 ),
                 boxShadow: isSelected
-                    ? const [BoxShadow(color: Color(0xFF92400E), offset: Offset(0, 3))]
-                    : const [BoxShadow(color: Colors.black26, offset: Offset(0, 2))],
+                    ? const [
+                        BoxShadow(
+                          color: Color(0xFF92400E),
+                          offset: Offset(0, 3),
+                        ),
+                      ]
+                    : const [
+                        BoxShadow(color: Colors.black26, offset: Offset(0, 2)),
+                      ],
               ),
               child: Center(
                 child: Text(
@@ -668,7 +728,9 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
     final reqLevel = item['reqLevel'] as int;
 
     final isLocked = _state.mascotLevel < reqLevel;
-    final isOwned = isOutfit ? (price == 0) : _state.ownedItems.contains(itemId);
+    final isOwned = isOutfit
+        ? (price == 0)
+        : _state.ownedItems.contains(itemId);
     final isPreviewing = _previewItem != null && _previewItem!['id'] == itemId;
 
     bool isEquipped = false;
@@ -798,7 +860,9 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
     final reqLevel = item['reqLevel'] as int;
 
     final isLocked = _state.mascotLevel < reqLevel;
-    final isOwned = isOutfit ? (price == 0) : _state.ownedItems.contains(itemId);
+    final isOwned = isOutfit
+        ? (price == 0)
+        : _state.ownedItems.contains(itemId);
 
     bool isEquipped = false;
     if (isOutfit) {
@@ -845,10 +909,12 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
                   isOwned
                       ? (isEquipped ? 'Currently Worn' : 'Owned Item')
                       : (isLocked
-                          ? 'Locked (Lv $reqLevel Required)'
-                          : 'Price: $price 🪙 Urja Mudra'),
+                            ? 'Locked (Lv $reqLevel Required)'
+                            : 'Price: $price 🪙 Urja Mudra'),
                   style: TextStyle(
-                    color: isLocked ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                    color: isLocked
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF16A34A),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -863,7 +929,9 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF475569),
               side: const BorderSide(color: Color(0xFFCBD5E1)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
             child: const Text('Cancel', style: TextStyle(fontSize: 12)),
@@ -877,10 +945,18 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4B5563),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
-              child: const Text('Take Off', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Take Off',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
             )
           else
             ElevatedButton.icon(
@@ -891,13 +967,23 @@ class _WardrobeFittingScreenState extends State<WardrobeFittingScreen> {
               ),
               label: Text(
                 isOwned ? 'Wear Now' : 'Buy ($price 🪙)',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isLocked ? Colors.grey : const Color(0xFF16A34A),
+                backgroundColor: isLocked
+                    ? Colors.grey
+                    : const Color(0xFF16A34A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
             ),
         ],

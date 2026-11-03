@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../services/notification_service.dart';
 import 'package:flutter/services.dart';
+import '../../constants/urja_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_state_service.dart';
 import '../../services/geofence_departure_service.dart';
-import '../appliances/appliance_registry_sheet.dart';
 import '../appliances/device_time_log_sheet.dart';
+import '../appliances/registered_devices_screen.dart';
 import '../auth/google_login_screen.dart';
 import '../calculator/carbon_calculator_screen.dart';
-import '../commute/commute_travel_sheet.dart';
-import '../dashboard/carbon_dashboard_sheet.dart';
+import '../carbon/carbon_impact_screen.dart';
 import '../dashboard/daily_quests_sheet.dart';
-import '../dashboard/monthly_electricity_tracker_sheet.dart';
+import '../dashboard/citizen_records_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../onboarding/energy_setup_sheet.dart';
 import '../settings/user_settings_screen.dart';
-import '../water/water_conservation_sheet.dart';
 
 class SanctuaryMenuScreen extends StatefulWidget {
   final VoidCallback onSlideToActivity;
@@ -72,15 +71,12 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
         ),
         content: const Text(
           'Are you sure you want to sign out from UrjaVatika? Your garden island and companion vitality are safely preserved.',
-          style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 13, height: 1.4),
+          style: TextStyle(color: UrjaTheme.muted, fontSize: 13, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white60),
-            ),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -152,26 +148,14 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
     final userDistrict = user?.district ?? 'Ahmedabad';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: UrjaTheme.canvas,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Command Hub & Menu',
-          style: TextStyle(
-            color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.w900,
-            fontSize: 18,
-            letterSpacing: 0.5,
-          ),
-        ),
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Explore Urja'),
         leading: IconButton(
-          icon: const Icon(
-            Icons.close_rounded,
-            color: Color(0xFF0F172A),
-            size: 26,
-          ),
+          icon: const Icon(Icons.close_rounded, color: UrjaTheme.ink, size: 26),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -183,20 +167,15 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Colors.white, Color(0xFFF8FAFC)],
+                colors: [Color(0xFF286844), Color(0xFF123A29)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+              border: Border.all(color: const Color(0xFF9BC96B), width: 1.4),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0xFF051B0E),
-                  offset: Offset(0, 4),
-                  blurRadius: 0,
-                ),
-                BoxShadow(
-                  color: Colors.black45,
+                  color: Color(0x33172E20),
                   blurRadius: 16,
                   offset: Offset(0, 6),
                 ),
@@ -241,7 +220,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                                 child: Text(
                                   userName,
                                   style: const TextStyle(
-                                    color: const Color(0xFF0F172A),
+                                    color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -253,18 +232,16 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF22C55E,
-                                  ).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFFC9F27A),
+                                  borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: const Color(0xFF22C55E),
+                                    color: const Color(0xFFD8F99C),
                                   ),
                                 ),
                                 child: const Text(
-                                  'CITIZEN VERIFIED',
+                                  'GREEN CITIZEN',
                                   style: TextStyle(
-                                    color: const Color(0xFF15803D),
+                                    color: Color(0xFF183B28),
                                     fontSize: 9,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.5,
@@ -277,7 +254,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                           Text(
                             '$userWard Ward • $userDistrict (Gujarat)',
                             style: const TextStyle(
-                              color: const Color(0xFF15803D),
+                              color: Color(0xFFD5E9D1),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -423,50 +400,51 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black26,
+                    color: const Color(0xFFE0F2FE),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                    border: Border.all(color: const Color(0xFF7DD3FC)),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: _geofence.isOutsideGeofence
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF22C55E),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      (_geofence.isOutsideGeofence
-                                              ? const Color(0xFFEF4444)
-                                              : const Color(0xFF22C55E))
-                                          .withValues(alpha: 0.8),
-                                  blurRadius: 6,
-                                ),
-                              ],
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _geofence.isOutsideGeofence
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  (_geofence.isOutsideGeofence
+                                          ? const Color(0xFFEF4444)
+                                          : const Color(0xFF22C55E))
+                                      .withValues(alpha: 0.8),
+                              blurRadius: 6,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _geofence.isOutsideGeofence
-                                ? 'Status: Departed (> 300m)'
-                                : 'Status: Inside Home (${_geofence.currentDistanceMeters.toInt()}m)',
-                            style: const TextStyle(
-                              color: Color(0xFF0F172A),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _geofence.isOutsideGeofence
+                              ? 'Status: Departed (> 300m)'
+                              : 'Status: Inside Home (${_geofence.currentDistanceMeters.toInt()}m)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'Threshold: 300m',
+                        maxLines: 1,
                         style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 10,
@@ -627,13 +605,18 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
           _buildMenuTile(
             context,
             icon: '📊',
-            title: 'Senior Engineer Energy Dashboard',
+            title: 'Energy impact & utility data',
             subtitle:
-                '24-hour load curve, appliance consumption split & multi-domain CO₂e ledger',
+                'View saved readings and see which measurements are unavailable',
             accentColor: const Color(0xFF10B981),
             onTap: () {
               Navigator.pop(context);
-              CarbonDashboardSheet.show(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const CarbonImpactDashboardScreen(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 8),
@@ -652,18 +635,35 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
           const SizedBox(height: 8),
           _buildMenuTile(
             context,
+            icon: '🔌',
+            title: 'My household devices',
+            subtitle: 'Register devices and keep self-reported runtime logs',
+            accentColor: const Color(0xFF0F9D8A),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const RegisteredDevicesScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          _buildMenuTile(
+            context,
             icon: '📈',
-            title: 'Monthly Electricity Meter Tracker',
+            title: 'Electricity readings',
             subtitle:
-                'Analyze monthly DISCOM bill trends, units consumed & solar offset',
+                'Save and review your account-backed meter or bill readings',
             accentColor: const Color(0xFFFBBF24),
             onTap: () {
               Navigator.pop(context);
-              showModalBottomSheet(
-                context: context,
-                backgroundColor: Colors.transparent,
-                isScrollControlled: true,
-                builder: (ctx) => const MonthlyElectricityTrackerSheet(),
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const CitizenRecordsScreen(initialTab: 0),
+                ),
               );
             },
           ),
@@ -675,39 +675,53 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
           _buildMenuTile(
             context,
             icon: '💧',
-            title: 'Water Conservation & Timed Supply',
+            title: 'Water readings',
             subtitle:
-                'Municipal water schedules, overhead tank flow & RO wastewater reuse',
+                'Record and review citizen-entered household water readings',
             accentColor: const Color(0xFF0284C7),
             onTap: () {
               Navigator.pop(context);
-              WaterConservationSheet.show(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const CitizenRecordsScreen(initialTab: 0),
+                ),
+              );
             },
           ),
           const SizedBox(height: 8),
           _buildMenuTile(
             context,
             icon: '📱',
-            title: 'Household Appliance Registry',
-            subtitle:
-                'Manage normalized appliances (AC, refrigerator, geyser, induction)',
+            title: 'My household devices',
+            subtitle: 'Register devices and keep self-reported runtime logs',
             accentColor: const Color(0xFF10B981),
             onTap: () {
               Navigator.pop(context);
-              ApplianceRegistrySheet.show(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const RegisteredDevicesScreen(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 8),
           _buildMenuTile(
             context,
             icon: '🚴',
-            title: 'Green Commute & Electric BRTS',
+            title: 'Travel records',
             subtitle:
-                'Log bicycle trips, Metro rides & EV 2-wheeler charging habits',
+                'Save a confirmed trip summary without sharing GPS routes',
             accentColor: const Color(0xFFD97706),
             onTap: () {
               Navigator.pop(context);
-              CommuteTravelSheet.show(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const CitizenRecordsScreen(initialTab: 2),
+                ),
+              );
             },
           ),
           const SizedBox(height: 8),
@@ -781,10 +795,10 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
       child: Text(
         title,
         style: const TextStyle(
-          color: const Color(0xFF15803D),
-          fontSize: 11,
+          color: UrjaTheme.forest,
+          fontSize: 12,
           fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
+          letterSpacing: 0.8,
         ),
       ),
     );
@@ -807,13 +821,13 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: UrjaTheme.line),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x06000000),
+              color: Color(0x0C172E20),
               offset: Offset(0, 3),
-              blurRadius: 6,
+              blurRadius: 12,
             ),
           ],
         ),
@@ -823,9 +837,8 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: accentColor.withValues(alpha: 0.5)),
+                color: accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(15),
               ),
               child: Center(
                 child: Text(icon, style: const TextStyle(fontSize: 22)),
@@ -839,7 +852,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: UrjaTheme.ink,
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
                     ),
@@ -848,7 +861,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: const Color(0xFF15803D),
+                      color: UrjaTheme.muted,
                       fontSize: 11,
                       height: 1.3,
                     ),
@@ -857,11 +870,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: accentColor.withValues(alpha: 0.8),
-              size: 20,
-            ),
+            Icon(Icons.chevron_right_rounded, color: UrjaTheme.muted, size: 20),
           ],
         ),
       ),

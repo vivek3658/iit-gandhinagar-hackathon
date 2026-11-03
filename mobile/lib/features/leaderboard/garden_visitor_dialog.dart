@@ -62,7 +62,7 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
         _loadError = data == null
             ? 'This citizen garden is unavailable.'
             : null;
-        _cheersCount = (data?.citizen['cheersReceived'] as num?)?.toInt() ?? 0;
+        _cheersCount = data?.citizen.cheersReceived ?? 0;
       });
     } catch (error) {
       if (!mounted) return;
@@ -80,13 +80,13 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
       final result = await LeaderboardClientService.instance.cheerCitizen(
         widget.citizenId,
       );
-      final coins = (result['coinsEarned'] as num?)?.toInt() ?? 0;
-      final totalCheers = (result['totalCheersReceived'] as num?)?.toInt();
-      if (coins > 0) GameStateService.instance.addCoins(coins);
+      if (result.coinsEarned > 0) {
+        GameStateService.instance.addCoins(result.coinsEarned);
+      }
       if (!mounted) return;
       setState(() {
         _hasCheered = true;
-        if (totalCheers != null) _cheersCount = totalCheers;
+        _cheersCount = result.totalCheersReceived;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -101,7 +101,9 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Cheered ${widget.citizenName}! +$coins Urja Mudra coins added!',
+                  result.coinsEarned > 0
+                      ? 'Cheered ${widget.citizenName}! +${result.coinsEarned} Urja Mudra coins added!'
+                      : 'Cheered ${widget.citizenName}! Your support has been counted.',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -301,11 +303,11 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
   }
 
   Widget _buildMascotCard() {
-    final mascot = _visitorData?.mascot ?? {};
-    final name = mascot['name'] as String? ?? 'Piku';
-    final level = mascot['level'] as int? ?? 3;
-    final vitality = mascot['vitality'] as int? ?? 90;
-    final mood = mascot['mood'] as String? ?? 'HAPPY';
+    final mascot = _visitorData!.mascot;
+    final name = mascot.name;
+    final level = mascot.level;
+    final vitality = mascot.vitality;
+    final mood = mascot.mood;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -475,15 +477,20 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
   }
 
   Widget _buildStatsRow() {
-    final citizen = _visitorData?.citizen ?? {};
-    final co2 = (citizen['totalCo2SavedKg'] as num?)?.toDouble() ?? 48.2;
-    final streak = citizen['streakDays'] as int? ?? 14;
+    final citizen = _visitorData!.citizen;
 
     return Row(
       children: [
-        Expanded(child: _statPill('🌱 Total CO₂e Saved', '$co2 kg')),
+        Expanded(
+          child: _statPill(
+            '🌱 Total CO₂e Saved',
+            '${citizen.totalCo2SavedKg.toStringAsFixed(1)} kg',
+          ),
+        ),
         const SizedBox(width: 10),
-        Expanded(child: _statPill('🔥 LiFE Streak', '$streak days')),
+        Expanded(
+          child: _statPill('🔥 LiFE Streak', '${citizen.streakDays} days'),
+        ),
       ],
     );
   }

@@ -185,6 +185,29 @@ class AuthService extends ChangeNotifier {
   String? get lastSignInError => _lastSignInError;
   String? get lastAuthError => _lastSignInError;
 
+  Future<CitizenProfile> refreshProfile() async {
+    if (_isGuestMode) {
+      final guest = _currentUser;
+      if (guest == null) throw StateError('No signed-in citizen profile.');
+      return guest;
+    }
+
+    final response = await ApiClient.instance.get('/auth/me');
+    if (response.statusCode != HttpStatus.ok) {
+      throw HttpException(
+        'Could not refresh your profile (${response.statusCode}).',
+      );
+    }
+    final user = response.decodeJson()['user'];
+    if (user is! Map<String, dynamic>) {
+      throw const FormatException('Profile response is missing user data.');
+    }
+    _currentUser = CitizenProfile.fromJson(user);
+    _saveProfileToStorage();
+    notifyListeners();
+    return _currentUser!;
+  }
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: AuthConfig.googleAndroidClientId.isNotEmpty
         ? AuthConfig.googleAndroidClientId

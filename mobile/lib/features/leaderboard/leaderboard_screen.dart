@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../constants/urja_theme.dart';
 import '../../services/leaderboard_service.dart';
 import 'garden_visitor_dialog.dart';
 
@@ -10,10 +11,11 @@ class LeaderboardScreen extends StatefulWidget {
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
-class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTickerProviderStateMixin {
+class _LeaderboardScreenState extends State<LeaderboardScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Map<String, dynamic>? _leagueData;
-  Map<String, dynamic>? _globalData;
+  LeagueLeaderboardData? _leagueData;
+  GlobalLeaderboardData? _globalData;
   bool _isLoading = true;
   String? _loadError;
 
@@ -31,24 +33,36 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   }
 
   Future<void> _loadData() async {
-    setState(() { _isLoading = true; _loadError = null; });
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     try {
-      final league = await LeaderboardClientService.instance.getLeague();
-      final global = await LeaderboardClientService.instance.getGlobal();
+      final responses = await Future.wait<Object>([
+        LeaderboardClientService.instance.getLeague(),
+        LeaderboardClientService.instance.getGlobal(),
+      ]);
       if (!mounted) return;
-      setState(() { _leagueData = league; _globalData = global; _isLoading = false; });
+      setState(() {
+        _leagueData = responses[0] as LeagueLeaderboardData;
+        _globalData = responses[1] as GlobalLeaderboardData;
+        _isLoading = false;
+      });
     } catch (error) {
       if (!mounted) return;
-      setState(() { _loadError = error.toString().replaceFirst('Exception: ', ''); _isLoading = false; });
+      setState(() {
+        _loadError = error.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Clay nature dark backdrop
+      backgroundColor: UrjaTheme.canvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: UrjaTheme.canvas,
         elevation: 0,
         centerTitle: true,
         title: const Row(
@@ -78,7 +92,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                color: const Color(0xFF16A34A),
+                color: UrjaTheme.leaf,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: const [
                   BoxShadow(color: Color(0xFF14532D), offset: Offset(0, 2)),
@@ -87,7 +101,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
               indicatorSize: TabBarIndicatorSize.tab,
               labelColor: Colors.white,
               unselectedLabelColor: const Color(0xFF64748B),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
               tabs: const [
                 Tab(text: '🛡️ Weekly League'),
                 Tab(text: '🏛️ Gujarat Municipal'),
@@ -97,25 +114,50 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ADE80)))
+          ? const Center(
+              child: CircularProgressIndicator(color: UrjaTheme.leaf),
+            )
           : _loadError != null
-              ? Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off_rounded, color: Color(0xFF86EFAC), size: 44), const SizedBox(height: 12), Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)), const SizedBox(height: 14), FilledButton.icon(onPressed: _loadData, icon: const Icon(Icons.refresh_rounded), label: const Text('Try again'))])))
-              : TabBarView(
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      color: UrjaTheme.muted,
+                      size: 44,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _loadError!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: UrjaTheme.muted),
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: _loadData,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : TabBarView(
               controller: _tabController,
-              children: [
-                _buildLeagueTab(),
-                _buildMunicipalTab(),
-              ],
+              children: [_buildLeagueTab(), _buildMunicipalTab()],
             ),
     );
   }
 
   // ================= 1. DUOLINGO-STYLE WEEKLY LEAGUE TAB =================
   Widget _buildLeagueTab() {
-    final leagueName = _leagueData?['league'] as String? ?? 'BRONZE';
-    final seasonTimer = _leagueData?['seasonEndsAt'] as String? ?? '';
-    final rawMembers = (_leagueData?['members'] as List<dynamic>?) ?? [];
-    final members = rawMembers.map((m) => LeagueMemberData.fromJson(m as Map<String, dynamic>)).toList();
+    final league = _leagueData!;
+    final leagueName = league.league;
+    final seasonTimer = _seasonCountdown(league.seasonEndsAt);
+    final members = league.members;
 
     return RefreshIndicator(
       color: const Color(0xFF4ADE80),
@@ -136,7 +178,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
               boxShadow: const [
-                BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black45,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
               ],
             ),
             child: Row(
@@ -148,7 +194,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                     color: const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
                     ],
                   ),
                   child: const Center(
@@ -170,18 +220,30 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Top 3 advance to Sapphire League! ⚡',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                      Text(
+                        'Top 3 advance to ${_nextLeague(leagueName)}! ⚡',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFFFCD34D)),
+                          const Icon(
+                            Icons.timer_outlined,
+                            size: 14,
+                            color: Color(0xFFFCD34D),
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             seasonTimer,
-                            style: const TextStyle(color: Color(0xFFFCD34D), fontSize: 11, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                              color: Color(0xFFFCD34D),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),
@@ -193,32 +255,90 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
           ),
           const SizedBox(height: 16),
 
-          if (members.isEmpty)
-            _emptyLeaderboard('No verified league members yet', 'Your weekly league appears when the backend has real member activity.')
-          else ...[
-          // Promotion Zone Marker (Duolingo style)
-          _buildZoneHeader('🟢 PROMOTION ZONE (TOP 3 ADVANCE)', const Color(0xFF22C55E)),
-          const SizedBox(height: 6),
+          _yourLeagueRank(league),
+          const SizedBox(height: 12),
 
-          // Member List
-          for (int i = 0; i < members.length; i++) ...[
-            if (i == 3) ...[
-              const SizedBox(height: 6),
-              _buildZoneHeader('⚪ SAFE ZONE', Colors.white54),
-              const SizedBox(height: 6),
-            ],
-            if (i == 6) ...[
-              const SizedBox(height: 6),
-              _buildZoneHeader('🔻 DEMOTION ZONE (BOTTOM 3 DROP)', const Color(0xFFEF4444)),
-              const SizedBox(height: 6),
-            ],
-            _buildMemberRow(members[i]),
+          if (members.isEmpty)
+            _emptyLeaderboard(
+              'No weekly activity yet',
+              'Complete a learning chapter or sorting game to appear in this week’s standings.',
+            )
+          else ...[
+            // Promotion Zone Marker (Duolingo style)
+            _buildZoneHeader(
+              '🟢 PROMOTION ZONE (TOP 3 ADVANCE)',
+              const Color(0xFF22C55E),
+            ),
             const SizedBox(height: 6),
-          ],
+
+            // Member List
+            for (int i = 0; i < members.length; i++) ...[
+              if (i == 3) ...[
+                const SizedBox(height: 6),
+                _buildZoneHeader('⚪ SAFE ZONE', Colors.white54),
+                const SizedBox(height: 6),
+              ],
+              if (i == 6) ...[
+                const SizedBox(height: 6),
+                _buildZoneHeader(
+                  '🔻 DEMOTION ZONE (BOTTOM 3 DROP)',
+                  const Color(0xFFEF4444),
+                ),
+                const SizedBox(height: 6),
+              ],
+              _buildMemberRow(members[i]),
+              const SizedBox(height: 6),
+            ],
           ],
         ],
       ),
     );
+  }
+
+  Widget _yourLeagueRank(LeagueLeaderboardData league) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF7ED),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFC9E8CF)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.emoji_events_rounded, color: UrjaTheme.forest),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            league.yourRank > 0
+                ? 'Your rank: #${league.yourRank} of ${league.totalMembers}'
+                : 'Your rank appears after your first weekly activity',
+            style: const TextStyle(
+              color: UrjaTheme.forest,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  String _nextLeague(String league) => switch (league) {
+    'BRONZE' => 'Silver',
+    'SILVER' => 'Gold',
+    'GOLD' => 'Sapphire',
+    'SAPPHIRE' => 'Ruby',
+    'RUBY' => 'Diamond',
+    _ => 'Diamond',
+  };
+
+  String _seasonCountdown(String endsAt) {
+    final end = DateTime.tryParse(endsAt)?.toLocal();
+    if (end == null) return 'Season end unavailable';
+    final remaining = end.difference(DateTime.now());
+    if (remaining.isNegative) return 'Season ending';
+    if (remaining.inDays > 0) return '${remaining.inDays}d left';
+    if (remaining.inHours > 0) return '${remaining.inHours}h left';
+    return '${remaining.inMinutes}m left';
   }
 
   Widget _buildZoneHeader(String title, Color col) {
@@ -246,11 +366,39 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   }
 
   Widget _emptyLeaderboard(String title, String message) => Container(
-        margin: const EdgeInsets.symmetric(vertical: 18),
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E8F0))),
-        child: Column(children: [const Icon(Icons.eco_rounded, color: Color(0xFF16A34A), size: 34), const SizedBox(height: 10), Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w900, fontSize: 15)), const SizedBox(height: 6), Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, height: 1.4))]),
-      );
+    margin: const EdgeInsets.symmetric(vertical: 18),
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFE2E8F0)),
+    ),
+    child: Column(
+      children: [
+        const Icon(Icons.eco_rounded, color: Color(0xFF16A34A), size: 34),
+        const SizedBox(height: 10),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 12,
+            height: 1.4,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildMemberRow(LeagueMemberData member) {
     final isTop3 = member.rank <= 3;
@@ -276,7 +424,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             child: Text(
               '#${member.rank}',
               style: TextStyle(
-                color: isTop3 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                color: isTop3
+                    ? const Color(0xFFD97706)
+                    : const Color(0xFF64748B),
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
@@ -290,7 +440,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             decoration: BoxDecoration(
               color: isYou ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isYou ? const Color(0xFF86EFAC) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                color: isYou
+                    ? const Color(0xFF86EFAC)
+                    : const Color(0xFFCBD5E1),
+              ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -300,14 +454,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Center(
                         child: Text(
-                          member.gardenSnapshot['previewEmoji'] as String? ?? '🕊️',
+                          member.gardenSnapshot['previewEmoji'] as String? ??
+                              '🕊️',
                           style: const TextStyle(fontSize: 20),
                         ),
                       ),
                     )
                   : Center(
                       child: Text(
-                        member.gardenSnapshot['previewEmoji'] as String? ?? '🕊️',
+                        member.gardenSnapshot['previewEmoji'] as String? ??
+                            '🕊️',
                         style: const TextStyle(fontSize: 20),
                       ),
                     ),
@@ -328,7 +484,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isYou ? const Color(0xFF166534) : const Color(0xFF0F172A),
+                          color: isYou
+                              ? const Color(0xFF166534)
+                              : const Color(0xFF0F172A),
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
                         ),
@@ -337,14 +495,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                     if (isYou) ...[
                       const SizedBox(width: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF16A34A),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
                           'YOU',
-                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ],
@@ -355,12 +520,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                   children: [
                     Text(
                       member.district,
-                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 11,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       '• 🔥 ${member.streakDays}d streak',
-                      style: const TextStyle(color: Color(0xFFF97316), fontSize: 11, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: Color(0xFFF97316),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -368,12 +540,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             ),
           ),
 
-          // Weekly EXP
+          // Weekly coins earned
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${member.weeklyExp} XP',
+                '🪙 ${member.weeklyCoins}',
                 style: const TextStyle(
                   color: Color(0xFF15803D),
                   fontWeight: FontWeight.w900,
@@ -395,7 +567,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                 },
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0x334ADE80),
                     borderRadius: BorderRadius.circular(8),
@@ -404,9 +579,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Visit', style: TextStyle(color: Color(0xFF86EFAC), fontSize: 10, fontWeight: FontWeight.w800)),
+                      Text(
+                        'Visit',
+                        style: TextStyle(
+                          color: Color(0xFF86EFAC),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       SizedBox(width: 2),
-                      Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF86EFAC), size: 9),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Color(0xFF86EFAC),
+                        size: 9,
+                      ),
                     ],
                   ),
                 ),
@@ -420,9 +606,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
 
   // ================= 2. GUJARAT MUNICIPAL TAB =================
   Widget _buildMunicipalTab() {
-    final rawDistricts = (_globalData?['municipalRankings'] as List<dynamic>?) ?? [];
-    final districts = rawDistricts.map((d) => MunicipalRankData.fromJson(d as Map<String, dynamic>)).toList();
-    final topCitizens = (_globalData?['topCitizens'] as List<dynamic>?) ?? [];
+    final global = _globalData!;
+    final districts = global.municipalRankings;
+    final topCitizens = global.topCitizens;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -431,7 +617,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         const Text(
           'GUJARAT MUNICIPAL DISTRICTS',
           style: TextStyle(
-            color: Colors.white54,
+            color: UrjaTheme.muted,
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
@@ -440,7 +626,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         const SizedBox(height: 10),
 
         if (districts.isEmpty && topCitizens.isEmpty)
-          _emptyLeaderboard('No verified rankings yet', 'Rankings appear here after real citizen activity is collected by the backend.'),
+          _emptyLeaderboard(
+            'No verified rankings yet',
+            'Rankings appear here after real citizen activity is collected by the backend.',
+          ),
         for (final dist in districts) ...[
           _buildDistrictCard(dist),
           const SizedBox(height: 8),
@@ -450,7 +639,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         const Text(
           'TOP 100 ALL-TIME CITIZENS',
           style: TextStyle(
-            color: Colors.white54,
+            color: UrjaTheme.muted,
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
@@ -458,8 +647,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         ),
         const SizedBox(height: 10),
 
-        for (final cit in topCitizens) ...[
-          _buildTopCitizenCard(cit as Map<String, dynamic>),
+        for (final citizen in topCitizens) ...[
+          _buildTopCitizenCard(citizen),
           const SizedBox(height: 8),
         ],
       ],
@@ -490,7 +679,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             child: Center(
               child: Text(
                 '#${dist.rank}',
-                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),
@@ -501,12 +694,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
               children: [
                 Text(
                   dist.district,
-                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 15, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${dist.activeCitizens} citizens • ${dist.primaryEnergyMode}',
-                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -516,11 +716,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             children: [
               Text(
                 '${dist.totalCo2SavedTonnes} T',
-                style: const TextStyle(color: Color(0xFF16A34A), fontSize: 15, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  color: Color(0xFF16A34A),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const Text(
                 'CO₂e avoided',
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -529,14 +737,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     );
   }
 
-  Widget _buildTopCitizenCard(Map<String, dynamic> cit) {
-    final rank = cit['rank'] as int? ?? 1;
-    final name = cit['name'] as String? ?? 'Citizen';
-    final district = cit['district'] as String? ?? 'Gujarat';
-    final co2 = (cit['totalCo2SavedKg'] as num?)?.toDouble() ?? 100.0;
-    final badge = cit['badgeTitle'] as String? ?? 'Eco Guardian';
-    final avatarUrl = cit['avatarUrl'] as String?;
-
+  Widget _buildTopCitizenCard(GlobalCitizenRankData citizen) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -544,21 +745,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
         children: [
           Text(
-            rank == 1 ? '🥇' : (rank == 2 ? '🥈' : '🥉'),
+            citizen.rank == 1
+                ? '🥇'
+                : citizen.rank == 2
+                ? '🥈'
+                : citizen.rank == 3
+                ? '🥉'
+                : '#${citizen.rank}',
             style: const TextStyle(fontSize: 22),
           ),
           const SizedBox(width: 10),
-          if (avatarUrl != null && avatarUrl.isNotEmpty) ...[
+          if (citizen.avatarUrl?.isNotEmpty ?? false) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
-                avatarUrl,
+                citizen.avatarUrl!,
                 width: 32,
                 height: 32,
                 fit: BoxFit.cover,
@@ -572,19 +783,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
-                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 14),
+                  citizen.name,
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
                 ),
                 Text(
-                  '$district • $badge',
-                  style: const TextStyle(color: Color(0xFFB45309), fontSize: 11, fontWeight: FontWeight.w600),
+                  '${citizen.district} • Lv ${citizen.mascotLevel} · ${citizen.badgeTitle}',
+                  style: const TextStyle(
+                    color: Color(0xFFB45309),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
-            '$co2 kg CO₂e',
-            style: const TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.w800, fontSize: 13),
+            '${citizen.totalCo2SavedKg.toStringAsFixed(1)} kg CO₂e',
+            style: const TextStyle(
+              color: Color(0xFF16A34A),
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
           ),
         ],
       ),

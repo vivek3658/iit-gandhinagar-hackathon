@@ -155,14 +155,14 @@ export class LeaderboardService {
     const [minimumLevel, maximumLevel] = bands[league];
     const result = await this.db.query(
       `WITH activity AS (
-         SELECT user_id, SUM(weekly_exp)::integer AS weekly_exp
+         SELECT user_id, SUM(weekly_coins)::integer AS weekly_coins
          FROM (
-           SELECT user_id, SUM(coin_reward) AS weekly_exp
+           SELECT user_id, SUM(coin_reward) AS weekly_coins
            FROM public.chapter_completions
            WHERE completed_at >= date_trunc('week', NOW())
            GROUP BY user_id
            UNION ALL
-           SELECT user_id, SUM(coin_reward) AS weekly_exp
+           SELECT user_id, SUM(coin_reward) AS weekly_coins
            FROM public.waste_game_sessions
            WHERE created_at >= date_trunc('week', NOW())
            GROUP BY user_id
@@ -174,7 +174,7 @@ export class LeaderboardService {
               COALESCE(m.name, 'Chirpy') AS mascot_name,
               COALESCE(m.vitality, 85)::integer AS vitality,
               COALESCE(m.equipped, '{}'::jsonb) AS equipped,
-              COALESCE(a.weekly_exp, 0)::integer AS weekly_exp,
+              COALESCE(a.weekly_coins, 0)::integer AS weekly_coins,
               COALESCE((
                 SELECT d.streak_days FROM public.daily_quests d
                 WHERE d.user_id = u.id AND d.quest_date >= CURRENT_DATE - 1
@@ -186,9 +186,9 @@ export class LeaderboardService {
        LEFT JOIN public.citizen_mascots m ON m.user_id = u.id
        LEFT JOIN public.citizen_gardens g ON g.user_id = u.id
        WHERE u.deleted_at IS NULL
-         AND a.weekly_exp > 0
+         AND a.weekly_coins > 0
          AND COALESCE(m.level, 1) BETWEEN $1 AND $2
-       ORDER BY a.weekly_exp DESC, u.id
+       ORDER BY a.weekly_coins DESC, u.id
        LIMIT 100`,
       [minimumLevel, maximumLevel],
     );
@@ -207,7 +207,7 @@ export class LeaderboardService {
       });
       const equipped = typeof row.equipped === 'string' ? JSON.parse(row.equipped) : row.equipped;
       const mascotLevel = Number(row.mascot_level);
-      const currentExp = Number(row.weekly_exp);
+      const weeklyCoins = Number(row.weekly_coins);
       const status: LeagueMember['status'] =
         index < 3 ? 'PROMOTING' : result.rows.length > 5 && index >= result.rows.length - 2 ? 'DEMOTING' : 'SAFE';
       return {
@@ -216,7 +216,7 @@ export class LeaderboardService {
         name: String(row.name),
         avatarUrl: row.avatar_url ?? null,
         district: String(row.district),
-        weeklyExp: currentExp,
+        weeklyCoins,
         streakDays: Number(row.streak_days),
         status,
         isCurrentUser: String(row.id) === userId,
@@ -293,6 +293,10 @@ export class LeaderboardService {
               COALESCE(m.current_exp, 0)::integer AS current_exp,
               COALESCE(g.placed_tiles, '[]'::jsonb) AS placed_tiles,
               COALESCE((
+                SELECT COUNT(*) FROM public.citizen_cheers c
+                WHERE c.host_id = u.id
+              ), 0)::integer AS cheers_received,
+              COALESCE((
                 SELECT d.streak_days FROM public.daily_quests d
                 WHERE d.user_id = u.id AND d.quest_date >= CURRENT_DATE - 1
                 ORDER BY d.quest_date DESC LIMIT 1
@@ -328,6 +332,7 @@ export class LeaderboardService {
         ward: String(row.ward),
         streakDays: Number(row.streak_days),
         totalCo2SavedKg: Number(row.current_exp) / 100,
+        cheersReceived: Number(row.cheers_received),
       },
       mascot: {
         name: String(row.mascot_name),
