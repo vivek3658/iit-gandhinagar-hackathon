@@ -46,7 +46,9 @@ class _InitialRouteScreenState extends State<_InitialRouteScreen> {
   @override
   void initState() {
     super.initState();
-    _restoreAndRoute();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _restoreAndRoute();
+    });
   }
 
   Future<void> _restoreAndRoute() async {

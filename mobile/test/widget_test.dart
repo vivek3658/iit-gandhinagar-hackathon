@@ -9,6 +9,18 @@ import 'package:urja/main.dart';
 void main() {
   setUp(() {});
 
+  testWidgets(
+    'fresh launch leaves the splash screen without locking navigation',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const UrjaApp());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.text('MAKE EVERYDAY CHOICES COUNT'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('new citizens see three welcome screens before Google sign-in', (
     WidgetTester tester,
   ) async {
