@@ -119,6 +119,29 @@ export class LearningService {
     }));
   }
 
+  public async getProgress(userId: string): Promise<{ chapterId: string; version: number }[]> {
+    if (!this.db) {
+      this.requireTestMemory();
+      const completed = LearningService.testCompletions.get(userId) ?? new Set<string>();
+      return CHAPTERS.filter((chapter) =>
+        completed.has(`${userId}:${chapter.id}:${chapter.version}`),
+      ).map(({ id, version }) => ({ chapterId: id, version }));
+    }
+
+    await this.ensureSchema();
+    const result = await this.db.query(
+      `SELECT chapter_id, chapter_version
+       FROM chapter_completions
+       WHERE user_id = $1
+       ORDER BY completed_at`,
+      [userId],
+    );
+    return result.rows.map((row) => ({
+      chapterId: String(row.chapter_id),
+      version: Number(row.chapter_version),
+    }));
+  }
+
   public getWasteCatalog() {
     return {
       buckets: WASTE_BUCKETS,

@@ -52,6 +52,14 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
     );
   }
 
+  void _openAddReading() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CitizenRecordsScreen(openAddReading: true),
+      ),
+    );
+  }
+
   void _openImpact() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -79,6 +87,7 @@ class _MainTwoScreenShellState extends State<MainTwoScreenShell> {
       onOpenActivity: _openActivity,
       onOpenSettings: _openSettings,
       onOpenRecords: _openRecords,
+      onAddReading: _openAddReading,
       onOpenImpact: _openImpact,
       onOpenDeviceLog: _openDeviceLog,
       onOpenRegisteredDevices: _openRegisteredDevices,

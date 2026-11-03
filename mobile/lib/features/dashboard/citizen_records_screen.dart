@@ -4,9 +4,14 @@ import '../../constants/urja_theme.dart';
 import '../../services/citizen_data_service.dart';
 
 class CitizenRecordsScreen extends StatefulWidget {
-  const CitizenRecordsScreen({this.initialTab = 0, super.key});
+  const CitizenRecordsScreen({
+    this.initialTab = 0,
+    this.openAddReading = false,
+    super.key,
+  });
 
   final int initialTab;
+  final bool openAddReading;
 
   @override
   State<CitizenRecordsScreen> createState() => _CitizenRecordsScreenState();
@@ -30,6 +35,11 @@ class _CitizenRecordsScreenState extends State<CitizenRecordsScreen>
       vsync: this,
     );
     _load();
+    if (widget.openAddReading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _addReading();
+      });
+    }
   }
 
   @override
@@ -111,7 +121,7 @@ class _CitizenRecordsScreenState extends State<CitizenRecordsScreen>
                       utility = value;
                       unit = switch (value) {
                         'ELECTRICITY' => 'kWh',
-                        'WATER' => 'litre',
+                        'WATER' => 'L',
                         _ => 'kg',
                       };
                     });

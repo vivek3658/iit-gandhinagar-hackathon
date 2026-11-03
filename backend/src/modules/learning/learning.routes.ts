@@ -4,6 +4,7 @@ import {
   CompleteChapterBodySchema,
   CompleteChapterResponseSchema,
   LearningChaptersResponseSchema,
+  LearningProgressResponseSchema,
   WasteGameCatalogResponseSchema,
   WasteGameResultSchema,
   WasteGameSubmissionSchema,
@@ -25,6 +26,21 @@ export const learningRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (_request, reply) => reply.send({ chapters: service.getChapters() }),
+  );
+
+  app.get(
+    '/progress',
+    {
+      preHandler: authenticated,
+      schema: {
+        tags: ['Learning & Waste Game'],
+        security: [{ bearerAuth: [] }],
+        summary: 'List the authenticated citizen’s completed chapter versions',
+        response: { 200: LearningProgressResponseSchema },
+      },
+    },
+    async (request, reply) =>
+      reply.send({ completions: await service.getProgress(request.user.id) }),
   );
 
   app.post(

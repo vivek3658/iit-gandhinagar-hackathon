@@ -11,6 +11,7 @@ class CitizenHomeScreen extends StatefulWidget {
     required this.onOpenActivity,
     required this.onOpenSettings,
     required this.onOpenRecords,
+    required this.onAddReading,
     required this.onOpenImpact,
     required this.onOpenDeviceLog,
     required this.onOpenRegisteredDevices,
@@ -23,6 +24,7 @@ class CitizenHomeScreen extends StatefulWidget {
   final VoidCallback onOpenActivity;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenRecords;
+  final VoidCallback onAddReading;
   final VoidCallback onOpenImpact;
   final VoidCallback onOpenDeviceLog;
   final VoidCallback onOpenRegisteredDevices;
@@ -90,7 +92,7 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
         content: Text(
           'You are confirming that you completed “${quest.title}” today. '
           'This is self-reported, not independently verified. '
-          'The reward is Green Coins; no CO₂ reduction is recorded by this claim.',
+          'The reward is Green Coins; no CO₂ reduction is credited. Eligible saved trip logs may add a clearly labeled estimate to your city league.',
         ),
         actions: [
           TextButton(
@@ -114,6 +116,8 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
       if (!mounted) return;
       final coins =
           (result['coinsAwarded'] as num?)?.toInt() ?? quest.coinReward;
+      final estimatedCo2eKg =
+          (result['estimatedCo2eKg'] as num?)?.toDouble() ?? 0;
       try {
         await AuthService.instance.refreshProfile();
       } catch (error) {
@@ -129,7 +133,13 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('+$coins Green Coins added to your account.')),
+        SnackBar(
+          content: Text(
+            estimatedCo2eKg > 0
+                ? '+$coins Green Coins; ${estimatedCo2eKg.toStringAsFixed(2)} kg estimated CO₂e added to this week’s city league.'
+                : '+$coins Green Coins added to your account.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -186,7 +196,7 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'URJA',
+                        'YOUR DASHBOARD',
                         style: TextStyle(
                           color: UrjaTheme.forest,
                           fontSize: 11,
@@ -225,6 +235,12 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
               firstName: firstName,
               isGuest: isGuest,
               streakDays: _quests?.streakDays,
+            ),
+            const SizedBox(height: 16),
+            _DashboardActions(
+              onLearn: widget.onOpenLearning,
+              onAddReading: widget.onAddReading,
+              onLeaderboard: widget.onOpenCommunity,
             ),
             const SizedBox(height: 22),
             _sectionTitle(
@@ -371,6 +387,87 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
       ),
     );
   }
+}
+
+class _DashboardActions extends StatelessWidget {
+  const _DashboardActions({
+    required this.onLearn,
+    required this.onAddReading,
+    required this.onLeaderboard,
+  });
+
+  final VoidCallback onLearn;
+  final VoidCallback onAddReading;
+  final VoidCallback onLeaderboard;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _DashboardAction(
+          icon: Icons.route_rounded,
+          label: 'Chapters',
+          onTap: onLearn,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: _DashboardAction(
+          icon: Icons.add_chart_rounded,
+          label: 'Add reading',
+          onTap: onAddReading,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: _DashboardAction(
+          icon: Icons.emoji_events_rounded,
+          label: 'Leaderboard',
+          onTap: onLeaderboard,
+        ),
+      ),
+    ],
+  );
+}
+
+class _DashboardAction extends StatelessWidget {
+  const _DashboardAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 5),
+        child: Column(
+          children: [
+            Icon(icon, color: UrjaTheme.forest, size: 21),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: UrjaTheme.ink,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 Widget _roundIconButton(

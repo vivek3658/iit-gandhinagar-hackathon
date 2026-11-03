@@ -58,6 +58,24 @@ describe('Citizen readings, vehicles, and confirmed trips', () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it('accepts the supported litre unit for water readings', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/readings',
+      headers: { authorization: 'Bearer ' + token },
+      payload: {
+        utility: 'WATER',
+        value: 850,
+        unit: 'L',
+        periodStart: '2026-10-01',
+        periodEnd: '2026-10-31',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(JSON.parse(response.payload).reading.unit).toBe('L');
+  });
+
   it('persists user-entered vehicles and accepts confirmed trip summaries idempotently', async () => {
     const vehicleResponse = await app.inject({
       method: 'POST',

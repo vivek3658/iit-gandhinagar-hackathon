@@ -111,6 +111,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Your green day'), findsOneWidget);
+    expect(find.text('YOUR DASHBOARD'), findsOneWidget);
+    expect(find.text('Chapters'), findsOneWidget);
+    expect(find.text('Add reading'), findsOneWidget);
+    expect(find.text('Leaderboard'), findsOneWidget);
     expect(find.text('Your progress'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('My devices'),

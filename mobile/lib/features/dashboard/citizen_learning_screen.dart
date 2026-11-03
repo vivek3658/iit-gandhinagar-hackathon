@@ -15,6 +15,7 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   List<LearningChapter> _chapters = [];
+  Set<String> _completedVersions = {};
   WasteGameCatalog? _catalog;
   final Map<String, String> _answers = {};
   bool _loading = true;
@@ -42,12 +43,15 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
     try {
       final values = await Future.wait([
         LearningService.instance.getChapters(),
+        LearningService.instance.getProgress(),
         LearningService.instance.getWasteGameCatalog(),
       ]);
       if (!mounted) return;
-      final catalog = values[1] as WasteGameCatalog;
+      final progress = values[1] as LearningProgress;
+      final catalog = values[2] as WasteGameCatalog;
       setState(() {
         _chapters = values[0] as List<LearningChapter>;
+        _completedVersions = progress.completedVersions;
         _catalog = catalog;
         _answers.removeWhere(
           (itemId, bucketId) =>
@@ -70,63 +74,88 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                chapter.title,
-                style: const TextStyle(
-                  color: UrjaTheme.ink,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
+      builder: (context) {
+        String? selectedAnswer;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
               ),
-              const SizedBox(height: 8),
-              Text(
-                chapter.summary,
-                style: const TextStyle(
-                  color: UrjaTheme.muted,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                chapter.question,
-                style: const TextStyle(
-                  color: UrjaTheme.ink,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              for (final option in chapter.options)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Card(
-                    child: ListTile(
-                      title: Text(option.label),
-                      trailing: const Icon(Icons.arrow_forward_rounded),
-                      onTap: () => Navigator.pop(context, option.id),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chapter.title,
+                    style: const TextStyle(
+                      color: UrjaTheme.ink,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                ),
-              const SizedBox(height: 5),
-              Text(
-                'Reward: up to ${chapter.coinReward} Green Coins · once per chapter version',
-                style: const TextStyle(
-                  color: UrjaTheme.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    chapter.summary,
+                    style: const TextStyle(
+                      color: UrjaTheme.muted,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    chapter.question,
+                    style: const TextStyle(
+                      color: UrjaTheme.ink,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  for (final option in chapter.options)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Card(
+                        color: selectedAnswer == option.id
+                            ? UrjaTheme.mint
+                            : Colors.white,
+                        child: RadioListTile<String>(
+                          value: option.id,
+                          groupValue: selectedAnswer,
+                          title: Text(option.label),
+                          onChanged: (value) =>
+                              setSheetState(() => selectedAnswer = value),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Reward: ${chapter.coinReward} Green Coins · awarded once per chapter version',
+                    style: const TextStyle(
+                      color: UrjaTheme.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: selectedAnswer == null
+                          ? null
+                          : () => Navigator.pop(context, selectedAnswer),
+                      child: const Text('Check answer'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
     if (answerId == null) return;
     try {
@@ -153,6 +182,9 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
                 : 'Chapter complete · +$awarded Green Coins.$balanceNote',
           ),
         ),
+      );
+      setState(
+        () => _completedVersions.add('${chapter.id}:${chapter.version}'),
       );
     } catch (error) {
       if (!mounted) return;
@@ -263,32 +295,88 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
             'Learning content will appear when it is published by the server.',
       );
     }
+    final completedCount = _chapters
+        .where((chapter) => _isChapterCompleted(chapter))
+        .length;
+    final currentIndex = _chapters.indexWhere(
+      (chapter) => !_isChapterCompleted(chapter),
+    );
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
         children: [
           const _LearningHero(
             icon: Icons.menu_book_rounded,
-            title: 'Learn something useful',
+            title: 'Your learning trail',
             message:
-                'Short lessons from the URJA content service. Rewards are granted once for each chapter version.',
+                'Follow each short chapter, answer its quiz, and earn Green Coins as you go.',
           ),
           const SizedBox(height: 14),
-          for (var index = 0; index < _chapters.length; index++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _ChapterCard(
-                chapter: _chapters[index],
-                number: index + 1,
-                onTap: () => _answerChapter(_chapters[index]),
+          _ChapterProgressCard(
+            completed: completedCount,
+            total: _chapters.length,
+          ),
+          const SizedBox(height: 18),
+          for (var index = 0; index < _chapters.length; index++) ...[
+            Align(
+              alignment: index.isEven
+                  ? Alignment.centerLeft
+                  : Alignment.centerRight,
+              child: FractionallySizedBox(
+                widthFactor: 0.88,
+                child: _ChapterCard(
+                  chapter: _chapters[index],
+                  number: index + 1,
+                  isCompleted: _isChapterCompleted(_chapters[index]),
+                  isCurrent: currentIndex == index,
+                  isLocked: currentIndex >= 0 && index > currentIndex,
+                  onTap: () {
+                    if (currentIndex >= 0 && index > currentIndex) {
+                      _showMessage(
+                        'Complete the previous chapter to unlock this one.',
+                      );
+                      return;
+                    }
+                    _answerChapter(_chapters[index]);
+                  },
+                ),
               ),
             ),
+            if (index < _chapters.length - 1)
+              Align(
+                alignment: index.isEven
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index.isEven ? 28 : 0,
+                    left: index.isEven ? 0 : 28,
+                    top: 3,
+                    bottom: 3,
+                  ),
+                  child: Icon(
+                    Icons.south_rounded,
+                    size: 25,
+                    color: UrjaTheme.leaf.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+          ],
+          const SizedBox(height: 8),
+          const Text(
+            'Chapter rewards are credited once per published chapter version.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: UrjaTheme.muted, fontSize: 11),
+          ),
         ],
       ),
     );
   }
+
+  bool _isChapterCompleted(LearningChapter chapter) =>
+      _completedVersions.contains('${chapter.id}:${chapter.version}');
 
   Widget _buildWasteGame() {
     final catalog = _catalog;
@@ -420,80 +508,192 @@ class _ChapterCard extends StatelessWidget {
   const _ChapterCard({
     required this.chapter,
     required this.number,
+    required this.isCompleted,
+    required this.isCurrent,
+    required this.isLocked,
     required this.onTap,
   });
 
   final LearningChapter chapter;
   final int number;
+  final bool isCompleted;
+  final bool isCurrent;
+  final bool isLocked;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Padding(
-        padding: const EdgeInsets.all(15),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: UrjaTheme.mint,
-                borderRadius: BorderRadius.circular(14),
+  Widget build(BuildContext context) {
+    final stateColor = isLocked ? UrjaTheme.muted : UrjaTheme.forest;
+    final stateLabel = isCompleted
+        ? 'COMPLETED'
+        : isLocked
+        ? 'LOCKED'
+        : isCurrent
+        ? 'YOUR NEXT CHAPTER'
+        : 'REPLAY CHAPTER';
+    return Card(
+      color: isCurrent ? const Color(0xFFF0F9F1) : Colors.white,
+      elevation: isCurrent ? 3 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(
+          color: isCurrent ? UrjaTheme.leaf : UrjaTheme.line,
+          width: isCurrent ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? UrjaTheme.leaf
+                      : isLocked
+                      ? const Color(0xFFF0F1F2)
+                      : UrjaTheme.mint,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  isCompleted
+                      ? Icons.check_rounded
+                      : isLocked
+                      ? Icons.lock_rounded
+                      : Icons.eco_rounded,
+                  color: isCompleted ? Colors.white : stateColor,
+                ),
               ),
-              child: Text(
-                number.toString().padLeft(2, '0'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CHAPTER $number · $stateLabel',
+                      style: TextStyle(
+                        color: stateColor,
+                        fontSize: 9,
+                        letterSpacing: 0.6,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      chapter.title,
+                      style: TextStyle(
+                        color: isLocked ? UrjaTheme.muted : UrjaTheme.ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      chapter.summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: UrjaTheme.muted,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      '+${chapter.coinReward} Green Coins',
+                      style: const TextStyle(
+                        color: UrjaTheme.leaf,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                isCompleted
+                    ? Icons.replay_rounded
+                    : isLocked
+                    ? Icons.lock_outline_rounded
+                    : Icons.arrow_forward_rounded,
+                color: stateColor,
+                size: 19,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChapterProgressCard extends StatelessWidget {
+  const _ChapterProgressCard({required this.completed, required this.total});
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total == 0 ? 0.0 : completed / total;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: UrjaTheme.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.route_rounded,
+                color: UrjaTheme.forest,
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$completed of $total chapters complete',
+                  style: const TextStyle(
+                    color: UrjaTheme.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '${(progress * 100).round()}%',
                 style: const TextStyle(
                   color: UrjaTheme.forest,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: UrjaTheme.mint,
+              valueColor: const AlwaysStoppedAnimation<Color>(UrjaTheme.leaf),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    chapter.title,
-                    style: const TextStyle(
-                      color: UrjaTheme.ink,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    chapter.summary,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: UrjaTheme.muted,
-                      fontSize: 11,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    '+${chapter.coinReward} Green Coins',
-                    style: const TextStyle(
-                      color: UrjaTheme.leaf,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: UrjaTheme.muted),
-          ],
-        ),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _WasteItemCard extends StatelessWidget {

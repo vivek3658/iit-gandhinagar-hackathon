@@ -1,9 +1,13 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type { ClaimQuestResponse, DailyQuestsResponse, QuestTask } from './quests.schema';
 
 export class QuestRuleError extends Error {}
 
-function isQuestTask(value: unknown): value is QuestTask {
+type StoredQuestTask = Omit<QuestTask, 'estimatedCo2eKg'> & {
+  estimatedCo2eKg?: number;
+};
+
+function isQuestTask(value: unknown): value is StoredQuestTask {
   if (typeof value !== 'object' || value === null) return false;
   const task = value as Record<string, unknown>;
   return (
@@ -12,6 +16,7 @@ function isQuestTask(value: unknown): value is QuestTask {
     typeof task.description === 'string' &&
     ['ENERGY', 'WATER', 'COMMUTE', 'LIFESTYLE'].includes(String(task.category)) &&
     typeof task.coinReward === 'number' &&
+    (task.estimatedCo2eKg === undefined || typeof task.estimatedCo2eKg === 'number') &&
     typeof task.isCompleted === 'boolean' &&
     typeof task.isClaimed === 'boolean' &&
     typeof task.icon === 'string'
@@ -33,6 +38,7 @@ export class QuestsService {
         description: 'Keep bedroom air conditioner at 24°C with a 4-hour timer overnight.',
         category: 'ENERGY',
         co2SavedKg: 0,
+        estimatedCo2eKg: 0,
         coinReward: 20,
         xpReward: 0,
         isCompleted: false,
@@ -46,6 +52,7 @@ export class QuestsService {
           'Switch off idle chargers, set-top boxes, and microwave displays at wall sockets.',
         category: 'ENERGY',
         co2SavedKg: 0,
+        estimatedCo2eKg: 0,
         coinReward: 15,
         xpReward: 0,
         isCompleted: false,
@@ -54,10 +61,11 @@ export class QuestsService {
       },
       {
         id: 'q_green_commute',
-        title: 'Zero-Emission Urban Trip',
-        description: 'Record a walk, bicycle trip, or electric bus ride for errands today.',
+        title: 'Low-Carbon Urban Trip',
+        description: 'Save a user-confirmed walk, bicycle, or public transit trip for errands today.',
         category: 'COMMUTE',
         co2SavedKg: 0,
+        estimatedCo2eKg: 0,
         coinReward: 25,
         xpReward: 0,
         isCompleted: false,
@@ -70,6 +78,7 @@ export class QuestsService {
         description: 'Soak lentils or chickpeas for 30 minutes before stove cooking to save gas.',
         category: 'LIFESTYLE',
         co2SavedKg: 0,
+        estimatedCo2eKg: 0,
         coinReward: 15,
         xpReward: 0,
         isCompleted: false,
@@ -83,6 +92,7 @@ export class QuestsService {
           'Water your sacred Tulsi or balcony garden using harvested AC condensation water.',
         category: 'WATER',
         co2SavedKg: 0,
+        estimatedCo2eKg: 0,
         coinReward: 15,
         xpReward: 0,
         isCompleted: false,
@@ -184,6 +194,7 @@ export class QuestsService {
 
       const quests = this.parseQuests(row.quests);
       const quest = this.getClaimableQuest(quests, questId);
+      quest.estimatedCo2eKg = await this.estimateCommuteQuestCo2e(client, userId, date, quest);
       quest.isCompleted = true;
       quest.isClaimed = true;
 
@@ -273,9 +284,14 @@ export class QuestsService {
       if (!isQuestTask(item)) {
         throw new Error('Invalid daily quest record returned from PostgreSQL');
       }
+      const task = item as Omit<QuestTask, 'estimatedCo2eKg'> & {
+        estimatedCo2eKg?: number;
+      };
       return {
-        ...item,
+        ...task,
         co2SavedKg: 0,
+        estimatedCo2eKg:
+          typeof task.estimatedCo2eKg === 'number' ? task.estimatedCo2eKg : 0,
         xpReward: 0,
       };
     });
@@ -303,15 +319,45 @@ export class QuestsService {
   }
 
   private claimResponse(quest: QuestTask, streakDays: number): ClaimQuestResponse {
+    const estimateMessage =
+      quest.estimatedCo2eKg > 0
+        ? ` Estimated ${quest.estimatedCo2eKg.toFixed(2)} kg CO₂e from user-confirmed trip logs; this is not verified or credited impact.`
+        : '';
     return {
       success: true,
       coinsAwarded: quest.coinReward,
       xpAwarded: 0,
       impactCreditedKg: 0,
+      estimatedCo2eKg: quest.estimatedCo2eKg,
       evidenceTier: 'SELF_REPORTED',
       newMascotVitality: null,
       streakDays,
-      message: `Recorded "${quest.title}" as self-reported. +${quest.coinReward} Green Coins; no CO₂e or mascot XP was credited.`,
+      message: `Recorded "${quest.title}" as self-reported. +${quest.coinReward} Green Coins; no CO₂e or mascot XP was credited.${estimateMessage}`,
     };
+  }
+
+  private async estimateCommuteQuestCo2e(
+    client: PoolClient,
+    userId: string,
+    date: string,
+    quest: QuestTask,
+  ): Promise<number> {
+    if (quest.id !== 'q_green_commute') return 0;
+    const result = await client.query(
+      `SELECT COALESCE(SUM(distance_km * CASE mode
+                WHEN 'WALK' THEN 0.14
+                WHEN 'BICYCLE' THEN 0.14
+                WHEN 'PUBLIC_TRANSIT' THEN 0.085
+                ELSE 0
+              END), 0)::numeric AS estimated_co2e_kg
+       FROM public.confirmed_trips
+       WHERE user_id = $1
+         AND started_at >= ($2::date::timestamp AT TIME ZONE 'UTC')
+         AND started_at < (($2::date + INTERVAL '1 day')::timestamp AT TIME ZONE 'UTC')
+         AND mode IN ('WALK', 'BICYCLE', 'PUBLIC_TRANSIT')`,
+      [userId, date],
+    );
+    const estimate = Number(result.rows[0]?.estimated_co2e_kg ?? 0);
+    return Number.isFinite(estimate) && estimate > 0 ? Math.round(estimate * 100) / 100 : 0;
   }
 }

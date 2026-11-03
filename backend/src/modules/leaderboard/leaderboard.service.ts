@@ -127,23 +127,54 @@ export class LeaderboardService {
     await ready;
   }
 
-  public async getLeagueLeaderboard(userId: string): Promise<LeagueLeaderboardResponse> {
+  public async getLeagueLeaderboard(
+    userId: string,
+    requestedPage = 1,
+    requestedPageSize = 50,
+  ): Promise<LeagueLeaderboardResponse> {
+    const page = Number.isInteger(requestedPage) ? Math.max(1, requestedPage) : 1;
+    const pageSize = Number.isInteger(requestedPageSize)
+      ? Math.min(100, Math.max(1, requestedPageSize))
+      : 50;
     if (!this.db) {
       return {
         league: 'BRONZE',
+        district: 'Unassigned',
         seasonEndsAt: this.getSeasonEnd(),
+        page,
+        pageSize,
         totalMembers: 0,
+        totalPages: 0,
         yourRank: 0,
         members: [],
       };
     }
 
     await this.ensureSchema();
-    const levelResult = await this.db.query(
-      'SELECT COALESCE(level, 1)::integer AS level FROM public.citizen_mascots WHERE user_id = $1',
+    const profileResult = await this.db.query(
+      `SELECT COALESCE(m.level, 1)::integer AS level,
+              COALESCE(NULLIF(BTRIM(u.district), ''), 'Unassigned') AS district
+       FROM public.users u
+       LEFT JOIN public.citizen_mascots m ON m.user_id = u.id
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [userId],
     );
-    const league = tierForLevel(Number(levelResult.rows[0]?.level ?? 1));
+    const profile = profileResult.rows[0];
+    if (!profile) {
+      return {
+        league: 'BRONZE',
+        district: 'Unassigned',
+        seasonEndsAt: this.getSeasonEnd(),
+        page,
+        pageSize,
+        totalMembers: 0,
+        totalPages: 0,
+        yourRank: 0,
+        members: [],
+      };
+    }
+    const league = tierForLevel(Number(profile?.level ?? 1));
+    const district = String(profile.district);
     const bands: Record<LeagueTier, [number, number]> = {
       BRONZE: [1, 4],
       SILVER: [5, 9],
@@ -155,45 +186,47 @@ export class LeaderboardService {
     const [minimumLevel, maximumLevel] = bands[league];
     const result = await this.db.query(
       `WITH activity AS (
-         SELECT user_id, SUM(weekly_coins)::integer AS weekly_coins
-         FROM (
-           SELECT user_id, SUM(coin_reward) AS weekly_coins
-           FROM public.chapter_completions
-           WHERE completed_at >= date_trunc('week', NOW())
-           GROUP BY user_id
-           UNION ALL
-           SELECT user_id, SUM(coin_reward) AS weekly_coins
-           FROM public.waste_game_sessions
-           WHERE created_at >= date_trunc('week', NOW())
-           GROUP BY user_id
-         ) earned
-         GROUP BY user_id
+         SELECT d.user_id,
+                SUM(COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0)) AS estimated_weekly_co2e_kg
+         FROM public.daily_quests d
+         CROSS JOIN LATERAL jsonb_array_elements(d.quests) AS quest(value)
+         WHERE d.quest_date >= date_trunc('week', NOW() AT TIME ZONE 'UTC')::date
+           AND quest.value->>'isClaimed' = 'true'
+         GROUP BY d.user_id
+       ), ranked AS (
+         SELECT u.id, u.name, u.avatar_url,
+                COALESCE(NULLIF(BTRIM(u.district), ''), 'Unassigned') AS district,
+                COALESCE(m.level, 1)::integer AS mascot_level,
+                COALESCE(m.name, 'Chirpy') AS mascot_name,
+                COALESCE(m.vitality, 85)::integer AS vitality,
+                COALESCE(m.equipped, '{}'::jsonb) AS equipped,
+                COALESCE(a.estimated_weekly_co2e_kg, 0)::numeric AS estimated_weekly_co2e_kg,
+                COALESCE((
+                  SELECT d.streak_days FROM public.daily_quests d
+                  WHERE d.user_id = u.id AND d.quest_date >= CURRENT_DATE - 1
+                  ORDER BY d.quest_date DESC LIMIT 1
+                ), 0)::integer AS streak_days,
+                COALESCE(g.placed_tiles, '[]'::jsonb) AS placed_tiles,
+                ROW_NUMBER() OVER (
+                  ORDER BY COALESCE(a.estimated_weekly_co2e_kg, 0) DESC, u.id
+                )::integer AS rank,
+                COUNT(*) OVER()::integer AS total_members
+         FROM public.users u
+         LEFT JOIN activity a ON a.user_id = u.id
+         LEFT JOIN public.citizen_mascots m ON m.user_id = u.id
+         LEFT JOIN public.citizen_gardens g ON g.user_id = u.id
+         WHERE u.deleted_at IS NULL
+           AND LOWER(COALESCE(NULLIF(BTRIM(u.district), ''), 'unassigned')) = LOWER(BTRIM($3))
+           AND COALESCE(m.level, 1) BETWEEN $1 AND $2
        )
-       SELECT u.id, u.name, u.avatar_url, COALESCE(u.district, '') AS district,
-              COALESCE(m.level, 1)::integer AS mascot_level,
-              COALESCE(m.name, 'Chirpy') AS mascot_name,
-              COALESCE(m.vitality, 85)::integer AS vitality,
-              COALESCE(m.equipped, '{}'::jsonb) AS equipped,
-              COALESCE(a.weekly_coins, 0)::integer AS weekly_coins,
-              COALESCE((
-                SELECT d.streak_days FROM public.daily_quests d
-                WHERE d.user_id = u.id AND d.quest_date >= CURRENT_DATE - 1
-                ORDER BY d.quest_date DESC LIMIT 1
-              ), 0)::integer AS streak_days,
-              COALESCE(g.placed_tiles, '[]'::jsonb) AS placed_tiles
-       FROM public.users u
-       JOIN activity a ON a.user_id = u.id
-       LEFT JOIN public.citizen_mascots m ON m.user_id = u.id
-       LEFT JOIN public.citizen_gardens g ON g.user_id = u.id
-       WHERE u.deleted_at IS NULL
-         AND a.weekly_coins > 0
-         AND COALESCE(m.level, 1) BETWEEN $1 AND $2
-       ORDER BY a.weekly_coins DESC, u.id
-       LIMIT 100`,
-      [minimumLevel, maximumLevel],
+       SELECT * FROM ranked
+       WHERE (rank > $4 AND rank <= $5)
+          OR id = $6
+       ORDER BY rank`,
+      [minimumLevel, maximumLevel, district, (page - 1) * pageSize, page * pageSize, userId],
     );
 
-    const members: LeagueMember[] = result.rows.map((row, index) => {
+    const members: LeagueMember[] = result.rows.map((row) => {
       const slots = parseJsonArray(row.placed_tiles).map((tile) => {
         const tileId = String(tile.tileId ?? 'unknown');
         return {
@@ -207,16 +240,18 @@ export class LeaderboardService {
       });
       const equipped = typeof row.equipped === 'string' ? JSON.parse(row.equipped) : row.equipped;
       const mascotLevel = Number(row.mascot_level);
-      const weeklyCoins = Number(row.weekly_coins);
+      const estimatedWeeklyCo2eKg = Number(row.estimated_weekly_co2e_kg);
+      const rank = Number(row.rank);
+      const totalMembers = Number(row.total_members);
       const status: LeagueMember['status'] =
-        index < 3 ? 'PROMOTING' : result.rows.length > 5 && index >= result.rows.length - 2 ? 'DEMOTING' : 'SAFE';
+        rank <= 3 ? 'PROMOTING' : totalMembers > 5 && rank > totalMembers - 2 ? 'DEMOTING' : 'SAFE';
       return {
-        rank: index + 1,
+        rank,
         citizenId: String(row.id),
         name: String(row.name),
         avatarUrl: row.avatar_url ?? null,
         district: String(row.district),
-        weeklyCoins,
+        estimatedWeeklyCo2eKg,
         streakDays: Number(row.streak_days),
         status,
         isCurrentUser: String(row.id) === userId,
@@ -237,12 +272,17 @@ export class LeaderboardService {
         },
       };
     });
+    const totalMembers = Number(result.rows[0]?.total_members ?? 0);
     const currentMember = members.find((member) => member.citizenId === userId);
 
     return {
       league,
+      district,
       seasonEndsAt: this.getSeasonEnd(),
-      totalMembers: members.length,
+      page,
+      pageSize,
+      totalMembers,
+      totalPages: Math.ceil(totalMembers / pageSize),
       yourRank: currentMember?.rank ?? 0,
       members,
     };
@@ -257,26 +297,51 @@ export class LeaderboardService {
   public async getGlobalLeaderboard(): Promise<GlobalLeaderboardResponse> {
     if (!this.db) return { municipalRankings: [], topCitizens: [] };
     await this.ensureSchema();
-    const result = await this.db.query(
-      `SELECT u.id, u.name, u.avatar_url, COALESCE(u.district, '') AS district,
-              m.current_exp, m.level
-       FROM public.citizen_mascots m
-       JOIN public.users u ON u.id = m.user_id
-       WHERE u.deleted_at IS NULL AND m.current_exp > 0
-       ORDER BY m.current_exp DESC, u.id
-       LIMIT 10`,
+    const municipalResult = await this.db.query(
+      `SELECT MIN(BTRIM(u.district)) AS district,
+              (SUM((quest.value->>'estimatedCo2eKg')::numeric) / 1000)::numeric AS estimated_co2e_tonnes,
+              COUNT(DISTINCT d.user_id)::integer AS active_citizens
+       FROM public.daily_quests d
+       CROSS JOIN LATERAL jsonb_array_elements(d.quests) AS quest(value)
+       JOIN public.users u ON u.id = d.user_id
+       WHERE u.deleted_at IS NULL
+         AND BTRIM(COALESCE(u.district, '')) <> ''
+         AND quest.value->>'isClaimed' = 'true'
+         AND COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0) > 0
+       GROUP BY LOWER(BTRIM(u.district))
+       ORDER BY SUM((quest.value->>'estimatedCo2eKg')::numeric) DESC, LOWER(BTRIM(u.district))
+       LIMIT 100`,
+    );
+    const citizenResult = await this.db.query(
+      `SELECT u.id, u.name, u.avatar_url, COALESCE(NULLIF(BTRIM(u.district), ''), '') AS district,
+              COALESCE(SUM((quest.value->>'estimatedCo2eKg')::numeric), 0)::numeric AS estimated_co2e_kg,
+              COALESCE(m.level, 1)::integer AS level
+       FROM public.daily_quests d
+       CROSS JOIN LATERAL jsonb_array_elements(d.quests) AS quest(value)
+       JOIN public.users u ON u.id = d.user_id
+       LEFT JOIN public.citizen_mascots m ON m.user_id = u.id
+       WHERE u.deleted_at IS NULL AND quest.value->>'isClaimed' = 'true'
+       GROUP BY u.id, u.name, u.avatar_url, u.district, m.level
+       HAVING SUM(COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0)) > 0
+       ORDER BY estimated_co2e_kg DESC, u.id
+       LIMIT 100`,
     );
     return {
-      municipalRankings: [],
-      topCitizens: result.rows.map((row, index) => ({
+      municipalRankings: municipalResult.rows.map((row, index) => ({
+        rank: index + 1,
+        district: String(row.district),
+        estimatedCo2eTonnes: Number(row.estimated_co2e_tonnes),
+        activeCitizens: Number(row.active_citizens),
+      })),
+      topCitizens: citizenResult.rows.map((row, index) => ({
         rank: index + 1,
         citizenId: String(row.id),
         name: String(row.name),
         avatarUrl: row.avatar_url ?? null,
         district: String(row.district),
-        totalCo2SavedKg: Number(row.current_exp) / 100,
+        estimatedCo2eKg: Number(row.estimated_co2e_kg),
         mascotLevel: Number(row.level),
-        badgeTitle: index === 0 ? 'Gujarat Solar Guardian' : index < 3 ? 'Mission LiFE Champion' : 'Eco Ambassador',
+        badgeTitle: index === 0 ? 'CO₂e Leader' : index < 3 ? 'Low-Carbon Champion' : 'Eco Citizen',
       })),
     };
   }
@@ -290,7 +355,12 @@ export class LeaderboardService {
               COALESCE(m.level, 1)::integer AS mascot_level,
               COALESCE(m.vitality, 85)::integer AS vitality,
               COALESCE(m.equipped, '{}'::jsonb) AS equipped,
-              COALESCE(m.current_exp, 0)::integer AS current_exp,
+              COALESCE((
+                SELECT SUM(COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0))
+                FROM public.daily_quests d
+                CROSS JOIN LATERAL jsonb_array_elements(d.quests) AS quest(value)
+                WHERE d.user_id = u.id AND quest.value->>'isClaimed' = 'true'
+              ), 0)::numeric AS estimated_co2e_kg,
               COALESCE(g.placed_tiles, '[]'::jsonb) AS placed_tiles,
               COALESCE((
                 SELECT COUNT(*) FROM public.citizen_cheers c
@@ -331,7 +401,7 @@ export class LeaderboardService {
         district: String(row.district),
         ward: String(row.ward),
         streakDays: Number(row.streak_days),
-        totalCo2SavedKg: Number(row.current_exp) / 100,
+        estimatedCo2eKg: Number(row.estimated_co2e_kg),
         cheersReceived: Number(row.cheers_received),
       },
       mascot: {

@@ -106,4 +106,46 @@ describe('Daily quests PostgreSQL persistence', () => {
       vi.useRealTimers();
     }
   });
+
+  it('stores a transparent commute estimate from user-confirmed trip logs without crediting impact', async () => {
+    let quests: unknown[] = [];
+    const query = async (sql: string, values: unknown[] = []) => {
+      if (sql.includes('INSERT INTO daily_quests')) {
+        quests = JSON.parse(String(values[2])) as unknown[];
+        return { rows: [] };
+      }
+      if (sql.includes('SELECT quests, streak_days')) {
+        return {
+          rows: [
+            {
+              quests,
+              streak_days: 0,
+              streak_claimed: false,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM public.confirmed_trips')) {
+        return { rows: [{ estimated_co2e_kg: '0.425' }] };
+      }
+      if (sql.includes('UPDATE daily_quests')) {
+        quests = JSON.parse(String(values[2])) as unknown[];
+        return { rows: [] };
+      }
+      if (sql.includes('UPDATE users SET points')) {
+        return { rows: [{ points: 25 }] };
+      }
+      return { rows: [] };
+    };
+    const db = {
+      query,
+      connect: async () => ({ query, release: () => undefined }),
+    } as unknown as Pool;
+
+    const result = await new QuestsService(db).claimQuest('user-1', 'q_green_commute');
+
+    expect(result.estimatedCo2eKg).toBe(0.43);
+    expect(result.impactCreditedKg).toBe(0);
+    expect(result.message).toContain('not verified or credited impact');
+  });
 });

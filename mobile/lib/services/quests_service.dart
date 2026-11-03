@@ -7,6 +7,7 @@ class DailyQuestItem {
   final String description;
   final String category;
   final double co2SavedKg;
+  final double estimatedCo2eKg;
   final int coinReward;
   final int xpReward;
   final bool isCompleted;
@@ -19,6 +20,7 @@ class DailyQuestItem {
     required this.description,
     required this.category,
     required this.co2SavedKg,
+    required this.estimatedCo2eKg,
     required this.coinReward,
     required this.xpReward,
     required this.isCompleted,
@@ -33,6 +35,7 @@ class DailyQuestItem {
       description: json['description'] as String? ?? '',
       category: json['category'] as String? ?? '',
       co2SavedKg: (json['co2SavedKg'] as num?)?.toDouble() ?? 0,
+      estimatedCo2eKg: (json['estimatedCo2eKg'] as num?)?.toDouble() ?? 0,
       coinReward: (json['coinReward'] as num?)?.toInt() ?? 0,
       xpReward: (json['xpReward'] as num?)?.toInt() ?? 0,
       isCompleted: json['isCompleted'] as bool? ?? false,

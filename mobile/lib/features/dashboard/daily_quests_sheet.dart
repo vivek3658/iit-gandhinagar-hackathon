@@ -63,6 +63,7 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
         throw StateError('The server did not confirm the task claim.');
       }
       final coins = (res['coinsAwarded'] as num?)?.toInt() ?? quest.coinReward;
+      final estimatedCo2eKg = (res['estimatedCo2eKg'] as num?)?.toDouble() ?? 0;
       GameStateService.instance.recordEcoAction(
         actionName: quest.title,
         co2Saved: quest.co2SavedKg,
@@ -85,7 +86,9 @@ class _DailyQuestsSheetState extends State<DailyQuestsSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Claimed ${quest.title}! +$coins Urja Mudra coins added!',
+                  estimatedCo2eKg > 0
+                      ? 'Claimed ${quest.title}! +$coins coins and ${estimatedCo2eKg.toStringAsFixed(2)} kg estimated CO₂e added to this week’s league.'
+                      : 'Claimed ${quest.title}! +$coins Urja Mudra coins added!',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     color: Colors.white,

@@ -49,7 +49,7 @@ export const LeagueMemberSchema = Type.Object({
   name: Type.String(),
   avatarUrl: Type.Union([Type.String(), Type.Null()]),
   district: Type.String(),
-  weeklyCoins: Type.Number(),
+  estimatedWeeklyCo2eKg: Type.Number(),
   streakDays: Type.Number(),
   status: LeagueMemberStatusSchema,
   isCurrentUser: Type.Boolean(),
@@ -61,8 +61,12 @@ export type LeagueMember = Static<typeof LeagueMemberSchema>;
 
 export const LeagueLeaderboardResponseSchema = Type.Object({
   league: LeagueTierSchema,
+  district: Type.String(),
   seasonEndsAt: Type.String(),
+  page: Type.Number({ minimum: 1 }),
+  pageSize: Type.Number({ minimum: 1 }),
   totalMembers: Type.Number(),
+  totalPages: Type.Number(),
   yourRank: Type.Number(),
   members: Type.Array(LeagueMemberSchema),
 });
@@ -72,9 +76,8 @@ export type LeagueLeaderboardResponse = Static<typeof LeagueLeaderboardResponseS
 export const MunicipalRankSchema = Type.Object({
   rank: Type.Number(),
   district: Type.String(),
-  totalCo2SavedTonnes: Type.Number(),
+  estimatedCo2eTonnes: Type.Number(),
   activeCitizens: Type.Number(),
-  primaryEnergyMode: Type.String(),
 });
 
 export const GlobalCitizenRankSchema = Type.Object({
@@ -83,7 +86,7 @@ export const GlobalCitizenRankSchema = Type.Object({
   name: Type.String(),
   avatarUrl: Type.Union([Type.String(), Type.Null()]),
   district: Type.String(),
-  totalCo2SavedKg: Type.Number(),
+  estimatedCo2eKg: Type.Number(),
   mascotLevel: Type.Number(),
   badgeTitle: Type.String(),
 });
@@ -103,7 +106,7 @@ export const GardenVisitorResponseSchema = Type.Object({
     district: Type.String(),
     ward: Type.String(),
     streakDays: Type.Number(),
-    totalCo2SavedKg: Type.Number(),
+    estimatedCo2eKg: Type.Number(),
     cheersReceived: Type.Number(),
   }),
   mascot: Type.Object({

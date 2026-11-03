@@ -65,7 +65,7 @@ class LeagueMemberData {
     required this.name,
     required this.avatarUrl,
     required this.district,
-    required this.weeklyCoins,
+    required this.estimatedWeeklyCo2eKg,
     required this.streakDays,
     required this.status,
     required this.isCurrentUser,
@@ -78,7 +78,7 @@ class LeagueMemberData {
   final String name;
   final String? avatarUrl;
   final String district;
-  final int weeklyCoins;
+  final double estimatedWeeklyCo2eKg;
   final int streakDays;
   final String status;
   final bool isCurrentUser;
@@ -92,7 +92,7 @@ class LeagueMemberData {
         name: _requiredString(json, 'name'),
         avatarUrl: json['avatarUrl'] as String?,
         district: _requiredString(json, 'district'),
-        weeklyCoins: _requiredInt(json, 'weeklyCoins'),
+        estimatedWeeklyCo2eKg: _requiredDouble(json, 'estimatedWeeklyCo2eKg'),
         streakDays: _requiredInt(json, 'streakDays'),
         status: _requiredString(json, 'status'),
         isCurrentUser: _requiredBool(json, 'isCurrentUser'),
@@ -104,23 +104,35 @@ class LeagueMemberData {
 class LeagueLeaderboardData {
   const LeagueLeaderboardData({
     required this.league,
+    required this.district,
     required this.seasonEndsAt,
+    required this.page,
+    required this.pageSize,
     required this.totalMembers,
+    required this.totalPages,
     required this.yourRank,
     required this.members,
   });
 
   final String league;
+  final String district;
   final String seasonEndsAt;
+  final int page;
+  final int pageSize;
   final int totalMembers;
+  final int totalPages;
   final int yourRank;
   final List<LeagueMemberData> members;
 
   factory LeagueLeaderboardData.fromJson(Map<String, dynamic> json) =>
       LeagueLeaderboardData(
         league: _requiredString(json, 'league'),
+        district: _requiredString(json, 'district'),
         seasonEndsAt: _requiredString(json, 'seasonEndsAt'),
+        page: _requiredInt(json, 'page'),
+        pageSize: _requiredInt(json, 'pageSize'),
         totalMembers: _requiredInt(json, 'totalMembers'),
+        totalPages: _requiredInt(json, 'totalPages'),
         yourRank: _requiredInt(json, 'yourRank'),
         members: _requiredList(json, 'members', LeagueMemberData.fromJson),
       );
@@ -130,24 +142,21 @@ class MunicipalRankData {
   const MunicipalRankData({
     required this.rank,
     required this.district,
-    required this.totalCo2SavedTonnes,
+    required this.estimatedCo2eTonnes,
     required this.activeCitizens,
-    required this.primaryEnergyMode,
   });
 
   final int rank;
   final String district;
-  final double totalCo2SavedTonnes;
+  final double estimatedCo2eTonnes;
   final int activeCitizens;
-  final String primaryEnergyMode;
 
   factory MunicipalRankData.fromJson(Map<String, dynamic> json) =>
       MunicipalRankData(
         rank: _requiredInt(json, 'rank'),
         district: _requiredString(json, 'district'),
-        totalCo2SavedTonnes: _requiredDouble(json, 'totalCo2SavedTonnes'),
+        estimatedCo2eTonnes: _requiredDouble(json, 'estimatedCo2eTonnes'),
         activeCitizens: _requiredInt(json, 'activeCitizens'),
-        primaryEnergyMode: _requiredString(json, 'primaryEnergyMode'),
       );
 }
 
@@ -158,7 +167,7 @@ class GlobalCitizenRankData {
     required this.name,
     required this.avatarUrl,
     required this.district,
-    required this.totalCo2SavedKg,
+    required this.estimatedCo2eKg,
     required this.mascotLevel,
     required this.badgeTitle,
   });
@@ -168,7 +177,7 @@ class GlobalCitizenRankData {
   final String name;
   final String? avatarUrl;
   final String district;
-  final double totalCo2SavedKg;
+  final double estimatedCo2eKg;
   final int mascotLevel;
   final String badgeTitle;
 
@@ -179,7 +188,7 @@ class GlobalCitizenRankData {
         name: _requiredString(json, 'name'),
         avatarUrl: json['avatarUrl'] as String?,
         district: _requiredString(json, 'district'),
-        totalCo2SavedKg: _requiredDouble(json, 'totalCo2SavedKg'),
+        estimatedCo2eKg: _requiredDouble(json, 'estimatedCo2eKg'),
         mascotLevel: _requiredInt(json, 'mascotLevel'),
         badgeTitle: _requiredString(json, 'badgeTitle'),
       );
@@ -240,7 +249,7 @@ class GardenVisitorCitizenData {
     required this.district,
     required this.ward,
     required this.streakDays,
-    required this.totalCo2SavedKg,
+    required this.estimatedCo2eKg,
     required this.cheersReceived,
   });
 
@@ -250,7 +259,7 @@ class GardenVisitorCitizenData {
   final String district;
   final String ward;
   final int streakDays;
-  final double totalCo2SavedKg;
+  final double estimatedCo2eKg;
   final int cheersReceived;
 
   factory GardenVisitorCitizenData.fromJson(Map<String, dynamic> json) =>
@@ -261,7 +270,7 @@ class GardenVisitorCitizenData {
         district: _requiredString(json, 'district'),
         ward: _requiredString(json, 'ward'),
         streakDays: _requiredInt(json, 'streakDays'),
-        totalCo2SavedKg: _requiredDouble(json, 'totalCo2SavedKg'),
+        estimatedCo2eKg: _requiredDouble(json, 'estimatedCo2eKg'),
         cheersReceived: _requiredInt(json, 'cheersReceived'),
       );
 }

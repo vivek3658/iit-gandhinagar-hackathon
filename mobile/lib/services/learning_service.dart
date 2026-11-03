@@ -50,6 +50,34 @@ class LearningChapter {
   );
 }
 
+class LearningProgress {
+  const LearningProgress(this.completedVersions);
+
+  final Set<String> completedVersions;
+
+  bool isCompleted(LearningChapter chapter) =>
+      completedVersions.contains('${chapter.id}:${chapter.version}');
+
+  factory LearningProgress.fromJson(Map<String, dynamic> json) {
+    final completions = json['completions'];
+    if (completions is! List) {
+      throw const FormatException('The learning progress response is invalid.');
+    }
+    return LearningProgress(
+      completions.map((item) {
+        if (item is! Map ||
+            item['chapterId'] is! String ||
+            item['version'] is! num) {
+          throw const FormatException(
+            'The learning progress response contains an invalid completion.',
+          );
+        }
+        return '${item['chapterId']}:${(item['version'] as num).toInt()}';
+      }).toSet(),
+    );
+  }
+}
+
 class WasteGameItem {
   const WasteGameItem({
     required this.id,
@@ -145,6 +173,9 @@ class LearningService {
         )
         .toList();
   }
+
+  Future<LearningProgress> getProgress() async =>
+      LearningProgress.fromJson(await _request('/learning/progress'));
 
   Future<Map<String, dynamic>> completeChapter(
     LearningChapter chapter,

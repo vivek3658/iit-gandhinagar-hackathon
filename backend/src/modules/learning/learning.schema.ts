@@ -14,6 +14,15 @@ export const LearningChaptersResponseSchema = Type.Object({
   chapters: Type.Array(LearningChapterSchema),
 });
 
+export const LearningProgressResponseSchema = Type.Object({
+  completions: Type.Array(
+    Type.Object({
+      chapterId: Type.String(),
+      version: Type.Integer(),
+    }),
+  ),
+});
+
 export const CompleteChapterBodySchema = Type.Object({
   version: Type.Integer({ minimum: 1 }),
   answerId: Type.String({ minLength: 1, maxLength: 64 }),

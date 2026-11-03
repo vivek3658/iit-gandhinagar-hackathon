@@ -9,7 +9,8 @@ export class LeaderboardController {
     const user = request.user as { id?: string } | undefined;
     if (!user?.id) return reply.unauthorized('Sign in to view your weekly league.');
     const userId = user.id;
-    const result = await this.service.getLeagueLeaderboard(userId);
+    const { page, pageSize } = request.query as { page?: number; pageSize?: number };
+    const result = await this.service.getLeagueLeaderboard(userId, page, pageSize);
     return reply.status(200).send(result);
   };
 

@@ -57,6 +57,17 @@ describe('Learning chapters and daily waste-sorting game', () => {
     expect(JSON.parse(first.payload).alreadyCompleted).toBe(false);
     expect(JSON.parse(retry.payload).coinsAwarded).toBe(0);
     expect(JSON.parse(retry.payload).alreadyCompleted).toBe(true);
+
+    const progress = await app.inject({
+      method: 'GET',
+      url: '/api/v1/learning/progress',
+      headers: { authorization: 'Bearer ' + token },
+    });
+    expect(progress.statusCode).toBe(200);
+    expect(JSON.parse(progress.payload).completions).toContainEqual({
+      chapterId: 'electricity-at-home',
+      version: 1,
+    });
   });
 
   it('awards the waste game once per day and does not claim measured diversion', async () => {

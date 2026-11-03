@@ -19,7 +19,11 @@ export const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
       schema: {
         tags: ['Leaderboard'],
         security: [{ bearerAuth: [] }],
-        summary: 'Get weekly Duolingo-style competitive league cohort (Bronze to Diamond)',
+        summary: 'Get the weekly city and mascot-tier league ranked by estimated CO2e',
+        querystring: Type.Object({
+          page: Type.Optional(Type.Integer({ minimum: 1, maximum: 100000 })),
+          pageSize: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+        }),
         response: {
           200: LeagueLeaderboardResponseSchema,
         },
@@ -36,7 +40,7 @@ export const leaderboardRoutes: FastifyPluginAsync = async (fastify) => {
       schema: {
         tags: ['Leaderboard'],
         security: [{ bearerAuth: [] }],
-        summary: 'Get Gujarat municipal city rankings and top 100 all-time eco citizens',
+        summary: 'Get estimated Gujarat city rankings and top 100 all-time citizens by CO2e',
         response: {
           200: GlobalLeaderboardResponseSchema,
         },

@@ -483,8 +483,8 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
       children: [
         Expanded(
           child: _statPill(
-            '🌱 Total CO₂e Saved',
-            '${citizen.totalCo2SavedKg.toStringAsFixed(1)} kg',
+            '🌱 Estimated CO₂e',
+            '${citizen.estimatedCo2eKg.toStringAsFixed(2)} kg',
           ),
         ),
         const SizedBox(width: 10),

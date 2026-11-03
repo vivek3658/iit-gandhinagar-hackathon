@@ -228,6 +228,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 3),
+                      Text(
+                        league.district.isEmpty
+                            ? 'Set your city in Profile to join a league'
+                            : '${league.district} • estimated CO₂e this week',
+                        style: const TextStyle(
+                          color: Color(0xFFFDE68A),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -260,28 +271,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
           if (members.isEmpty)
             _emptyLeaderboard(
-              'No weekly activity yet',
-              'Complete a learning chapter or sorting game to appear in this week’s standings.',
+              'No city league members found',
+              'Your city league will appear here once your profile is available.',
             )
-          else ...[
-            // Promotion Zone Marker (Duolingo style)
-            _buildZoneHeader(
-              '🟢 PROMOTION ZONE (TOP 3 ADVANCE)',
-              const Color(0xFF22C55E),
-            ),
-            const SizedBox(height: 6),
-
-            // Member List
+          else
             for (int i = 0; i < members.length; i++) ...[
-              if (i == 3) ...[
+              if (members[i].rank == 1) ...[
+                _buildZoneHeader(
+                  '🟢 PROMOTION ZONE (TOP 3 ADVANCE)',
+                  const Color(0xFF22C55E),
+                ),
                 const SizedBox(height: 6),
+              ],
+              if (members[i].rank == 4) ...[
                 _buildZoneHeader('⚪ SAFE ZONE', Colors.white54),
                 const SizedBox(height: 6),
               ],
-              if (i == 6) ...[
-                const SizedBox(height: 6),
+              if (members[i].status == 'DEMOTING' &&
+                  (i == 0 || members[i - 1].status != 'DEMOTING')) ...[
                 _buildZoneHeader(
-                  '🔻 DEMOTION ZONE (BOTTOM 3 DROP)',
+                  '🔻 DEMOTION ZONE (BOTTOM 2 DROP)',
                   const Color(0xFFEF4444),
                 ),
                 const SizedBox(height: 6),
@@ -289,7 +298,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               _buildMemberRow(members[i]),
               const SizedBox(height: 6),
             ],
-          ],
         ],
       ),
     );
@@ -310,7 +318,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           child: Text(
             league.yourRank > 0
                 ? 'Your rank: #${league.yourRank} of ${league.totalMembers}'
-                : 'Your rank appears after your first weekly activity',
+                : 'Your city league rank is unavailable',
             style: const TextStyle(
               color: UrjaTheme.forest,
               fontSize: 12,
@@ -540,19 +548,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             ),
           ),
 
-          // Weekly coins earned
+          // Weekly estimated CO2e
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '🪙 ${member.weeklyCoins}',
+                '${member.estimatedWeeklyCo2eKg.toStringAsFixed(2)} kg',
                 style: const TextStyle(
                   color: Color(0xFF15803D),
                   fontWeight: FontWeight.w900,
                   fontSize: 14,
                 ),
               ),
-              const SizedBox(height: 2),
+              const Text(
+                'estimated CO₂e',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
 
               // Visit Island Button
               InkWell(
@@ -615,7 +630,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       children: [
         // District Rankings Title
         const Text(
-          'GUJARAT MUNICIPAL DISTRICTS',
+          'GUJARAT CITY RANKINGS · ALL-TIME',
           style: TextStyle(
             color: UrjaTheme.muted,
             fontSize: 11,
@@ -623,12 +638,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             letterSpacing: 1.1,
           ),
         ),
+        const SizedBox(height: 4),
+        const Text(
+          'Cities use the district in each profile. Estimates use user-confirmed walk, bike, and public transit distances against the app’s petrol-car reference factors; they are not verified or credited impact.',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 11,
+            height: 1.35,
+          ),
+        ),
         const SizedBox(height: 10),
 
         if (districts.isEmpty && topCitizens.isEmpty)
           _emptyLeaderboard(
-            'No verified rankings yet',
-            'Rankings appear here after real citizen activity is collected by the backend.',
+            'No estimated CO₂e rankings yet',
+            'City and citizen standings appear after eligible low-carbon trips are saved.',
           ),
         for (final dist in districts) ...[
           _buildDistrictCard(dist),
@@ -637,7 +661,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
         const SizedBox(height: 20),
         const Text(
-          'TOP 100 ALL-TIME CITIZENS',
+          'TOP CITIZENS · ALL-TIME ESTIMATED CO₂e',
           style: TextStyle(
             color: UrjaTheme.muted,
             fontSize: 11,
@@ -656,6 +680,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Widget _buildDistrictCard(MunicipalRankData dist) {
+    final estimatedKg = dist.estimatedCo2eTonnes * 1000;
+    final scoreLabel = estimatedKg >= 1000
+        ? '${(estimatedKg / 1000).toStringAsFixed(2)} t'
+        : '${estimatedKg.toStringAsFixed(1)} kg';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -702,7 +730,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${dist.activeCitizens} citizens • ${dist.primaryEnergyMode}',
+                  '${dist.activeCitizens} citizens with eligible trips',
                   style: const TextStyle(
                     color: Color(0xFF64748B),
                     fontSize: 11,
@@ -715,7 +743,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${dist.totalCo2SavedTonnes} T',
+                scoreLabel,
                 style: const TextStyle(
                   color: Color(0xFF16A34A),
                   fontSize: 15,
@@ -723,7 +751,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ),
               ),
               const Text(
-                'CO₂e avoided',
+                'estimated CO₂e',
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontSize: 10,
@@ -802,7 +830,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             ),
           ),
           Text(
-            '${citizen.totalCo2SavedKg.toStringAsFixed(1)} kg CO₂e',
+            '${citizen.estimatedCo2eKg.toStringAsFixed(2)} kg est. CO₂e',
             style: const TextStyle(
               color: Color(0xFF16A34A),
               fontWeight: FontWeight.w800,
