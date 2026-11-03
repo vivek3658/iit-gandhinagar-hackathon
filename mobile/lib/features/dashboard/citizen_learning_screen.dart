@@ -14,25 +14,45 @@ class CitizenLearningScreen extends StatefulWidget {
 class _CitizenLearningScreenState extends State<CitizenLearningScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  final ScrollController _wasteGameScrollController = ScrollController(
+    keepScrollOffset: false,
+  );
   List<LearningChapter> _chapters = [];
   Set<String> _completedVersions = {};
   WasteGameCatalog? _catalog;
   final Map<String, String> _answers = {};
+  List<WasteGameItem> _roundItems = [];
   bool _loading = true;
   bool _submittingGame = false;
-  String? _selectedWasteItemId;
+  int _roundIndex = 0;
+  String? _selectedWasteBucketId;
+  String? _lastSortedItemLabel;
+  String? _lastSortedBucketLabel;
+  String? _lastSortedGuidance;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(_onTabChanged);
     _load();
+  }
+
+  void _onTabChanged() {
+    if (_tabs.index != 1 || _tabs.indexIsChanging) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _wasteGameScrollController.hasClients) {
+        _wasteGameScrollController.jumpTo(0);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _tabs.removeListener(_onTabChanged);
     _tabs.dispose();
+    _wasteGameScrollController.dispose();
     super.dispose();
   }
 
@@ -50,10 +70,26 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
       if (!mounted) return;
       final progress = values[1] as LearningProgress;
       final catalog = values[2] as WasteGameCatalog;
+      final roundItems = catalog.items.take(15).toList();
+      final roundChanged =
+          roundItems.length != _roundItems.length ||
+          roundItems.any(
+            (item) => !_roundItems.any((current) => current.id == item.id),
+          );
+      if (roundChanged) roundItems.shuffle();
       setState(() {
         _chapters = values[0] as List<LearningChapter>;
         _completedVersions = progress.completedVersions;
         _catalog = catalog;
+        if (roundChanged) {
+          _roundItems = roundItems;
+          _answers.clear();
+          _roundIndex = 0;
+          _selectedWasteBucketId = null;
+          _lastSortedItemLabel = null;
+          _lastSortedBucketLabel = null;
+          _lastSortedGuidance = null;
+        }
         _answers.removeWhere(
           (itemId, bucketId) =>
               !catalog.items.any((item) => item.id == itemId) ||
@@ -228,8 +264,8 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
 
   Future<void> _submitGame() async {
     final catalog = _catalog;
-    if (catalog == null || catalog.items.isEmpty) return;
-    if (_answers.length != catalog.items.length) {
+    if (catalog == null || _roundItems.isEmpty) return;
+    if (_answers.length != _roundItems.length) {
       _showMessage('Sort every item before submitting your game.');
       return;
     }
@@ -239,7 +275,7 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
       if (!mounted) return;
       final correct = (result['correctCount'] as num?)?.toInt() ?? 0;
       final total =
-          (result['itemCount'] as num?)?.toInt() ?? catalog.items.length;
+          (result['itemCount'] as num?)?.toInt() ?? _roundItems.length;
       final coins = (result['coinsAwarded'] as num?)?.toInt() ?? 0;
       final alreadyPlayed = result['alreadyPlayedToday'] == true;
       String balanceNote = '';
@@ -272,12 +308,37 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
         ),
       );
       if (!mounted) return;
-      setState(() => _answers.clear());
+      final nextRound = catalog.items.take(15).toList()..shuffle();
+      setState(() {
+        _roundItems = nextRound;
+        _answers.clear();
+        _roundIndex = 0;
+        _selectedWasteBucketId = null;
+        _lastSortedItemLabel = null;
+        _lastSortedBucketLabel = null;
+        _lastSortedGuidance = null;
+      });
     } catch (error) {
       if (mounted) _showMessage(error);
     } finally {
       if (mounted) setState(() => _submittingGame = false);
     }
+  }
+
+  void _sortWasteItem(WasteGameItem item, String bucketId) {
+    if (_answers.containsKey(item.id)) return;
+    final bucket = _catalog?.buckets
+        .where((candidate) => candidate.id == bucketId)
+        .toList();
+    if (bucket == null || bucket.isEmpty) return;
+    setState(() {
+      _answers[item.id] = bucketId;
+      _roundIndex += 1;
+      _selectedWasteBucketId = null;
+      _lastSortedItemLabel = item.label;
+      _lastSortedBucketLabel = bucket.first.label;
+      _lastSortedGuidance = item.guidance;
+    });
   }
 
   void _showMessage(Object error) {
@@ -421,215 +482,198 @@ class _CitizenLearningScreenState extends State<CitizenLearningScreen>
         onRetry: _load,
       );
     }
-    if (catalog.buckets.isEmpty || catalog.items.isEmpty) {
+    if (catalog.buckets.isEmpty || catalog.items.length < 10) {
       return const _LearningEmpty(
-        title: 'Sorting game not configured',
+        title: 'Sorting round not ready',
         message:
-            'The server has not published bins or waste items yet. Try again later.',
+            'A sorting round needs at least 10 waste items and published bins. Try again later.',
       );
     }
 
-    final unsortedItems = catalog.items
-        .where((item) => !_answers.containsKey(item.id))
+    final total = _roundItems.length;
+    final isComplete = total > 0 && _answers.length == total;
+    final currentItem = isComplete || _roundIndex >= total
+        ? null
+        : _roundItems[_roundIndex];
+    final selectedBuckets = catalog.buckets
+        .where((bucket) => bucket.id == _selectedWasteBucketId)
         .toList();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: UrjaTheme.forest,
-              borderRadius: BorderRadius.circular(18),
+    final selectedBucket = selectedBuckets.isEmpty
+        ? null
+        : selectedBuckets.first;
+
+    return ListView(
+      key: const PageStorageKey<String>('waste-sorting-round'),
+      controller: _wasteGameScrollController,
+      primary: false,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      children: [
+        _WasteRoundProgress(
+          completed: _answers.length,
+          total: total,
+          onRestart: _submittingGame
+              ? null
+              : () => setState(() {
+                  _roundItems = List.of(catalog.items.take(15))..shuffle();
+                  _answers.clear();
+                  _roundIndex = 0;
+                  _selectedWasteBucketId = null;
+                  _lastSortedItemLabel = null;
+                  _lastSortedBucketLabel = null;
+                  _lastSortedGuidance = null;
+                }),
+        ),
+        if (currentItem != null) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 142,
+            child: _WasteDraggableItem(
+              item: currentItem,
+              selected: true,
+              onTap: () {},
             ),
-            child: Row(
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'ITEM ${_roundIndex + 1} OF $total',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: UrjaTheme.muted,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(2, 16, 2, 8),
+            child: Text(
+              'CHOOSE A BIN',
+              style: TextStyle(
+                color: UrjaTheme.forest,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          for (final bucket in catalog.buckets) ...[
+            _WasteBucketTarget(
+              bucket: bucket,
+              itemCount: _answers.values
+                  .where((answer) => answer == bucket.id)
+                  .length,
+              selected: bucket.id == _selectedWasteBucketId,
+              onTap: () => setState(() {
+                _selectedWasteBucketId = bucket.id;
+              }),
+              onAccept: (item) => _sortWasteItem(item, bucket.id),
+            ),
+            const SizedBox(height: 8),
+          ],
+          FilledButton.icon(
+            onPressed: _submittingGame || selectedBucket == null
+                ? null
+                : () {
+                    _sortWasteItem(currentItem, selectedBucket.id);
+                  },
+            icon: const Icon(Icons.add_task_rounded),
+            label: Text(
+              _roundIndex + 1 == total ? 'Sort final item' : 'Sort this item',
+            ),
+          ),
+        ] else ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: UrjaTheme.mint,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: UrjaTheme.line),
+            ),
+            child: const Column(
               children: [
-                const Icon(
-                  Icons.sports_esports_rounded,
-                  color: Color(0xFFB8E4C3),
+                Icon(
+                  Icons.celebration_rounded,
+                  color: UrjaTheme.forest,
+                  size: 38,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Sort ${catalog.items.length} litter items into the right bins',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
+                SizedBox(height: 8),
+                Text(
+                  'All items sorted!',
+                  style: TextStyle(
+                    color: UrjaTheme.forest,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Check your answers to finish the round.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: UrjaTheme.muted, fontSize: 12),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _WasteRoundProgress(
-                  completed: _answers.length,
-                  total: catalog.items.length,
-                ),
-              ),
-              if (_answers.isNotEmpty)
-                IconButton(
-                  tooltip: 'Start over',
-                  onPressed: () => setState(() {
-                    _answers.clear();
-                    _selectedWasteItemId = null;
-                  }),
-                  icon: const Icon(Icons.restart_alt_rounded),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'THE BINS',
-                  style: TextStyle(
-                    color: UrjaTheme.forest,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-              Text(
-                _selectedWasteItemId == null
-                    ? 'Tap an item, then tap a bin'
-                    : 'Now choose a bin',
-                style: const TextStyle(
-                  color: UrjaTheme.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 184,
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: catalog.buckets.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 1.75,
-              ),
-              itemBuilder: (context, index) {
-                final bucket = catalog.buckets[index];
-                return _WasteBucketTarget(
-                  bucket: bucket,
-                  itemCount: _answers.values
-                      .where((answer) => answer == bucket.id)
-                      .length,
-                  selected: _selectedWasteItemId != null,
-                  onTap: () {
-                    final selected = _selectedWasteItemId;
-                    if (selected == null) {
-                      _showMessage('Tap an unsorted item first.');
-                      return;
-                    }
-                    setState(() {
-                      _answers[selected] = bucket.id;
-                      _selectedWasteItemId = null;
-                    });
-                  },
-                  onAccept: (item) {
-                    setState(() {
-                      _answers[item.id] = bucket.id;
-                      _selectedWasteItemId = null;
-                    });
-                  },
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'LITTER PILE · drag to a bin or tap to select',
-                  style: TextStyle(
-                    color: UrjaTheme.forest,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-              Text(
-                '${unsortedItems.length} left',
-                style: const TextStyle(
-                  color: UrjaTheme.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Expanded(
-            child: unsortedItems.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Pile cleared! Check your sorting below.',
-                      style: TextStyle(
-                        color: UrjaTheme.forest,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: _submittingGame ? null : _submitGame,
+            icon: _submittingGame
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : GridView.builder(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    itemCount: unsortedItems.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 7,
-                          mainAxisSpacing: 7,
-                          childAspectRatio: 0.92,
-                        ),
-                    itemBuilder: (context, index) {
-                      final item = unsortedItems[index];
-                      return _WasteDraggableItem(
-                        item: item,
-                        selected: _selectedWasteItemId == item.id,
-                        onTap: () =>
-                            setState(() => _selectedWasteItemId = item.id),
-                      );
-                    },
-                  ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed:
-                  _submittingGame || _answers.length != catalog.items.length
-                  ? null
-                  : _submitGame,
-              icon: _submittingGame
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check_rounded),
-              label: Text(
-                _submittingGame
-                    ? 'Checking your sort…'
-                    : 'Check my sort · ${catalog.rewardCoins} coins',
-              ),
+                : const Icon(Icons.check_rounded),
+            label: Text(
+              _submittingGame
+                  ? 'Checking your sort…'
+                  : 'Check my sort · ${catalog.rewardCoins} coins',
             ),
           ),
         ],
-      ),
+        if (_lastSortedItemLabel != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: UrjaTheme.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sorted $_lastSortedItemLabel → $_lastSortedBucketLabel',
+                  style: const TextStyle(
+                    color: UrjaTheme.forest,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (_lastSortedGuidance != null) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    _lastSortedGuidance!,
+                    style: const TextStyle(
+                      color: UrjaTheme.muted,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        const Text(
+          'Waste rules differ by location. Follow your local collection guidance. '
+          'Game rewards are not a measure of waste collected or emissions saved.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: UrjaTheme.muted, fontSize: 11, height: 1.4),
+        ),
+      ],
     );
   }
 }
@@ -881,10 +925,15 @@ class _ChapterProgressCard extends StatelessWidget {
 }
 
 class _WasteRoundProgress extends StatelessWidget {
-  const _WasteRoundProgress({required this.completed, required this.total});
+  const _WasteRoundProgress({
+    required this.completed,
+    required this.total,
+    required this.onRestart,
+  });
 
   final int completed;
   final int total;
+  final VoidCallback? onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -903,14 +952,34 @@ class _WasteRoundProgress extends StatelessWidget {
               const Icon(Icons.recycling_rounded, color: UrjaTheme.forest),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  '$completed of $total items sorted',
-                  style: const TextStyle(
-                    color: UrjaTheme.ink,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Waste-sort challenge · $total items',
+                      style: const TextStyle(
+                        color: UrjaTheme.ink,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$completed of $total sorted · one item at a time',
+                      style: const TextStyle(
+                        color: UrjaTheme.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (onRestart != null)
+                IconButton(
+                  tooltip: 'Restart round',
+                  onPressed: onRestart,
+                  icon: const Icon(Icons.restart_alt_rounded),
+                ),
               Text(
                 '${(progress * 100).round()}%',
                 style: const TextStyle(
@@ -1078,13 +1147,13 @@ class _WasteBucketTarget extends StatelessWidget {
             duration: const Duration(milliseconds: 140),
             padding: const EdgeInsets.fromLTRB(7, 5, 7, 4),
             decoration: BoxDecoration(
-              color: isHovering || (selected && itemCount == 0)
+              color: isHovering || selected
                   ? color.withValues(alpha: 0.12)
                   : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isHovering ? color : UrjaTheme.line,
-                width: isHovering ? 2 : 1,
+                color: isHovering || selected ? color : UrjaTheme.line,
+                width: isHovering || selected ? 2 : 1,
               ),
               boxShadow: const [
                 BoxShadow(
