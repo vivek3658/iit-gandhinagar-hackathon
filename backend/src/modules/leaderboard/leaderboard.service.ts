@@ -298,18 +298,34 @@ export class LeaderboardService {
     if (!this.db) return { municipalRankings: [], topCitizens: [] };
     await this.ensureSchema();
     const municipalResult = await this.db.query(
-      `SELECT MIN(BTRIM(u.district)) AS district,
-              (SUM((quest.value->>'estimatedCo2eKg')::numeric) / 1000)::numeric AS estimated_co2e_tonnes,
-              COUNT(DISTINCT d.user_id)::integer AS active_citizens
-       FROM public.daily_quests d
-       CROSS JOIN LATERAL jsonb_array_elements(d.quests) AS quest(value)
-       JOIN public.users u ON u.id = d.user_id
-       WHERE u.deleted_at IS NULL
-         AND BTRIM(COALESCE(u.district, '')) <> ''
-         AND quest.value->>'isClaimed' = 'true'
-         AND COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0) > 0
-       GROUP BY LOWER(BTRIM(u.district))
-       ORDER BY SUM((quest.value->>'estimatedCo2eKg')::numeric) DESC, LOWER(BTRIM(u.district))
+      `WITH city_scores AS (
+         SELECT LOWER(BTRIM(u.district)) AS district_key,
+                MIN(BTRIM(u.district)) AS district,
+                COALESCE(SUM(
+                  CASE
+                    WHEN quest.value->>'isClaimed' = 'true'
+                    THEN COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0)
+                    ELSE 0
+                  END
+                ), 0)::numeric AS estimated_co2e_kg,
+                COUNT(DISTINCT CASE
+                  WHEN quest.value->>'isClaimed' = 'true'
+                    AND COALESCE((quest.value->>'estimatedCo2eKg')::numeric, 0) > 0
+                  THEN u.id
+                END)::integer AS active_citizens
+         FROM public.users u
+         LEFT JOIN public.daily_quests d ON d.user_id = u.id
+         LEFT JOIN LATERAL jsonb_array_elements(
+           COALESCE(d.quests, '[]'::jsonb)
+         ) AS quest(value) ON TRUE
+         WHERE u.deleted_at IS NULL AND BTRIM(COALESCE(u.district, '')) <> ''
+         GROUP BY LOWER(BTRIM(u.district))
+       )
+       SELECT district,
+              (estimated_co2e_kg / 1000)::numeric AS estimated_co2e_tonnes,
+              active_citizens
+       FROM city_scores
+       ORDER BY estimated_co2e_kg DESC, district_key
        LIMIT 100`,
     );
     const citizenResult = await this.db.query(

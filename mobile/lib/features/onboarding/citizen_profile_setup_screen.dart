@@ -333,6 +333,14 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const stepNames = [
+      'Home',
+      'Travel',
+      'Water',
+      'Electricity',
+      'Cooking',
+      'Companion',
+    ];
     return Scaffold(
       backgroundColor: const Color(0xFFF1F8F5),
       appBar: AppBar(
@@ -340,45 +348,97 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
         elevation: 0,
         title: const Row(
           children: [
-            Text('🌿', style: TextStyle(fontSize: 22)),
+            Icon(Icons.eco_rounded, color: Color(0xFF1B6B44), size: 23),
             SizedBox(width: 8),
-            Text(
-              'Citizen Sanctuary Setup',
-              style: TextStyle(
-                color: Color(0xFF1B6B44),
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'YOUR GREEN HOME',
+                  style: TextStyle(
+                    color: Color(0xFF1B6B44),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                Text(
+                  'Personalize your sanctuary',
+                  style: TextStyle(
+                    color: Color(0xFF6D7B71),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: Center(
+              child: Text(
+                '${_currentStep + 1} of 6',
+                style: const TextStyle(
+                  color: Color(0xFF6D7B71),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Progress Indicator (6 Steps)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: List.generate(6, (index) {
-                  final isActive = index <= _currentStep;
-                  return Expanded(
-                    child: Container(
-                      height: 6,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFF1B6B44)
-                            : const Color(0xFFD2E6DB),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'STEP ${_currentStep + 1}  •  ${stepNames[_currentStep].toUpperCase()}',
+                    style: const TextStyle(
+                      color: Color(0xFF1B6B44),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
                     ),
-                  );
-                }),
+                  ),
+                  const SizedBox(height: 9),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: LinearProgressIndicator(
+                      value: (_currentStep + 1) / stepNames.length,
+                      minHeight: 6,
+                      backgroundColor: const Color(0xFFDCE8DE),
+                      color: const Color(0xFF1B6B44),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: List.generate(6, (index) {
+                      final isActive = index <= _currentStep;
+                      return Expanded(
+                        child: Container(
+                          height: 3,
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? const Color(0xFF1B6B44)
+                                : const Color(0xFFD2E6DB),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
 
-            // Step Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
@@ -389,7 +449,6 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               ),
             ),
 
-            // Bottom Navigation Controls
             _buildBottomControls(),
           ],
         ),
@@ -589,6 +648,8 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
 
   // Avatar Card UI with image selection
   Widget _buildAvatarProfileCard() {
+    final user = AuthService.instance.currentUser;
+    final name = user?.name.trim();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -626,17 +687,37 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Citizen Sanctuary Avatar',
+                  'Welcome,',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    fontSize: 15,
+                    fontSize: 12,
                     color: Color(0xFF1B6B44),
                   ),
                 ),
                 const SizedBox(height: 2),
+                Text(
+                  name == null || name.isEmpty ? 'Gujarat citizen' : name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF20352A),
+                  ),
+                ),
+                if (user?.email.isNotEmpty == true) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    user!.email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                ],
+                const SizedBox(height: 5),
                 const Text(
-                  'Pick your eco-citizen badge for Gujarat leaderboards',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  'Choose an avatar for your green journey',
+                  style: TextStyle(fontSize: 11, color: Colors.black54),
                 ),
                 const SizedBox(height: 8),
                 SingleChildScrollView(

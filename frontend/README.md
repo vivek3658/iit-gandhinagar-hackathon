@@ -26,6 +26,7 @@ Open http://localhost:3000. `/` redirects to `/story`.
 - `/solar` rough rooftop solar estimate
 - `/resources` information portals
 - `/admin-demo` explicitly labeled illustrative administrator preview; `/admin` is disabled (404) until a real authenticated backend exists
+- `/operator` secure platform, city, and provider operations console; `/admin`, `/provider`, and `/studio` route to that same role-checked sign-in
 - `/settings` export and reset local data
 
 ## Architecture
@@ -39,7 +40,7 @@ Open http://localhost:3000. `/` redirects to `/story`.
 - `types/`: domain models
 - `public/assets/`: original Urja character and garden assets
 
-**Demo limitations:** No backend, true multi-user features, verified actions, real-time notifications, or authenticated GEDA account. Community and admin values are marked as sample data; estimates are illustrative. Do not claim these are live values.
+**Demo limitations:** Citizen progress and community features remain device-local examples; the operations console is separately authenticated through the Urja backend and only shows authorized role-scoped data.
 
 ## Verification
 
@@ -48,7 +49,7 @@ Project source has been reorganized into true App Router pages; a complete Next.
 ## Production checklist and verification
 
 - Strict TypeScript enabled. Run `npm install && npm run typecheck && npm run build` before deployment.
-- `/admin` intentionally returns 404: do NOT treat client-side passwords or middleware-only checks as authorization. Add server-side sessions, role checks, and protected APIs before enabling real admin features.
+- `/admin` and `/provider` redirect to `/operator`; access is still enforced by the backend-issued operator session and role-scoped APIs. Do not replace these controls with client-only authorization.
 - Current storage is device-local; browser clearing or switching devices loses progress. This is **not** synchronized user data.
 - Dashboard and community data are examples only; there is no verified data pipeline or push notification service.
 - Next Image optimization requires the selected deployment platform to support image transformations.

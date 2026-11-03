@@ -769,26 +769,37 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Lv ${_state.mascotLevel} Sparrow',
-                        style: const TextStyle(
-                          color: Color(0xFFD8F99C),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 10,
+                  LayoutBuilder(
+                    builder: (context, _) => Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Lv ${_state.mascotLevel} Sparrow',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFD8F99C),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 10,
+                            ),
+                          ),
                         ),
-                      ),
-                      Text(
-                        '🪙 ${_state.coins}',
-                        style: const TextStyle(
-                          color: Color(0xFFFFD66E),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 10,
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '🪙 ${_state.coins}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(
+                              color: Color(0xFFFFD66E),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 10,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 3),
                   ClipRRect(

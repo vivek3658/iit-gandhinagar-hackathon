@@ -45,13 +45,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       parent: _entranceController,
       curve: Curves.easeOutCubic,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     // 3. Impact Progress Bar Controller (Page 3: 0 -> 70%)
     _progressController = AnimationController(
@@ -139,7 +139,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: AnimatedBuilder(
                   animation: _ambientController,
                   builder: (context, _) {
-                    final shift = disableAnimations ? 0.0 : (_ambientController.value - 0.5) * 5;
+                    final shift = disableAnimations
+                        ? 0.0
+                        : (_ambientController.value - 0.5) * 5;
                     return Transform.translate(
                       offset: Offset(shift, 0),
                       child: AnimatedSwitcher(
@@ -176,32 +178,80 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
                             ),
-                            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                              Text('🌿', style: TextStyle(fontSize: 13)),
-                              SizedBox(width: 4),
-                              Text('URJA', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-                            ]),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.94),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFFDCEADE),
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x220C2819),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.eco_rounded,
+                                  color: Color(0xFF176B43),
+                                  size: 18,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'URJA',
+                                  style: TextStyle(
+                                    color: Color(0xFF174B35),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'GUJARAT',
+                                  style: TextStyle(
+                                    color: Color(0xFF718174),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          AnimatedOpacity(
-                            opacity: _currentPage == 2 ? 0 : 1,
-                            duration: const Duration(milliseconds: 250),
-                            child: IgnorePointer(
-                              ignoring: _currentPage == 2,
-                              child: TextButton(
-                                onPressed: _navigateToLogin,
-                                style: TextButton.styleFrom(foregroundColor: Colors.white),
-                                child: const Text('Skip', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                          TextButton(
+                            onPressed: _navigateToLogin,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.black.withValues(
+                                alpha: 0.22,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 9,
+                              ),
+                            ),
+                            child: const Text(
+                              'Skip',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
@@ -215,69 +265,123 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         physics: const BouncingScrollPhysics(),
                         children: List.generate(
                           3,
-                          (index) => _buildAdventurePage(index, disableAnimations, isCompact),
+                          (index) => _buildAdventurePage(
+                            index,
+                            disableAnimations,
+                            isCompact,
+                          ),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.fromLTRB(20, isCompact ? 6 : 10, 20, isCompact ? 8 : 16),
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        isCompact ? 6 : 10,
+                        20,
+                        isCompact ? 8 : 16,
+                      ),
                       child: _currentPage == 2
                           ? SizedBox(
                               width: double.infinity,
-                              height: 56,
+                              height: 58,
                               child: ElevatedButton(
                                 onPressed: _navigateToLogin,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF087B3B),
+                                  backgroundColor: const Color(0xFF176B43),
                                   foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                                  elevation: 10,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  elevation: 8,
                                   shadowColor: const Color(0xAA0F3E2E),
                                 ),
-                                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                  Text('Begin your adventure', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-                                  SizedBox(width: 8),
-                                  Icon(Icons.arrow_forward_rounded, size: 20),
-                                ]),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        'Start your green journey',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward_rounded, size: 20),
+                                  ],
+                                ),
                               ),
                             )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 if (_currentPage > 0)
-                                  Material(
-                                    color: Colors.black.withValues(alpha: 0.3),
-                                    shape: const CircleBorder(),
-                                    child: InkWell(
-                                      onTap: _onBack,
-                                      customBorder: const CircleBorder(),
-                                      child: const SizedBox(width: 50, height: 50, child: Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22)),
+                                  OutlinedButton.icon(
+                                    onPressed: _onBack,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      side: BorderSide(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.65,
+                                        ),
+                                      ),
+                                      backgroundColor: Colors.black.withValues(
+                                        alpha: 0.16,
+                                      ),
+                                      minimumSize: const Size(104, 48),
                                     ),
+                                    icon: const Icon(
+                                      Icons.arrow_back_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Back'),
                                   )
                                 else
-                                  const SizedBox(width: 50),
-                                Row(children: List.generate(3, (idx) {
-                                  final active = idx == _currentPage;
-                                  return AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                                    width: active ? 26 : 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: active ? Colors.white : Colors.white.withValues(alpha: 0.48),
-                                      borderRadius: BorderRadius.circular(4),
-                                      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
-                                    ),
-                                  );
-                                })),
-                                Material(
-                                  color: const Color(0xFF087B3B),
-                                  shape: const CircleBorder(),
-                                  elevation: 8,
-                                  child: InkWell(
-                                    onTap: _onNext,
-                                    customBorder: const CircleBorder(),
-                                    child: const SizedBox(width: 50, height: 50, child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22)),
+                                  const SizedBox(width: 104),
+                                Row(
+                                  children: List.generate(3, (idx) {
+                                    final active = idx == _currentPage;
+                                    return AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      width: active ? 22 : 7,
+                                      height: 7,
+                                      decoration: BoxDecoration(
+                                        color: active
+                                            ? Colors.white
+                                            : Colors.white.withValues(
+                                                alpha: 0.55,
+                                              ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                                FilledButton(
+                                  onPressed: _onNext,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFF176B43),
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size(104, 48),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Next'),
+                                      SizedBox(width: 6),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 18,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -293,11 +397,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildAdventurePage(int index, bool disableAnimations, bool isCompact) {
+  Widget _buildAdventurePage(
+    int index,
+    bool disableAnimations,
+    bool isCompact,
+  ) {
     const messages = [
-      ('A GREENER WORLD STARTS AT HOME', 'Small choices at home can make a big difference.'),
-      ('MEET YOUR ENERGY', 'Discover what your everyday devices are using.'),
-      ('GROW YOUR IMPACT', 'Make greener choices, earn rewards, and grow your companion.'),
+      (
+        'MAKE EVERYDAY CHOICES COUNT',
+        'Turn small changes at home into a healthier, greener Gujarat.',
+      ),
+      (
+        'UNDERSTAND YOUR HOME',
+        'Track the energy, water, and travel behind your daily routine.',
+      ),
+      (
+        'PLAY. PROGRESS. PROTECT.',
+        'Complete real-life missions, earn rewards, and grow your sparrow.',
+      ),
     ];
     final (eyebrow, message) = messages[index];
     return FadeTransition(
@@ -305,53 +422,118 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: SlideTransition(
         position: _slideAnimation,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(26, 16, 26, isCompact ? 4 : 16),
+          padding: EdgeInsets.fromLTRB(22, 12, 22, isCompact ? 4 : 12),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(flex: 7),
-              if (index == 0) ...[
-                const Text(
-                  'URJA ONE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                    shadows: [Shadow(color: Colors.black87, blurRadius: 18)],
+              const Spacer(flex: 3),
+              if (index == 1)
+                _applianceStatus(disableAnimations, isCompact)
+              else if (index == 2)
+                _impactRewards(disableAnimations)
+              else
+                Align(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFE2EBDD)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33071C0E),
+                          blurRadius: 24,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _WelcomeBenefit(
+                          icon: Icons.bolt_rounded,
+                          label: 'Save',
+                        ),
+                        SizedBox(width: 16),
+                        _WelcomeBenefit(
+                          icon: Icons.cloud_outlined,
+                          label: 'Measure',
+                        ),
+                        SizedBox(width: 16),
+                        _WelcomeBenefit(
+                          icon: Icons.emoji_events_outlined,
+                          label: 'Grow',
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 10),
-              ],
-              if (index == 1) _applianceStatus(disableAnimations, isCompact),
-              if (index == 2) _impactRewards(disableAnimations),
-              SizedBox(height: isCompact ? 8 : 16),
-              Text(
-                eyebrow,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.96),
-                  fontSize: 12,
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w900,
-                  shadows: const [Shadow(color: Colors.black87, blurRadius: 12)],
-                ),
-              ),
-              const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                    shadows: [Shadow(color: Colors.black87, blurRadius: 14)],
-                  ),
-                ),
-              ),
               const Spacer(flex: 2),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FCF6).withValues(alpha: 0.96),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x44071C0E),
+                      blurRadius: 26,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE4F2E6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '0${index + 1}  /  03   •   ${index == 2 ? 'YOUR IMPACT' : 'THE URJA WAY'}',
+                        style: const TextStyle(
+                          color: Color(0xFF176B43),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      eyebrow,
+                      style: TextStyle(
+                        color: const Color(0xFF174B35),
+                        fontSize: isCompact ? 21 : 24,
+                        height: 1.12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: Color(0xFF617168),
+                        fontSize: 14,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -359,15 +541,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _gameGlass({required Widget child, EdgeInsets padding = const EdgeInsets.all(12)}) {
+  Widget _gameGlass({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(12),
+  }) {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
         color: const Color(0xEAF8F4DF),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.86), width: 1.4),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.86),
+          width: 1.4,
+        ),
         boxShadow: const [
-          BoxShadow(color: Color(0x66071C0E), blurRadius: 20, offset: Offset(0, 8)),
+          BoxShadow(
+            color: Color(0x66071C0E),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
           BoxShadow(color: Colors.white70, blurRadius: 0, offset: Offset(0, 1)),
         ],
       ),
@@ -382,46 +574,128 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ('📺', 'Television', Color(0xFFFBBF24)),
       ('🍲', 'Kitchen', Color(0xFFFB6A57)),
     ];
-    return _gameGlass(padding: EdgeInsets.symmetric(horizontal: 12, vertical: isCompact ? 4 : 7), child: Column(
-      children: appliances.map((item) => Padding(
-        padding: EdgeInsets.symmetric(vertical: isCompact ? 2 : 5),
-        child: Row(children: [
-          Text(item.$1, style: const TextStyle(fontSize: 23)),
-          const SizedBox(width: 10),
-          Expanded(child: Text(item.$2, style: const TextStyle(color: Color(0xFF244233), fontSize: 13, fontWeight: FontWeight.w700))),
-          AnimatedBuilder(animation: _pulseController, builder: (context, _) => Transform.scale(
-            scale: disableAnimations ? 1 : 0.88 + _pulseController.value * 0.18,
-            child: Container(width: 11, height: 11, decoration: BoxDecoration(color: item.$3, shape: BoxShape.circle, boxShadow: [BoxShadow(color: item.$3.withValues(alpha: 0.6), blurRadius: 8)])),
-          )),
-        ]),
-      )).toList(),
-    ));
+    return _gameGlass(
+      padding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: isCompact ? 4 : 7,
+      ),
+      child: Column(
+        children: appliances
+            .map(
+              (item) => Padding(
+                padding: EdgeInsets.symmetric(vertical: isCompact ? 2 : 5),
+                child: Row(
+                  children: [
+                    Text(item.$1, style: const TextStyle(fontSize: 23)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        item.$2,
+                        style: const TextStyle(
+                          color: Color(0xFF244233),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, _) => Transform.scale(
+                        scale: disableAnimations
+                            ? 1
+                            : 0.88 + _pulseController.value * 0.18,
+                        child: Container(
+                          width: 11,
+                          height: 11,
+                          decoration: BoxDecoration(
+                            color: item.$3,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: item.$3.withValues(alpha: 0.6),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
   }
 
   Widget _impactRewards(bool disableAnimations) {
-    return Column(children: [
-      _gameGlass(child: Row(children: [
-        const Text('🌱', style: TextStyle(fontSize: 25)),
-        const SizedBox(width: 8),
-        Expanded(child: AnimatedBuilder(animation: _progressAnimation, builder: (_, __) => ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(value: disableAnimations ? 0.7 : _progressAnimation.value, minHeight: 12, backgroundColor: const Color(0xFFCCD1B2), color: const Color(0xFF08A83C)),
-        ))),
-        const SizedBox(width: 8),
-        const Text('70%', style: TextStyle(color: Color(0xFF20633B), fontWeight: FontWeight.w900)),
-      ])),
-      const SizedBox(height: 10),
-      Row(children: [
-        for (final reward in [('🪙', 'COINS'), ('☁️', 'CARBON'), ('⭐', 'STREAK')])
-          Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: _gameGlass(
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            child: Column(children: [
-              Text(reward.$1, style: const TextStyle(fontSize: 23)),
-              Text(reward.$2, style: const TextStyle(fontSize: 9, letterSpacing: 0.8, color: Color(0xFF46604B), fontWeight: FontWeight.w900)),
-            ]),
-          ))),
-      ]),
-    ]);
+    return Column(
+      children: [
+        _gameGlass(
+          child: Row(
+            children: [
+              const Text('🌱', style: TextStyle(fontSize: 25)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _progressAnimation,
+                  builder: (_, __) => ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: disableAnimations ? 0.7 : _progressAnimation.value,
+                      minHeight: 12,
+                      backgroundColor: const Color(0xFFCCD1B2),
+                      color: const Color(0xFF08A83C),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '70%',
+                style: TextStyle(
+                  color: Color(0xFF20633B),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (final reward in [
+              ('🪙', 'COINS'),
+              ('☁️', 'CARBON'),
+              ('⭐', 'STREAK'),
+            ])
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _gameGlass(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    child: Column(
+                      children: [
+                        Text(reward.$1, style: const TextStyle(fontSize: 23)),
+                        Text(
+                          reward.$2,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            letterSpacing: 0.8,
+                            color: Color(0xFF46604B),
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
   }
 
   // ===========================================================================
@@ -482,9 +756,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 animation: _ambientController,
                 builder: (context, child) {
                   final t = _ambientController.value;
-                  final floatY = disableAnimations ? 0.0 : math.sin(t * math.pi) * 6.0;
-                  final rotateZ = disableAnimations ? 0.0 : math.sin(t * math.pi) * 0.015;
-                  final breatheScale = disableAnimations ? 1.0 : 1.0 + (math.sin(t * math.pi) * 0.015);
+                  final floatY = disableAnimations
+                      ? 0.0
+                      : math.sin(t * math.pi) * 6.0;
+                  final rotateZ = disableAnimations
+                      ? 0.0
+                      : math.sin(t * math.pi) * 0.015;
+                  final breatheScale = disableAnimations
+                      ? 1.0
+                      : 1.0 + (math.sin(t * math.pi) * 0.015);
 
                   return Stack(
                     alignment: Alignment.center,
@@ -530,7 +810,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           left: 20 + math.cos(t * math.pi * 0.8) * 6,
                           child: Transform.rotate(
                             angle: -0.2 + (t * 0.3),
-                            child: const Text('🍃', style: TextStyle(fontSize: 18)),
+                            child: const Text(
+                              '🍃',
+                              style: TextStyle(fontSize: 18),
+                            ),
                           ),
                         ),
                         Positioned(
@@ -538,7 +821,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           right: 24 - math.cos(t * math.pi * 1.1) * 8,
                           child: Transform.rotate(
                             angle: 0.3 - (t * 0.25),
-                            child: const Text('🌱', style: TextStyle(fontSize: 20)),
+                            child: const Text(
+                              '🌱',
+                              style: TextStyle(fontSize: 20),
+                            ),
                           ),
                         ),
                         Positioned(
@@ -546,7 +832,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           left: 32 + math.sin(t * math.pi) * 6,
                           child: Transform.rotate(
                             angle: t * 0.2,
-                            child: const Text('🌿', style: TextStyle(fontSize: 16)),
+                            child: const Text(
+                              '🌿',
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                       ],
@@ -559,7 +848,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               // Translucent Cream Feature Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(22),
@@ -665,7 +957,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     animation: _ambientController,
                     builder: (context, child) {
                       final t = _ambientController.value;
-                      final floatY = disableAnimations ? 0.0 : math.sin(t * math.pi) * 4.0;
+                      final floatY = disableAnimations
+                          ? 0.0
+                          : math.sin(t * math.pi) * 4.0;
                       return Container(
                         height: 220,
                         width: double.infinity,
@@ -759,7 +1053,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               // Glass-Style Energy Recommendation Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(18),
@@ -891,8 +1188,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 animation: _ambientController,
                 builder: (context, child) {
                   final t = _ambientController.value;
-                  final floatY = disableAnimations ? 0.0 : math.sin(t * math.pi) * 5.0;
-                  final pulseSprout = disableAnimations ? 1.0 : 1.0 + (math.sin(t * math.pi * 2) * 0.08);
+                  final floatY = disableAnimations
+                      ? 0.0
+                      : math.sin(t * math.pi) * 5.0;
+                  final pulseSprout = disableAnimations
+                      ? 1.0
+                      : 1.0 + (math.sin(t * math.pi * 2) * 0.08);
 
                   return Stack(
                     alignment: Alignment.center,
@@ -931,7 +1232,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           child: Transform.scale(
                             scale: pulseSprout,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 borderRadius: BorderRadius.circular(16),
@@ -972,7 +1276,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               // Animated Impact Card (Progress Bar from 0% -> 70%)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(20),
@@ -1004,9 +1311,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         AnimatedBuilder(
                           animation: _progressAnimation,
                           builder: (context, _) {
-                            final pct = (_progressAnimation.value * 100).round();
+                            final pct = (_progressAnimation.value * 100)
+                                .round();
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFE8F5E9),
                                 borderRadius: BorderRadius.circular(10),
@@ -1040,11 +1351,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           clipBehavior: Clip.antiAlias,
                           child: FractionallySizedBox(
                             alignment: Alignment.centerLeft,
-                            widthFactor: disableAnimations ? 0.70 : _progressAnimation.value,
+                            widthFactor: disableAnimations
+                                ? 0.70
+                                : _progressAnimation.value,
                             child: Container(
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [Color(0xFF34D399), Color(0xFF10B981)],
+                                  colors: [
+                                    Color(0xFF34D399),
+                                    Color(0xFF10B981),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1173,10 +1489,32 @@ class _VerticalDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 38,
-      color: const Color(0x221B6B44),
+    return Container(width: 1, height: 38, color: const Color(0x221B6B44));
+  }
+}
+
+class _WelcomeBenefit extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _WelcomeBenefit({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: const Color(0xFF176B43), size: 22),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF44544A),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1242,7 +1580,9 @@ class _DeviceStatusCard extends StatelessWidget {
                     AnimatedBuilder(
                       animation: pulseAnimation,
                       builder: (context, _) {
-                        final scale = disableAnimations ? 1.0 : 0.85 + (pulseAnimation.value * 0.3);
+                        final scale = disableAnimations
+                            ? 1.0
+                            : 0.85 + (pulseAnimation.value * 0.3);
                         return Transform.scale(
                           scale: scale,
                           child: Container(

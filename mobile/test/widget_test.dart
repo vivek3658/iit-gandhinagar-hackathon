@@ -3,10 +3,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:urja/features/auth/google_login_screen.dart';
 import 'package:urja/features/home/main_two_screen_shell.dart';
 import 'package:urja/features/onboarding/citizen_profile_setup_screen.dart';
+import 'package:urja/features/onboarding/onboarding_screen.dart';
 import 'package:urja/main.dart';
 
 void main() {
   setUp(() {});
+
+  testWidgets('new citizens see three welcome screens before Google sign-in', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
+    await tester.pump();
+
+    expect(find.text('MAKE EVERYDAY CHOICES COUNT'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    for (final title in ['UNDERSTAND YOUR HOME', 'PLAY. PROGRESS. PROTECT.']) {
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 450));
+      expect(find.text(title), findsOneWidget);
+      final exception = tester.takeException();
+      expect(exception, isNull);
+    }
+
+    await tester.tap(find.text('Start your green journey'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Start your green journey'), findsOneWidget);
+  });
 
   testWidgets('Google sign-in screen stays usable on compact displays', (
     WidgetTester tester,
@@ -198,7 +230,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Step 1: Location & House
-      expect(find.text('Citizen Sanctuary Setup'), findsOneWidget);
+      expect(find.text('YOUR GREEN HOME'), findsOneWidget);
       expect(find.text('Gujarat Home & District'), findsOneWidget);
       expect(find.text('Ahmedabad'), findsOneWidget);
       expect(find.text('Navrangpura'), findsOneWidget);

@@ -306,6 +306,7 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
     final maxVal = barData
         .map((e) => (e['val'] as num).toDouble())
         .reduce((a, b) => a > b ? a : b);
+    final chartMaxVal = maxVal > 0 ? maxVal : 1;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -326,13 +327,17 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
         children: [
           Row(
             children: [
-              Text(
-                'SAVED ${utility ?? ''} READINGS (${unit ?? ''})',
-                style: TextStyle(
-                  color: const Color(0xFF16A34A),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 10,
-                  letterSpacing: 1.0,
+              Expanded(
+                child: Text(
+                  'SAVED $utility READINGS (${unit ?? ''})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF16A34A),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
               Container(
@@ -362,7 +367,7 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: barData.map((item) {
                 final val = (item['val'] as num).toDouble();
-                final heightFactor = (val / maxVal).clamp(0.12, 1.0);
+                final heightFactor = (val / chartMaxVal).clamp(0.12, 1.0);
                 final isToday = item['day'] == 'Today';
 
                 return Column(
@@ -379,24 +384,15 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Container(
-                      width: 22,
+                    SizedBox(
+                      width: 30,
                       height: 80 * heightFactor,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: isToday
-                              ? [
-                                  const Color(0xFF16A34A),
-                                  const Color(0xFF4ADE80),
-                                ]
-                              : [
-                                  const Color(0xFF94A3B8),
-                                  const Color(0xFFCBD5E1),
-                                ],
+                      child: CustomPaint(
+                        painter: _IsometricBarPainter(
+                          color: isToday
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFF94A3B8),
                         ),
-                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -700,11 +696,8 @@ class _CarbonDashboardSheetState extends State<CarbonDashboardSheet> {
                 color: Color(0xFF16A34A),
                 label: 'Appliance Load (kW)',
               ),
-              const SizedBox(width: 16),
-              const _LegendDot(
-                color: Color(0xFF0284C7),
-                label: 'Solar Output (kW)',
-              ),
+              SizedBox(width: 16),
+              _LegendDot(color: Color(0xFF0284C7), label: 'Solar Output (kW)'),
             ],
           ),
         ],
@@ -1025,4 +1018,52 @@ class _LoadCurvePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _IsometricBarPainter extends CustomPainter {
+  const _IsometricBarPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final depth = size.width * 0.2;
+    final left = size.width * 0.12;
+    final right = size.width - depth;
+    final top = depth;
+    final bottom = size.height;
+
+    final front = Path()
+      ..moveTo(left, top)
+      ..lineTo(right, top)
+      ..lineTo(right, bottom)
+      ..lineTo(left, bottom)
+      ..close();
+    final side = Path()
+      ..moveTo(right, top)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, bottom - depth)
+      ..lineTo(right, bottom)
+      ..close();
+    final cap = Path()
+      ..moveTo(left, top)
+      ..lineTo(left + depth, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(right, top)
+      ..close();
+
+    canvas.drawPath(front, Paint()..color = color);
+    canvas.drawPath(
+      side,
+      Paint()..color = Color.lerp(color, Colors.black, 0.2)!,
+    );
+    canvas.drawPath(
+      cap,
+      Paint()..color = Color.lerp(color, Colors.white, 0.3)!,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _IsometricBarPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

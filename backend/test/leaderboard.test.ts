@@ -31,14 +31,15 @@ describe('CO2e leaderboard scoring', () => {
           ],
         };
       }
-      if (sql.includes('estimated_co2e_tonnes')) {
+      if (sql.includes('WITH city_scores AS')) {
         return {
           rows: [
             {
               district: 'Ahmedabad',
-              estimated_co2e_tonnes: '0.0125',
-              active_citizens: 3,
+              estimated_co2e_tonnes: '0',
+              active_citizens: 0,
             },
+            { district: 'Surat', estimated_co2e_tonnes: '0.02', active_citizens: 1 },
           ],
         };
       }
@@ -91,16 +92,20 @@ describe('CO2e leaderboard scoring', () => {
     expect(leagueQuery).toContain('OR id = $6');
     expect(global.municipalRankings[0]).toMatchObject({
       district: 'Ahmedabad',
-      estimatedCo2eTonnes: 0.0125,
-      activeCitizens: 3,
+      estimatedCo2eTonnes: 0,
+      activeCitizens: 0,
     });
+    expect(global.municipalRankings).toHaveLength(2);
+    expect(global.municipalRankings[1].district).toBe('Surat');
     expect(global.topCitizens[0].estimatedCo2eKg).toBe(12.5);
     expect(
       calls.some((call) =>
         call.sql.includes('ORDER BY COALESCE(a.estimated_weekly_co2e_kg, 0) DESC'),
       ),
     ).toBe(true);
-    expect(calls.some((call) => call.sql.includes('GROUP BY LOWER(BTRIM(u.district))'))).toBe(
+    expect(
+      calls.some((call) => call.sql.includes('LEFT JOIN public.daily_quests d')),
+    ).toBe(
       true,
     );
 
