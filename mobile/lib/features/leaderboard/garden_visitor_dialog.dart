@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/game_state_service.dart';
 import '../../services/leaderboard_service.dart';
+import '../game/garden_3d_stage.dart';
 
 class GardenVisitorDialog extends StatefulWidget {
   final String citizenId;
@@ -399,9 +400,17 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
   Widget _buildGardenCanvas() {
     final garden = _visitorData?.garden ?? {};
     final slots = (garden['slots'] as List<dynamic>?) ?? [];
+    final islandState = slots.whereType<Map>().map((slot) {
+      return <String, dynamic>{
+        'x': ((slot['x'] as num?)?.toInt() ?? 1) - 1,
+        'z': ((slot['z'] as num?)?.toInt() ?? 1) - 1,
+        'id': slot['id'] as String? ?? 'unknown',
+        'r': (slot['rotation'] as num?)?.toInt() ?? 0,
+      };
+    }).toList();
 
     return Container(
-      height: 200,
+      height: 240,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: const RadialGradient(
@@ -412,66 +421,12 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0x334ADE80)),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Isometric Garden Grid Background
-          Positioned.fill(child: CustomPaint(painter: _IsometricGridPainter())),
-
-          // Floating items
-          if (slots.isEmpty)
-            const Text(
-              '🌱 Developing Garden Island',
-              style: TextStyle(
-                color: Colors.white54,
-                fontWeight: FontWeight.w600,
-              ),
-            )
-          else
-            Wrap(
-              spacing: 16,
-              runSpacing: 14,
-              alignment: WrapAlignment.center,
-              children: slots.map((s) {
-                final slot = s as Map<String, dynamic>;
-                final icon = slot['icon'] as String? ?? '🏡';
-                final name = slot['name'] as String? ?? 'Eco Home';
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xDD0D2B1C),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0x444ADE80)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 6,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(icon, style: const TextStyle(fontSize: 26)),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-        ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Garden3DStage(
+          initialIslandState: islandState,
+          initialMascotLevel: _visitorData?.mascot.level,
+        ),
       ),
     );
   }
@@ -523,25 +478,4 @@ class _GardenVisitorDialogState extends State<GardenVisitorDialog> {
       ),
     );
   }
-}
-
-class _IsometricGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x1A4ADE80)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    const step = 28.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -1049,8 +1049,9 @@ class _CitizenProfileSetupScreenState extends State<CitizenProfileSetupScreen> {
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null)
+                      if (val != null) {
                         setState(() => _electricityProviderId = val);
+                      }
                     },
                   ),
                 ),

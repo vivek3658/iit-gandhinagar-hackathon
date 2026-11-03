@@ -145,8 +145,9 @@ class DeviceTimeLogService {
     double? thermostatTemp,
   }) async {
     final token = AuthService.instance.accessToken;
-    if (token == null || token.isEmpty)
+    if (token == null || token.isEmpty) {
       throw Exception('Sign in to save appliance logs.');
+    }
     final response = await ApiClient.instance.post(
       '/devices/log-hours',
       body: {
@@ -199,8 +200,9 @@ class DeviceTimeLogService {
 
   Future<Map<String, dynamic>> getSummary() async {
     final token = AuthService.instance.accessToken;
-    if (token == null || token.isEmpty)
+    if (token == null || token.isEmpty) {
       throw Exception('Sign in to view appliance summary.');
+    }
     final response = await ApiClient.instance.get('/devices/summary');
     if (response.statusCode != HttpStatus.ok) {
       throw HttpException(

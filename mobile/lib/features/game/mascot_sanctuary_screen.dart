@@ -44,7 +44,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
   final GlobalKey<Sparrow3DStageState> _sparrowKey =
       GlobalKey<Sparrow3DStageState>();
   final GameStateService _state = GameStateService.instance;
-  final TextEditingController _chatInputController = TextEditingController();
 
   WeatherData? _currentWeather;
   String _currentDialogue =
@@ -135,7 +134,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _environmentTimer?.cancel();
     _weatherRefreshTimer?.cancel();
     _idleExpressionTimer?.cancel();
-    _chatInputController.dispose();
     _bubbleAnimController.dispose();
     _state.removeListener(_onStateChange);
     super.dispose();
@@ -258,8 +256,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _sparrowKey.currentState?.setExpression(expression);
     if (expression == 'sleep' ||
         expression == 'resting' ||
-        expression == 'nest')
+        expression == 'nest') {
       return;
+    }
     _expressionResetTimer = Timer(duration, () {
       if (mounted && !_state.isSleeping) {
         _sparrowKey.currentState?.setExpression(_ambientExpression);
@@ -341,55 +340,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     });
   }
 
-  void _onSendMessage(String text) {
-    if (text.trim().isEmpty) return;
-    _chatInputController.clear();
-    FocusScope.of(context).unfocus();
-    _resetIdleTimer();
-    if (_state.soundEnabled) HapticFeedback.mediumImpact();
-
-    final q = text.toLowerCase();
-    String reply = '';
-    String expression = 'happy';
-
-    if (q.contains('ac') ||
-        q.contains('air conditioner') ||
-        q.contains('cool')) {
-      reply =
-          'Setting AC to 24°C saves ~24% power and ₹1,800/yr in Gujarat! ❄️';
-      expression = 'cheering';
-    } else if (q.contains('vampire') ||
-        q.contains('standby') ||
-        q.contains('plug') ||
-        q.contains('charger')) {
-      reply =
-          'Unplugging idle phone/laptop chargers cuts phantom load and saves ₹800/yr! 🔌';
-      expression = 'thinking';
-    } else if (q.contains('solar') || q.contains('sun') || q.contains('roof')) {
-      reply =
-          'Midday (11 AM - 3 PM) is prime Gujarat solar generation! Run heavy appliances now! ☀️';
-      expression = 'celebrating';
-    } else if (q.contains('water') || q.contains('tap') || q.contains('bath')) {
-      reply =
-          "Every drop saved protects the Narmada basin. Aerators cut tap flow 50%! 💧";
-      expression = 'watering';
-    } else if (q.contains('metro') ||
-        q.contains('commute') ||
-        q.contains('travel') ||
-        q.contains('bike')) {
-      reply =
-          'Metro and EV travel prevent ~1.8 kg CO2e every 10 km! Great choice! 🚇';
-      expression = 'cheering';
-    } else {
-      reply =
-          'Chirp! 🌿 Little eco actions every day keep Gujarat clean and green! 🍃';
-      expression = 'happy';
-    }
-
-    _showExpression(expression);
-    _say(reply, duration: const Duration(seconds: 8));
-  }
-
   void _onSparrowPetted(String expression) {
     if (_isInteractionCooldown) return;
     if (_isNightTimeNestSleep) {
@@ -437,26 +387,30 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
     _backendMascotLoading = true;
     try {
       final response = await ApiClient.instance.get('/mascot/state');
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted)
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) {
         return;
+      }
       final decoded = response.decodeJson();
       final data = decoded['data'] is Map<String, dynamic>
           ? decoded['data'] as Map<String, dynamic>
           : decoded;
       final vitality = data['vitality'];
-      if (vitality is num)
+      if (vitality is num) {
         _state.setVitality(
           (vitality > 1 ? vitality / 100 : vitality).toDouble(),
         );
+      }
       final expression = data['expression'] as String?;
-      if (expression != null && expression.isNotEmpty)
+      if (expression != null && expression.isNotEmpty) {
         _showExpression(expression.toLowerCase());
+      }
       final dialogue = data['dialogue'];
       final line = dialogue is Map<String, dynamic>
           ? dialogue['text'] as String?
           : dialogue as String?;
-      if (line != null && line.isNotEmpty)
+      if (line != null && line.isNotEmpty) {
         _say(line, duration: const Duration(seconds: 8));
+      }
     } catch (e) {
       debugPrint('[Mascot] Backend state unavailable: $e');
     } finally {
@@ -472,8 +426,9 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
         '/mascot/interact',
         body: const {},
       );
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted)
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) {
         return;
+      }
       final decoded = response.decodeJson();
       final data = decoded['data'] is Map<String, dynamic>
           ? decoded['data'] as Map<String, dynamic>
@@ -1371,137 +1326,6 @@ class _MascotSanctuaryScreenState extends State<MascotSanctuaryScreen>
             Icon(Icons.arrow_downward, color: Colors.white, size: 16),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildChatBox() {
-    final chips = [
-      '💡 AC 24°C',
-      '🔌 Vampire Load',
-      '☀️ Solar Window',
-      '💧 Save Water',
-      '🚴 Metro Commute',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Quick prompt suggestion chips
-          SizedBox(
-            height: 26,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: chips.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 6),
-              itemBuilder: (context, idx) {
-                final label = chips[idx];
-                return GestureDetector(
-                  onTap: () => _onSendMessage(label),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          color: Color(0xFF334155),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 5),
-
-          // Chat Input Row
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: TextField(
-                    controller: _chatInputController,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF0F172A),
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "Ask Cheechee (e.g. 'How to save power?')...",
-                      hintStyle: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF94A3B8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF16A34A)),
-                      ),
-                    ),
-                    onSubmitted: _onSendMessage,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => _onSendMessage(_chatInputController.text),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16A34A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

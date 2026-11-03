@@ -18,8 +18,10 @@ const CHAPTERS: LearningChapter[] = [
     title: 'Know Your Electricity Use',
     summary: 'Learn how to read an electricity bill and compare the same billing periods.',
     content: [
-      'An electricity bill usually covers a defined billing period. Use the meter units and the dates on the bill to understand how much energy your home used.',
-      'Comparing similar periods is more useful than comparing bill totals alone, because tariffs, fees, and billing-day counts can change.',
+      'An electricity bill usually covers a defined billing period. Find the start and end dates, the number of units used, and whether the bill is based on an actual meter reading or an estimate. A kilowatt-hour (kWh) is a unit of energy, not a measure of how much a bill costs.',
+      'Compare kWh over similar periods rather than comparing rupee totals alone. Tariffs, fixed charges, taxes, and the number of billing days can change even when your household uses the same amount of electricity.',
+      'A simple notebook or a sequence of dated readings can reveal broad patterns. Note changes such as hotter weather, guests, a new appliance, or a longer billing period before deciding why usage changed. One unusual month is a clue to investigate, not proof of a cause.',
+      'Use appliance labels and safe operating guidance when exploring possible improvements. Never open a meter, electrical panel, or appliance casing. Ask a qualified electrician or your utility for help with equipment or billing questions.',
     ],
     question: 'Which comparison is most useful for tracking household electricity use?',
     options: [
@@ -36,8 +38,10 @@ const CHAPTERS: LearningChapter[] = [
     title: 'Make Water Use Visible',
     summary: 'Record a dated water reading and use the same unit when comparing periods.',
     content: [
-      'A dated meter reading gives your household a starting point. Record the same meter and unit again later so the change can be compared.',
-      'If a reading seems unusual, check the meter and household activity before drawing conclusions. A reading alone does not identify the cause of water use.',
+      'A dated water reading gives your household a starting point. Record the same meter, read the same display, and keep the same unit each time. If your home has no meter, use a clearly labelled bill or provider record instead of inventing a reading.',
+      'Compare readings only when their dates and coverage periods make sense. A cumulative meter reading is different from a billed-period quantity. Keep those data types separate so a chart does not compare unlike measurements.',
+      'If a reading changes unexpectedly, first check for a typing mistake, a leak, visitors, garden watering, or a change in supply. A reading can show that use changed, but it does not identify the cause or prove that a particular habit saved water.',
+      'Choose practical steps that fit your home: report leaks, use water thoughtfully, and follow local guidance for storage and reuse. Avoid drinking or cooking with reclaimed water unless it has been treated and approved for that purpose.',
     ],
     question: 'What makes two water readings easier to compare?',
     options: [
@@ -54,8 +58,10 @@ const CHAPTERS: LearningChapter[] = [
     title: 'Plan a Greener Trip',
     summary: 'Choose a trip mode that suits the route and record only a confirmed summary.',
     content: [
-      'For a suitable route, walking, cycling, or public transport can reduce reliance on a private motor vehicle. Accessibility, safety, weather, and travel time matter too.',
-      'Record a trip only after checking the mode and distance. A route estimate is not a measured emissions saving.',
+      'For a suitable route, walking, cycling, or public transport can reduce reliance on a private motor vehicle. Accessibility, safety, weather, time, and the needs of everyone travelling matter; a lower-emission option should never require an unsafe or inaccessible trip.',
+      'When recording a trip, check the travel date, mode, and approximate distance. A user-confirmed trip summary is useful activity data, but it is not GPS tracking and does not by itself establish how many emissions were avoided.',
+      'A fair comparison needs a clear alternative: for example, what vehicle trip would otherwise have happened, how far it would have travelled, how many people shared it, and which emissions factors apply. Without those details, treat any calculated difference as an estimate rather than a verified saving.',
+      'Try planning one convenient journey at a time. Combine errands when practical, check public transport information before leaving, and choose a route that works for your health and circumstances.',
     ],
     question: 'What should happen before a trip summary is saved?',
     options: [
@@ -72,9 +78,10 @@ const CHAPTERS: LearningChapter[] = [
     title: 'Clean Energy, Clearly',
     summary: 'Learn what renewable electricity is and what a household can realistically change.',
     content: [
-      'Solar and wind use naturally replenished sources to make electricity. Hydropower and other sources can also contribute, depending on the local grid and project.',
-      'A home using grid electricity receives the mix supplied to its area. A rooftop solar system can generate power at home, but its output depends on sunlight, equipment, and safe installation.',
-      'Myth: every home can become fully renewable just by changing a switch. Reality: options depend on the building, local rules, available providers, and the electricity system.',
+      'Solar and wind use naturally replenished sources to make electricity. Hydropower and other sources can also contribute, depending on the local grid and project. Every technology has a lifecycle and local context; “renewable” does not mean that every environmental impact is zero.',
+      'A home using grid electricity receives the mix supplied to its area. The mix can vary by time and location. A bill showing electricity use does not reveal the exact generation source for every unit.',
+      'A rooftop solar system can generate power at home, but output depends on sunlight, roof orientation and shade, equipment, maintenance, and safe installation. A qualified provider should assess the site and explain costs, permissions, warranties, and grid connection.',
+      'Myth: every home can become fully renewable just by changing a switch. Reality: options depend on the building, local rules, available providers, finances, and the electricity system. Ask for documented assumptions before relying on a production or savings estimate.',
     ],
     question: 'What is a sensible first step before installing rooftop solar?',
     options: [
@@ -89,15 +96,20 @@ const CHAPTERS: LearningChapter[] = [
     id: 'co2e-basics',
     version: 1,
     title: 'CO₂e Without the Confusion',
-    summary: 'Understand why different greenhouse gases are compared using carbon-dioxide equivalent.',
+    summary:
+      'Understand why different greenhouse gases are compared using carbon-dioxide equivalent.',
     content: [
-      'Carbon dioxide equivalent, written CO₂e, is a common unit for comparing the warming effect of different greenhouse gases over a stated time period. It is not the same thing as measuring only carbon dioxide.',
-      'A footprint estimate depends on its boundary, activity data, and emissions factors. Compare like with like, and treat estimates as estimates unless they are verified.',
-      'Myth: a single CO₂e number tells the whole environmental story. Reality: it is useful for climate comparison, but it does not describe every impact such as water use, air pollution, or biodiversity.',
+      'Carbon dioxide equivalent, written CO₂e, is a common unit for comparing the warming effect of different greenhouse gases over a stated time period. It is not the same thing as measuring only carbon dioxide, and it does not mean that a personal footprint has been directly measured.',
+      'A footprint or avoided-emissions estimate needs a defined boundary, reliable activity data, a suitable emissions factor, and a stated method. The factor may vary by fuel, location, year, and system boundary. Record the source and uncertainty so another person can understand the result.',
+      'To estimate a reduction, compare an observed activity with a reasonable baseline for the same service and period. A smaller utility bill, a logged habit, or a completed trip alone cannot establish that the change was caused by one action.',
+      'Myth: one CO₂e number tells the whole environmental story. Reality: it can help compare climate impacts, but it does not describe every impact such as water use, air pollution, material use, or biodiversity.',
     ],
     question: 'What does CO₂e help us compare?',
     options: [
-      { id: 'gas-impact', label: 'The climate impact of different greenhouse gases on a common scale' },
+      {
+        id: 'gas-impact',
+        label: 'The climate impact of different greenhouse gases on a common scale',
+      },
       { id: 'all-impacts', label: 'Every environmental impact in one complete score' },
       { id: 'exact-measurement', label: 'An exact personal measurement without activity data' },
     ],
@@ -110,13 +122,17 @@ const CHAPTERS: LearningChapter[] = [
     title: 'Carbon Myths, Busted',
     summary: 'Separate practical climate actions from common myths and all-or-nothing thinking.',
     content: [
-      'Myth: one person’s choices do not matter. Reality: household actions reduce avoidable demand, build habits, and can influence wider community choices; durable progress also needs cleaner infrastructure and public action.',
-      'Myth: buying one “green” product cancels every emission. Reality: look at how long an item lasts, whether you need it, and how it is made, used, repaired, and disposed of.',
-      'Myth: planting trees alone can quickly cancel all emissions. Reality: protecting ecosystems matters, but it cannot replace reducing fossil-fuel pollution; trees need suitable places and long-term care.',
+      'Myth: one person’s choices do not matter. Reality: household actions can reduce avoidable demand, build durable habits, and influence community choices. Lasting progress also needs reliable public services, cleaner infrastructure, and effective policy.',
+      'Myth: buying one “green” product cancels every emission. Reality: consider whether you need it, how long it lasts, how it is made and transported, whether it can be repaired, and how it will be disposed of. Reuse and maintenance may be better than replacing a working item.',
+      'Myth: one month with a lower bill proves a household has reduced emissions. Reality: weather, billing dates, occupancy, tariffs, and meter estimates can all affect comparisons. Use consistent periods and describe the result as an observed change until causes and factors are assessed.',
+      'Myth: planting trees alone can quickly cancel all emissions. Reality: protecting ecosystems matters, but it cannot replace reducing fossil-fuel pollution. Trees need suitable places and long-term care, and their carbon benefits are uncertain over time.',
     ],
     question: 'Which statement is the most accurate?',
     options: [
-      { id: 'both-scales', label: 'Personal actions help, alongside systemic and community change' },
+      {
+        id: 'both-scales',
+        label: 'Personal actions help, alongside systemic and community change',
+      },
       { id: 'offset-everything', label: 'A single purchase can cancel any household footprint' },
       { id: 'trees-alone', label: 'Tree planting removes the need to reduce emissions' },
     ],
@@ -129,9 +145,10 @@ const CHAPTERS: LearningChapter[] = [
     title: 'Small Steps, Real Progress',
     summary: 'Choose practical changes that reduce waste and fit your home, budget, and routine.',
     content: [
-      'Try one action at a time: switch off unused lights and appliances, use efficient cooling settings, fix water leaks, and choose walking, cycling, or public transport when practical.',
-      'Use what you already own for longer, repair items when possible, and sort waste according to your local collection rules. A change is more useful when it is safe, affordable, and repeatable.',
-      'Myth: only expensive technology makes a difference. Reality: efficient habits and maintenance can help, while upgrades should be chosen using reliable product information and local conditions.',
+      'Try one action at a time: switch off unused lights and appliances when safe, use comfortable and efficient cooling settings, report water leaks, and choose walking, cycling, or public transport when practical.',
+      'Make a small experiment measurable. Write down what you plan to change, the dates, and the reading or observation you will compare. Keep the same unit and time period, and record unusual circumstances such as visitors or extreme weather.',
+      'Use what you already own for longer, repair items when possible, and sort waste according to your local collection rules. A change is more useful when it is safe, affordable, accessible, and repeatable for the people in your household.',
+      'Myth: only expensive technology makes a difference. Reality: maintenance and practical habits can help, while upgrades should be selected using reliable product information, lifecycle needs, and local conditions. Ask providers for assumptions and avoid promises that cannot be measured.',
     ],
     question: 'Which is a strong way to build a lasting green habit?',
     options: [

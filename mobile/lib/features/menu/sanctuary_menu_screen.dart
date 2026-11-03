@@ -63,7 +63,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
             Text(
               'Sign Out?',
               style: TextStyle(
-                color: const Color(0xFF0F172A),
+                color: Color(0xFF0F172A),
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -198,7 +198,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                         border: Border.all(color: Colors.white24, width: 2),
                         boxShadow: const [
                           BoxShadow(
-                            color: const Color(0xFFF0F9FF),
+                            color: Color(0xFFF0F9FF),
                             blurRadius: 8,
                             offset: Offset(0, 3),
                           ),
@@ -372,7 +372,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                           Text(
                             '300m HOME DEPARTURE GUARDIAN',
                             style: TextStyle(
-                              color: const Color(0xFF0F172A),
+                              color: Color(0xFF0F172A),
                               fontWeight: FontWeight.w800,
                               fontSize: 12,
                               letterSpacing: 0.8,
@@ -382,7 +382,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                           Text(
                             'Reminds you to switch off AC, geysers & unplug wall sockets when leaving.',
                             style: TextStyle(
-                              color: const Color(0xFF475569),
+                              color: Color(0xFF475569),
                               fontSize: 11,
                             ),
                           ),
@@ -519,7 +519,7 @@ class _SanctuaryMenuScreenState extends State<SanctuaryMenuScreen> {
                             child: Text(
                               'Permission',
                               style: TextStyle(
-                                color: const Color(0xFF15803D),
+                                color: Color(0xFF15803D),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 11,
                               ),
@@ -1110,7 +1110,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
                       Text(
                         'Targeted citizen reminders & grid load shift advisory',
                         style: TextStyle(
-                          color: const Color(0xFF15803D),
+                          color: Color(0xFF15803D),
                           fontSize: 11,
                         ),
                       ),
@@ -1125,7 +1125,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
             const Text(
               'RECIPIENT TARGET SCOPE',
               style: TextStyle(
-                color: const Color(0xFF15803D),
+                color: Color(0xFF15803D),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.0,
@@ -1151,7 +1151,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
                 decoration: InputDecoration(
                   labelText: 'Citizen Registered Email',
                   labelStyle: const TextStyle(
-                    color: const Color(0xFF15803D),
+                    color: Color(0xFF15803D),
                     fontSize: 12,
                   ),
                   prefixIcon: const Icon(
@@ -1218,7 +1218,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
             const Text(
               'QUICK ADVISORY TEMPLATES',
               style: TextStyle(
-                color: const Color(0xFF15803D),
+                color: Color(0xFF15803D),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.0,
@@ -1276,7 +1276,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
               decoration: InputDecoration(
                 labelText: 'Advisory Headline / Title',
                 labelStyle: const TextStyle(
-                  color: const Color(0xFF15803D),
+                  color: Color(0xFF15803D),
                   fontSize: 12,
                 ),
                 filled: true,
@@ -1308,7 +1308,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
               decoration: InputDecoration(
                 labelText: 'Despatch Message / Guidance',
                 labelStyle: const TextStyle(
-                  color: const Color(0xFF15803D),
+                  color: Color(0xFF15803D),
                   fontSize: 12,
                 ),
                 filled: true,
@@ -1342,7 +1342,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
                       const Text(
                         'URGENCY PRIORITY',
                         style: TextStyle(
-                          color: const Color(0xFF15803D),
+                          color: Color(0xFF15803D),
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
                         ),
@@ -1486,7 +1486,7 @@ class _AdminDispatchModalState extends State<_AdminDispatchModal> {
         child: Text(
           label,
           style: const TextStyle(
-            color: const Color(0xFF15803D),
+            color: Color(0xFF15803D),
             fontSize: 11,
             fontWeight: FontWeight.bold,
           ),

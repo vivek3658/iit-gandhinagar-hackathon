@@ -33,6 +33,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
 
   bool _isAutoSpin = false;
   bool _isTrayExpanded = true;
+  bool _isPurchaseSubmitting = false;
   int _selectedCategoryIndex = 0;
 
   // Camera zoom tracking
@@ -62,6 +63,14 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
   ];
 
   final List<Map<String, dynamic>> _buildCatalog = [
+    {
+      'id': 'GRASS_TILE',
+      'name': 'Lush Meadow Tile',
+      'cat': 'Paths ⛩️',
+      'price': 50,
+      'icon': '🌱',
+      'desc': 'A starter meadow tile for your floating sanctuary.',
+    },
     {
       'id': 'FLOWER_BED',
       'name': 'Fragrant Flower Bed',
@@ -384,6 +393,17 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
 
   void _onCatalogCardTapped(Map<String, dynamic> item) {
     HapticFeedback.selectionClick();
+    final tileId = item['id'] as String;
+    final requiredLevel = _state.gardenRequiredLevel(tileId);
+    if (_state.mascotLevel < requiredLevel) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unlock this garden item at Sparrow level $requiredLevel.'),
+          backgroundColor: const Color(0xFFD97706),
+        ),
+      );
+      return;
+    }
 
     // Determine target coordinates:
     int targetX = 0;
@@ -456,13 +476,14 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
     _gardenKey.currentState?.cancelPreview();
   }
 
-  void _confirmPlacement() {
-    if (_activePlacement == null) return;
+  Future<void> _confirmPlacement() async {
+    if (_activePlacement == null || _isPurchaseSubmitting) return;
     final x = _activePlacement!['x'] as int;
     final z = _activePlacement!['z'] as int;
     final item = _activePlacement!['item'] as Map<String, dynamic>;
     final rotation = _activePlacement!['rotation'] as int;
-    final price = item['price'] as int;
+    final tileId = item['id'] as String;
+    final price = _state.gardenPrice(tileId, item['price'] as int);
     final isInventory = _state.gardenInventory.contains(item['id']) || item['cat'].toString().contains('Inventory') || price == 0;
 
     if (isInventory) {
@@ -498,15 +519,30 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
       return;
     }
 
-    final placed = _state.buyAndPlaceGardenTile(
-      x: x,
-      z: z,
-      tileId: item['id'] as String,
-      cost: price,
-      rotation: rotation,
-    );
+    setState(() => _isPurchaseSubmitting = true);
+    var placed = false;
+    try {
+      placed = await _state.buyAndPlaceGardenTile(
+        x: x,
+        z: z,
+        tileId: tileId,
+        cost: price,
+        rotation: rotation,
+      );
+    } catch (error) {
+      await _state.syncWithBackend();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Garden purchase could not be completed: $error'),
+          backgroundColor: const Color(0xFFB42318),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPurchaseSubmitting = false);
+    }
 
-    if (placed) {
+    if (placed && mounted) {
       HapticFeedback.heavyImpact();
       _gardenKey.currentState?.confirmPlacement(x, z, item['id'] as String, rotation);
       setState(() => _activePlacement = null);
@@ -1062,7 +1098,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
       height: _isTrayExpanded ? 236 : 50,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.2)),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.2)),
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, -6)),
@@ -1099,7 +1135,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
                             ? 'Sanctuary Wardrobe Tray'
                             : 'Tap to Browse Structures 🌿',
                         style: const TextStyle(
-                          color: const Color(0xFF475569),
+                          color: Color(0xFF475569),
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1194,9 +1230,11 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
   Widget _buildCatalogItemCard(Map<String, dynamic> item) {
     final isSelected = _activePlacement != null &&
         (_activePlacement!['item'] as Map<String, dynamic>)['id'] == item['id'];
-    final price = item['price'] as int;
+    final price = _state.gardenPrice(item['id'] as String, item['price'] as int);
+    final requiredLevel = _state.gardenRequiredLevel(item['id'] as String);
+    final isUnlocked = _state.mascotLevel >= requiredLevel;
     final isInventory = _state.gardenInventory.contains(item['id']) || item['cat'].toString().contains('Inventory') || price == 0;
-    final canAfford = isInventory || _state.coins >= price;
+    final canAfford = isUnlocked && (isInventory || _state.coins >= price);
 
     return GestureDetector(
       onTap: () => _onCatalogCardTapped(item),
@@ -1245,15 +1283,21 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: isInventory
+                color: !isUnlocked
+                    ? const Color(0xFFE2E8F0)
+                    : isInventory
                     ? const Color(0xFF22C55E)
                     : (canAfford ? const Color(0xFFF59E0B) : Colors.white12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                isInventory ? 'Free 📦' : '$price 🪙',
+                !isUnlocked
+                    ? 'Lv $requiredLevel'
+                    : isInventory
+                        ? 'Free 📦'
+                        : '$price 🪙',
                 style: TextStyle(
-                  color: (isInventory || canAfford) ? Colors.black : Colors.white38,
+                  color: (isInventory || canAfford) ? Colors.black : const Color(0xFF475569),
                   fontWeight: FontWeight.w900,
                   fontSize: 10,
                 ),
@@ -1267,7 +1311,7 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
 
   Widget _buildPlacementBar() {
     final item = _activePlacement!['item'] as Map<String, dynamic>;
-    final price = item['price'] as int;
+    final price = _state.gardenPrice(item['id'] as String, item['price'] as int);
     final x = _activePlacement!['x'] as int;
     final z = _activePlacement!['z'] as int;
     final isInventory = _state.gardenInventory.contains(item['id']) || item['cat'].toString().contains('Inventory') || price == 0;
@@ -1341,13 +1385,13 @@ class _GardenIslandScreenState extends State<GardenIslandScreen> {
           const SizedBox(width: 6),
           IconButton(
             onPressed: _cancelActivePlacement,
-            icon: const Icon(Icons.close, color: const Color(0xFF475569), size: 20),
+            icon: const Icon(Icons.close, color: Color(0xFF475569), size: 20),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 6),
           ElevatedButton(
-            onPressed: _confirmPlacement,
+            onPressed: _isPurchaseSubmitting ? null : _confirmPlacement,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF22C55E),
               foregroundColor: Colors.black,

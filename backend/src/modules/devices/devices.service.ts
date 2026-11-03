@@ -111,6 +111,16 @@ export class DevicesService {
     private readonly allowTestMemory: boolean,
   ) {}
 
+  public static async prepare(db: Pool): Promise<void> {
+    let ready = this.schemaReady.get(db);
+    if (!ready) {
+      const service = new DevicesService(db, false);
+      ready = service.ensureSchema();
+      this.schemaReady.set(db, ready);
+    }
+    await ready;
+  }
+
   private async ensureSchema(): Promise<void> {
     if (!this.db) return;
     let ready = DevicesService.schemaReady.get(this.db);

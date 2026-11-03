@@ -124,6 +124,7 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
         y: 0,
       },
     });
+
     expect(failRes.statusCode).toBe(400);
     expect(JSON.parse(failRes.body).message).toContain('Insufficient Urja Mudra');
 
@@ -160,6 +161,32 @@ describe('Garden Sanctuary Module (Grid, Inventory & Resale Tests)', () => {
     });
     expect(duplicateRes.statusCode).toBe(400);
     expect(JSON.parse(duplicateRes.body).message).toContain('already occupied');
+  });
+
+  it('allows buying the same garden item more than once on separate plots', async () => {
+    AuthService.getRepository().updateUser(citizenId, { points: 100 });
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/garden/buy-and-place',
+      headers: { authorization: `Bearer ${citizenToken}` },
+      payload: { tileId: 'GRASS_TILE', x: 0, y: 0 },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/garden/buy-and-place',
+      headers: { authorization: `Bearer ${citizenToken}` },
+      payload: { tileId: 'GRASS_TILE', x: 1, y: 0 },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    const garden = JSON.parse(second.body);
+    expect(garden.placedTiles).toHaveLength(2);
+    expect(garden.placedTiles.map((tile: { tileId: string }) => tile.tileId)).toEqual([
+      'GRASS_TILE',
+      'GRASS_TILE',
+    ]);
+    expect(garden.placedTiles[0].instanceId).not.toBe(garden.placedTiles[1].instanceId);
   });
 
   it('4. Remove tile to inventory, place back, and sell for 80% refund', async () => {

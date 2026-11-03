@@ -27,9 +27,7 @@ export class AdminController {
     reply: FastifyReply,
   ) {
     try {
-      const identifier = (request.body.username ?? request.body.email ?? '')
-        .trim()
-        .toLowerCase();
+      const identifier = (request.body.username ?? request.body.email ?? '').trim().toLowerCase();
       const configuredIdentifiers = [
         request.server.config.ADMIN_USERNAME,
         request.server.config.ADMIN_EMAIL,
@@ -118,6 +116,7 @@ export class AdminController {
       message: string;
       category?: 'ALERT' | 'COMMUNITY' | 'HABIT';
       targetDistrict?: string;
+      targetWard?: string;
       targetProviderId?: string;
       targetUserId?: string;
       targetUserEmail?: string;
@@ -131,6 +130,7 @@ export class AdminController {
         message: body.message,
         category: body.category,
         targetDistrict: body.targetDistrict,
+        targetWard: body.targetWard,
         targetProviderId: body.targetProviderId,
         targetUserId: body.targetUserId,
         targetUserEmail: body.targetUserEmail,
@@ -152,6 +152,7 @@ export class AdminController {
       const message = error instanceof Error ? error.message : 'Campaign could not be created.';
       if (
         message.includes('must ') ||
+        message.includes('cannot target') ||
         message.includes('disabled') ||
         message.includes('directory') ||
         message.includes('outside') ||
@@ -191,11 +192,8 @@ export class AdminController {
       );
       return reply.status(201).send(provider);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Could not create utility provider.';
-      if (
-        message.includes('already exists')
-      ) {
+      const message = error instanceof Error ? error.message : 'Could not create utility provider.';
+      if (message.includes('already exists')) {
         return reply.badRequest(message);
       }
       if (message.includes('PostgreSQL is required')) {
@@ -350,6 +348,7 @@ export class AdminController {
       const message = error instanceof Error ? error.message : 'Campaign is not valid.';
       if (
         message.includes('must ') ||
+        message.includes('cannot target') ||
         message.includes('disabled') ||
         message.includes('directory') ||
         message.includes('outside') ||

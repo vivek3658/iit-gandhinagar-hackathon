@@ -3,6 +3,7 @@ import { Type, type Static } from '@sinclair/typebox';
 export const NotificationPreferencesSchema = Type.Object({
   campaignsEnabled: Type.Boolean(),
   wasteRemindersEnabled: Type.Boolean(),
+  householdAnalyticsEnabled: Type.Boolean(),
   updatedAt: Type.String({ format: 'date-time' }),
 });
 
@@ -11,19 +12,21 @@ export type NotificationPreferences = Static<typeof NotificationPreferencesSchem
 export const UpdateNotificationPreferencesBodySchema = Type.Object({
   campaignsEnabled: Type.Boolean(),
   wasteRemindersEnabled: Type.Boolean(),
+  householdAnalyticsEnabled: Type.Boolean(),
 });
 
-export type UpdateNotificationPreferencesBody = Static<typeof UpdateNotificationPreferencesBodySchema>;
+export type UpdateNotificationPreferencesBody = Static<
+  typeof UpdateNotificationPreferencesBodySchema
+>;
 
 export const CampaignBodySchema = Type.Object({
   title: Type.String({ minLength: 3, maxLength: 120 }),
   message: Type.String({ minLength: 5, maxLength: 500 }),
-  category: Type.Optional(Type.Union([
-    Type.Literal('ALERT'),
-    Type.Literal('COMMUNITY'),
-    Type.Literal('HABIT'),
-  ])),
+  category: Type.Optional(
+    Type.Union([Type.Literal('ALERT'), Type.Literal('COMMUNITY'), Type.Literal('HABIT')]),
+  ),
   targetDistrict: Type.Optional(Type.String({ minLength: 2, maxLength: 64 })),
+  targetWard: Type.Optional(Type.String({ minLength: 2, maxLength: 64 })),
   targetProviderId: Type.Optional(Type.String({ minLength: 2, maxLength: 100 })),
   targetUserId: Type.Optional(Type.String({ format: 'uuid' })),
   targetUserEmail: Type.Optional(Type.String({ format: 'email' })),
@@ -42,6 +45,8 @@ export const CampaignResponseSchema = Type.Object({
   tenantType: Type.String(),
   tenantId: Type.Union([Type.String(), Type.Null()]),
   targetDistrict: Type.Union([Type.String(), Type.Null()]),
+  targetWard: Type.Union([Type.String(), Type.Null()]),
+  targetProviderId: Type.Union([Type.String(), Type.Null()]),
   scheduledAt: Type.String({ format: 'date-time' }),
   status: Type.String(),
   recipientCount: Type.Number(),

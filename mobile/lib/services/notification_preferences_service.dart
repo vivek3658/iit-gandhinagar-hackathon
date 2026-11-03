@@ -6,15 +6,19 @@ class NotificationPreferences {
   const NotificationPreferences({
     required this.campaignsEnabled,
     required this.wasteRemindersEnabled,
+    required this.householdAnalyticsEnabled,
   });
 
   final bool campaignsEnabled;
   final bool wasteRemindersEnabled;
+  final bool householdAnalyticsEnabled;
 
   factory NotificationPreferences.fromJson(Map<String, dynamic> json) =>
       NotificationPreferences(
         campaignsEnabled: json['campaignsEnabled'] as bool? ?? false,
         wasteRemindersEnabled: json['wasteRemindersEnabled'] as bool? ?? false,
+        householdAnalyticsEnabled:
+            json['householdAnalyticsEnabled'] as bool? ?? false,
       );
 }
 
@@ -38,12 +42,14 @@ class NotificationPreferencesService {
   Future<NotificationPreferences> updatePreferences({
     required bool campaignsEnabled,
     required bool wasteRemindersEnabled,
+    required bool householdAnalyticsEnabled,
   }) async {
     final response = await ApiClient.instance.put(
       '/notifications/preferences',
       body: {
         'campaignsEnabled': campaignsEnabled,
         'wasteRemindersEnabled': wasteRemindersEnabled,
+        'householdAnalyticsEnabled': householdAnalyticsEnabled,
       },
     );
     if (response.statusCode < HttpStatus.ok ||

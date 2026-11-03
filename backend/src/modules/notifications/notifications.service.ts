@@ -26,8 +26,11 @@ export class NotificationsService {
           user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
           campaigns_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           waste_reminders_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          household_analytics_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE public.citizen_notification_preferences
+          ADD COLUMN IF NOT EXISTS household_analytics_enabled BOOLEAN NOT NULL DEFAULT FALSE;
         CREATE TABLE IF NOT EXISTS public.citizen_activities (
           id UUID PRIMARY KEY,
           user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
@@ -60,6 +63,8 @@ export class NotificationsService {
           category TEXT NOT NULL CHECK (category IN ('ALERT', 'COMMUNITY', 'HABIT')),
           consent_type TEXT NOT NULL DEFAULT 'CAMPAIGN' CHECK (consent_type IN ('CAMPAIGN', 'WASTE')),
           target_district TEXT,
+          target_ward TEXT,
+          target_provider_id TEXT,
           scheduled_at TIMESTAMPTZ NOT NULL,
           status TEXT NOT NULL DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'COMPLETED', 'CANCELLED')),
           recipient_count INTEGER NOT NULL DEFAULT 0,
@@ -81,6 +86,10 @@ export class NotificationsService {
           ON public.notification_outbox (scheduled_at, id) WHERE status = 'PENDING';
         ALTER TABLE public.notification_campaigns
           ADD COLUMN IF NOT EXISTS consent_type TEXT NOT NULL DEFAULT 'CAMPAIGN';
+        ALTER TABLE public.notification_campaigns
+          ADD COLUMN IF NOT EXISTS target_ward TEXT;
+        ALTER TABLE public.notification_campaigns
+          ADD COLUMN IF NOT EXISTS target_provider_id TEXT;
         DO $migration$
         BEGIN
           IF NOT EXISTS (
@@ -168,7 +177,7 @@ export class NotificationsService {
       [userId],
     );
     const preferences = await db.query(
-      `SELECT campaigns_enabled, waste_reminders_enabled, updated_at
+      `SELECT campaigns_enabled, waste_reminders_enabled, household_analytics_enabled, updated_at
        FROM public.citizen_notification_preferences WHERE user_id = $1`,
       [userId],
     );
@@ -177,6 +186,7 @@ export class NotificationsService {
     return {
       campaignsEnabled: row.campaigns_enabled,
       wasteRemindersEnabled: row.waste_reminders_enabled,
+      householdAnalyticsEnabled: row.household_analytics_enabled,
       updatedAt: new Date(row.updated_at).toISOString(),
     };
   }
@@ -190,13 +200,14 @@ export class NotificationsService {
     await this.ensureSchema(db);
     await db.query(
       `INSERT INTO public.citizen_notification_preferences
-         (user_id, campaigns_enabled, waste_reminders_enabled, updated_at)
-       VALUES ($1, $2, $3, NOW())
+         (user_id, campaigns_enabled, waste_reminders_enabled, household_analytics_enabled, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (user_id) DO UPDATE SET
          campaigns_enabled = EXCLUDED.campaigns_enabled,
          waste_reminders_enabled = EXCLUDED.waste_reminders_enabled,
+         household_analytics_enabled = EXCLUDED.household_analytics_enabled,
          updated_at = NOW()`,
-      [userId, body.campaignsEnabled, body.wasteRemindersEnabled],
+      [userId, body.campaignsEnabled, body.wasteRemindersEnabled, body.householdAnalyticsEnabled],
     );
     return this.getPreferences(db, userId);
   }
@@ -238,6 +249,9 @@ export class NotificationsService {
     ) {
       throw new Error('Campaign district is outside this administrator service area.');
     }
+    if (body.targetWard && !body.targetDistrict) {
+      throw new Error('Campaign ward targeting must include a district.');
+    }
     if (tenant?.tenantType === 'PROVIDER' && (body.targetUserId || body.targetUserEmail)) {
       throw new Error('Provider campaigns may target only opted-in linked customers.');
     }
@@ -246,6 +260,9 @@ export class NotificationsService {
     }
     if (tenant?.tenantType === 'CITY' && (body.targetUserId || body.targetUserEmail)) {
       throw new Error('City campaigns may target only opted-in residents in the service area.');
+    }
+    if (tenant?.tenantType === 'CITY' && body.targetProviderId) {
+      throw new Error('City campaigns cannot target a utility provider.');
     }
     if (
       tenant?.tenantType === 'PROVIDER' &&
@@ -302,9 +319,17 @@ export class NotificationsService {
             SELECT LOWER(value) FROM unnest($${params.length}::text[]) AS districts(value)
           )`;
         }
+        if (body.targetWard) {
+          params.push(body.targetWard);
+          audienceSql += ` AND LOWER(u.ward) = LOWER($${params.length})`;
+        }
       } else if (tenantType === 'CITY') {
         audienceSql += ` AND LOWER(u.district) = LOWER($1)`;
         params.push(body.targetDistrict);
+        if (body.targetWard) {
+          params.push(body.targetWard);
+          audienceSql += ` AND LOWER(u.ward) = LOWER($${params.length})`;
+        }
       } else {
         if (body.targetProviderId) {
           const targetProvider = await ProvidersService.getDirectoryProviderById(
@@ -331,6 +356,10 @@ export class NotificationsService {
           params.push(body.targetDistrict);
           audienceSql += ` AND LOWER(u.district) = LOWER($${params.length})`;
         }
+        if (body.targetWard) {
+          params.push(body.targetWard);
+          audienceSql += ` AND LOWER(u.ward) = LOWER($${params.length})`;
+        }
         if (body.targetUserId) {
           params.push(body.targetUserId);
           audienceSql += ` AND u.id = $${params.length}`;
@@ -347,11 +376,13 @@ export class NotificationsService {
       const recipientCount = Number(audience.rows[0]?.recipient_count ?? 0);
       const campaignId = crypto.randomUUID();
       const category = body.category ?? 'ALERT';
+      const targetProviderId =
+        body.targetProviderId ?? (tenantType === 'PROVIDER' ? tenantId : null);
       const campaignResult = await client.query(
         `INSERT INTO public.notification_campaigns
            (id, created_by, created_by_email, tenant_type, tenant_id, title, message, category,
-            target_district, scheduled_at, recipient_count)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            target_district, target_ward, target_provider_id, scheduled_at, recipient_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING created_at`,
         [
           campaignId,
@@ -363,6 +394,8 @@ export class NotificationsService {
           body.message.trim(),
           category,
           body.targetDistrict ?? null,
+          body.targetWard ?? null,
+          targetProviderId,
           scheduledAt.toISOString(),
           recipientCount,
         ],
@@ -377,6 +410,47 @@ export class NotificationsService {
          ON CONFLICT (campaign_id, user_id) DO NOTHING`,
         [...params, campaignId],
       );
+      let deliveredCount = 0;
+      const isDue = scheduledAt.getTime() <= Date.now();
+      if (isDue) {
+        const delivered = await client.query<{ processed: string }>(
+          `WITH due AS MATERIALIZED (
+             SELECT o.id, o.user_id, c.title, c.message, c.category
+             FROM public.notification_outbox o
+             JOIN public.notification_campaigns c ON c.id = o.campaign_id
+             JOIN public.citizen_notification_preferences p ON p.user_id = o.user_id
+             WHERE o.campaign_id = $1 AND o.status = 'PENDING' AND o.scheduled_at <= NOW()
+               AND p.campaigns_enabled = TRUE
+             ORDER BY o.id
+             FOR UPDATE OF o, p
+           ), inserted_activities AS (
+             INSERT INTO public.citizen_activities
+               (id, user_id, title, message, category, icon, created_at)
+             SELECT due.id, due.user_id, due.title, due.message, due.category, 'campaign', NOW()
+             FROM due
+             ON CONFLICT (id) DO NOTHING
+             RETURNING id
+           ), marked_delivered AS (
+             UPDATE public.notification_outbox o
+             SET status = 'DELIVERED', delivered_at = NOW()
+             FROM due
+             WHERE o.id = due.id AND o.status = 'PENDING'
+             RETURNING o.id
+           )
+           SELECT COUNT(*)::text AS processed FROM marked_delivered`,
+          [campaignId],
+        );
+        deliveredCount = Number(delivered.rows[0]?.processed ?? 0);
+        await client.query(
+          `UPDATE public.notification_campaigns SET status = 'COMPLETED'
+           WHERE id = $1 AND status = 'SCHEDULED'
+             AND NOT EXISTS (
+               SELECT 1 FROM public.notification_outbox
+               WHERE campaign_id = $1 AND status = 'PENDING'
+             )`,
+          [campaignId],
+        );
+      }
       await client.query(
         `INSERT INTO public.admin_audit_log
            (actor_id, actor_email, tenant_type, tenant_id, action, resource_type, resource_id, reason, after_data)
@@ -392,6 +466,8 @@ export class NotificationsService {
             title: body.title.trim(),
             category,
             targetDistrict: body.targetDistrict ?? null,
+            targetWard: body.targetWard ?? null,
+            targetProviderId,
             scheduledAt: scheduledAt.toISOString(),
             recipientCount,
           }),
@@ -406,10 +482,12 @@ export class NotificationsService {
         tenantType,
         tenantId,
         targetDistrict: body.targetDistrict ?? null,
+        targetWard: body.targetWard ?? null,
+        targetProviderId,
         scheduledAt: scheduledAt.toISOString(),
-        status: scheduledAt.getTime() <= Date.now() ? 'DELIVERING' : 'SCHEDULED',
+        status: isDue ? 'COMPLETED' : 'SCHEDULED',
         recipientCount,
-        deliveredCount: 0,
+        deliveredCount,
         createdAt: new Date(campaignResult.rows[0].created_at).toISOString(),
       };
     } catch (error) {
@@ -427,7 +505,7 @@ export class NotificationsService {
     const result = tenant
       ? await db.query(
           `SELECT c.id, c.title, c.message, c.category, c.tenant_type, c.tenant_id,
-                  c.target_district, c.scheduled_at, c.status, c.recipient_count, c.created_at,
+                  c.target_district, c.target_ward, c.target_provider_id, c.scheduled_at, c.status, c.recipient_count, c.created_at,
                   COUNT(o.id) FILTER (WHERE o.status = 'DELIVERED')::integer AS delivered_count
            FROM public.notification_campaigns c
            LEFT JOIN public.notification_outbox o ON o.campaign_id = c.id
@@ -440,7 +518,7 @@ export class NotificationsService {
         )
       : await db.query(
           `SELECT c.id, c.title, c.message, c.category, c.tenant_type, c.tenant_id,
-                  c.target_district, c.scheduled_at, c.status, c.recipient_count, c.created_at,
+                  c.target_district, c.target_ward, c.target_provider_id, c.scheduled_at, c.status, c.recipient_count, c.created_at,
                   COUNT(o.id) FILTER (WHERE o.status = 'DELIVERED')::integer AS delivered_count
            FROM public.notification_campaigns c
            LEFT JOIN public.notification_outbox o ON o.campaign_id = c.id
@@ -454,6 +532,8 @@ export class NotificationsService {
       tenantType: String(row.tenant_type),
       tenantId: row.tenant_id === null ? null : String(row.tenant_id),
       targetDistrict: row.target_district === null ? null : String(row.target_district),
+      targetWard: row.target_ward === null ? null : String(row.target_ward),
+      targetProviderId: row.target_provider_id === null ? null : String(row.target_provider_id),
       scheduledAt: new Date(row.scheduled_at).toISOString(),
       status: String(row.status),
       recipientCount: Number(row.recipient_count),

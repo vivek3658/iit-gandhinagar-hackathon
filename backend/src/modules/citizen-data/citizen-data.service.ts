@@ -21,6 +21,11 @@ export class CitizenDataService {
     private readonly allowTestMemory: boolean,
   ) {}
 
+  public static async prepare(db: Pool): Promise<void> {
+    const service = new CitizenDataService(db, false);
+    await service.ensureSchema();
+  }
+
   public async listReadings(userId: string): Promise<UtilityReading[]> {
     if (!this.db) return this.inMemory(userId).readings.slice(0, 100);
     await this.ensureSchema();

@@ -27,6 +27,7 @@ class _SanctuaryPlayShellState extends State<SanctuaryPlayShell> {
   final PageController _horizontalController = PageController(initialPage: 1);
 
   int _verticalPage = 0;
+  int _horizontalPage = 1;
 
   @override
   void dispose() {
@@ -86,10 +87,12 @@ class _SanctuaryPlayShellState extends State<SanctuaryPlayShell> {
           PageView(
             controller: _horizontalController,
             physics: const BouncingScrollPhysics(),
+            onPageChanged: (page) => setState(() => _horizontalPage = page),
             children: [
               // Screen 0: Activity Feed & System Notification Center (Slide Left)
               ActivityFeedNotificationsScreen(
                 onBackToSanctuary: _slideToSanctuary,
+                isActive: _horizontalPage == 0,
               ),
 
               // Screen 1: Center Hub: Mascot Sanctuary <-> 3D Garden Island

@@ -17,6 +17,8 @@ class Garden3DStage extends StatefulWidget {
   final void Function(int x, int z)? onEmptyTileTapped;
   final ValueChanged<List<dynamic>>? onIslandUpdated;
   final ValueChanged<bool>? onLoaded;
+  final List<Map<String, dynamic>>? initialIslandState;
+  final int? initialMascotLevel;
 
   const Garden3DStage({
     super.key,
@@ -24,6 +26,8 @@ class Garden3DStage extends StatefulWidget {
     this.onEmptyTileTapped,
     this.onIslandUpdated,
     this.onLoaded,
+    this.initialIslandState,
+    this.initialMascotLevel,
   });
 
   @override
@@ -84,9 +88,12 @@ class Garden3DStageState extends State<Garden3DStage> {
               setState(() => _isReady = true);
               widget.onLoaded?.call(true);
               try {
-                final currentSlots = GameStateService.instance.gardenGridSlots;
+                final currentSlots =
+                    widget.initialIslandState ??
+                    GameStateService.instance.gardenGridSlots;
                 setIslandState(currentSlots);
-                final lvl = GameStateService.instance.mascotLevel;
+                final lvl = widget.initialMascotLevel ??
+                    GameStateService.instance.mascotLevel;
                 setMascotLevel(lvl);
               } catch (_) {}
             }

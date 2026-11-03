@@ -165,6 +165,7 @@ class GameStateService extends ChangeNotifier {
     {'x': 0, 'z': 1, 'id': null, 'r': 0},
     {'x': 1, 'z': 1, 'id': null, 'r': 0},
   ];
+  final Map<String, Map<String, dynamic>> _gardenCatalogById = {};
 
   // --- Garden Stored Inventory (Items stored without selling) ---
   final List<String> _gardenInventory = [];
@@ -228,6 +229,11 @@ class GameStateService extends ChangeNotifier {
   List<Map<String, dynamic>> get gardenGridSlots =>
       List.unmodifiable(_gardenGridSlots);
   List<String> get gardenInventory => List.unmodifiable(_gardenInventory);
+  int gardenPrice(String tileId, int fallback) =>
+      (_gardenCatalogById[tileId]?['cost'] as num?)?.toInt() ?? fallback;
+  int gardenRequiredLevel(String tileId) =>
+      (_gardenCatalogById[tileId]?['requiredLevel'] as num?)?.toInt() ?? 1;
+  bool get hasRemoteGardenCatalog => _gardenCatalogById.isNotEmpty;
   bool get gardenScrollLocked => _gardenScrollLocked;
   double get targetReductionPercent => _targetReductionPercent;
   List<Map<String, dynamic>> get notificationHistory =>
@@ -267,13 +273,18 @@ class GameStateService extends ChangeNotifier {
       if (raw.isEmpty) return;
       final json = jsonDecode(raw) as Map<String, dynamic>;
 
-      if (json['coins'] is num) _coins = (json['coins'] as num).toInt();
-      if (json['vitality'] is num)
+      if (json['coins'] is num) {
+        _coins = (json['coins'] as num).toInt();
+      }
+      if (json['vitality'] is num) {
         _vitality = (json['vitality'] as num).toDouble().clamp(0.0, 1.0);
-      if (json['mascotLevel'] is num)
+      }
+      if (json['mascotLevel'] is num) {
         _mascotLevel = (json['mascotLevel'] as num).toInt();
-      if (json['co2eSavedKg'] is num)
+      }
+      if (json['co2eSavedKg'] is num) {
         _co2eSavedKg = (json['co2eSavedKg'] as num).toDouble();
+      }
       if (json['ownedItems'] is List) {
         for (final item in json['ownedItems'] as List) {
           _ownedItems.add(item.toString());
@@ -409,9 +420,12 @@ class GameStateService extends ChangeNotifier {
           final v = (data['vitality'] as num).toDouble();
           _vitality = (v > 1 ? v / 100 : v).clamp(0.0, 1.0);
         }
-        if (data['level'] is num) _mascotLevel = (data['level'] as num).toInt();
-        if (data['co2eSavedKg'] is num)
+        if (data['level'] is num) {
+          _mascotLevel = (data['level'] as num).toInt();
+        }
+        if (data['co2eSavedKg'] is num) {
           _co2eSavedKg = (data['co2eSavedKg'] as num).toDouble();
+        }
         if (data['ownedAccessories'] is List) {
           for (final item in data['ownedAccessories'] as List) {
             if (item is String) _ownedItems.add(item);
@@ -463,30 +477,41 @@ class GameStateService extends ChangeNotifier {
       }
       if (gardenResp.statusCode == 200) {
         final decoded = gardenResp.decodeJson();
-        final data = decoded['garden'] is Map<String, dynamic>
-            ? decoded['garden'] as Map<String, dynamic>
-            : decoded['data'];
-        if (data is Map<String, dynamic>) {
-          final slots = data['grid'] is List
-              ? data['grid'] as List
-              : data['slots'] as List?;
-          if (slots != null) {
-            for (final s in slots) {
-              if (s is Map) {
-                final x = s['x'];
-                final z = s['z'] ?? s['y'];
-                final id = s['tileCatalogId'] ?? s['id'];
-                final r = s['rotation'] ?? s['r'] ?? 0;
-                final idx = _gardenGridSlots.indexWhere(
-                  (g) => g['x'] == x && g['z'] == z,
-                );
-                if (idx != -1) {
-                  _gardenGridSlots[idx]['id'] = id;
-                  _gardenGridSlots[idx]['r'] = r;
-                }
-              }
-            }
-          }
+        final data = decoded['data'] is Map<String, dynamic>
+            ? decoded['data'] as Map<String, dynamic>
+            : decoded;
+        if (data['citizenCoins'] is num) {
+          _coins = (data['citizenCoins'] as num).toInt();
+        }
+        _gardenCatalogById
+          ..clear()
+          ..addEntries(
+            (data['catalog'] as List? ?? const [])
+                .whereType<Map>()
+                .where((item) => item['id'] is String)
+                .map(
+                  (item) => MapEntry(
+                    item['id'] as String,
+                    Map<String, dynamic>.from(item),
+                  ),
+                ),
+          );
+        for (final slot in _gardenGridSlots) {
+          slot['id'] = slot['x'] == 0 && slot['z'] == 0 ? 'SPARROW_HOME' : null;
+          slot['r'] = 0;
+        }
+        for (final tile in data['placedTiles'] as List? ?? const []) {
+          if (tile is! Map) continue;
+          final remoteX = (tile['x'] as num?)?.toInt();
+          final remoteY = (tile['y'] as num?)?.toInt();
+          if (remoteX == null || remoteY == null) continue;
+          final idx = _gardenGridSlots.indexWhere(
+            (slot) => slot['x'] == remoteX - 1 && slot['z'] == remoteY - 1,
+          );
+          if (idx == -1) continue;
+          _gardenGridSlots[idx]['id'] = tile['tileId'] as String?;
+          _gardenGridSlots[idx]['r'] =
+              ((tile['rotation'] as num?)?.toInt() ?? 0) ~/ 90;
         }
       }
 
@@ -718,28 +743,47 @@ class GameStateService extends ChangeNotifier {
   }
 
   // --- Garden Island Building & Placement Operations ---
-  bool buyAndPlaceGardenTile({
+  Future<bool> buyAndPlaceGardenTile({
     required int x,
     required int z,
     required String tileId,
     required int cost,
     int rotation = 0,
-  }) {
+  }) async {
     final idx = _gardenGridSlots.indexWhere((s) => s['x'] == x && s['z'] == z);
     if (idx == -1) return false;
     if (_gardenGridSlots[idx]['id'] != null) return false; // Already occupied
     if (_coins < cost) return false;
 
-    _coins -= cost;
+    final token = AuthService.instance.accessToken;
+    var remainingCoins = _coins - cost;
+    if (token != null && token.isNotEmpty) {
+      final response = await ApiClient.instance.post(
+        '/garden/buy-and-place',
+        body: {
+          'tileId': tileId,
+          'x': x + 1,
+          'y': z + 1,
+          'rotation': rotation * 90,
+        },
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException(
+          'Garden purchase failed (${response.statusCode}): ${response.body}',
+        );
+      }
+      final result = response.decodeJson();
+      if (result['success'] != true || result['remainingCoins'] is! num) {
+        throw const FormatException(
+          'Garden purchase returned an invalid response.',
+        );
+      }
+      remainingCoins = (result['remainingCoins'] as num).toInt();
+    }
+
+    _coins = remainingCoins;
     _gardenGridSlots[idx]['id'] = tileId;
     _gardenGridSlots[idx]['r'] = rotation;
-
-    _sendBackendPost('/garden/buy-and-place', {
-      'tileCatalogId': tileId,
-      'x': x,
-      'y': z,
-      'rotation': rotation,
-    });
 
     notifyListeners();
     return true;
@@ -767,8 +811,9 @@ class GameStateService extends ChangeNotifier {
     );
     if (fromIdx == -1 || toIdx == -1) return false;
     if (_gardenGridSlots[fromIdx]['id'] == null) return false;
-    if (_gardenGridSlots[toIdx]['id'] != null)
+    if (_gardenGridSlots[toIdx]['id'] != null) {
       return false; // Destination must be empty
+    }
 
     _gardenGridSlots[toIdx]['id'] = _gardenGridSlots[fromIdx]['id'];
     _gardenGridSlots[toIdx]['r'] = _gardenGridSlots[fromIdx]['r'];
@@ -812,8 +857,9 @@ class GameStateService extends ChangeNotifier {
   }) {
     if (!_gardenInventory.contains(tileId)) return false;
     final idx = _gardenGridSlots.indexWhere((s) => s['x'] == x && s['z'] == z);
-    if (idx == -1 || _gardenGridSlots[idx]['id'] != null)
+    if (idx == -1 || _gardenGridSlots[idx]['id'] != null) {
       return false; // Must be empty
+    }
 
     _gardenInventory.remove(tileId);
     _gardenGridSlots[idx]['id'] = tileId;

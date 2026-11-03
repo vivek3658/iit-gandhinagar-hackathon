@@ -27,6 +27,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   bool _pinchZoomEnabled = true;
   bool _campaignNotificationsEnabled = false;
   bool _wasteRemindersEnabled = false;
+  bool _householdAnalyticsEnabled = false;
   bool _notificationPreferencesLoading = true;
   bool _notificationPreferencesSaving = false;
   String? _notificationPreferencesError;
@@ -65,6 +66,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       setState(() {
         _campaignNotificationsEnabled = preferences.campaignsEnabled;
         _wasteRemindersEnabled = preferences.wasteRemindersEnabled;
+        _householdAnalyticsEnabled = preferences.householdAnalyticsEnabled;
         _notificationPreferencesLoading = false;
         _notificationPreferencesError = null;
       });
@@ -81,6 +83,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   Future<void> _saveNotificationPreferences({
     required bool campaignsEnabled,
     required bool wasteRemindersEnabled,
+    required bool householdAnalyticsEnabled,
   }) async {
     if (_notificationPreferencesSaving) return;
     setState(() {
@@ -92,11 +95,13 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           .updatePreferences(
             campaignsEnabled: campaignsEnabled,
             wasteRemindersEnabled: wasteRemindersEnabled,
+            householdAnalyticsEnabled: householdAnalyticsEnabled,
           );
       if (!mounted) return;
       setState(() {
         _campaignNotificationsEnabled = preferences.campaignsEnabled;
         _wasteRemindersEnabled = preferences.wasteRemindersEnabled;
+        _householdAnalyticsEnabled = preferences.householdAnalyticsEnabled;
         _notificationPreferencesSaving = false;
       });
     } catch (_) {
@@ -261,6 +266,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                     : (value) => _saveNotificationPreferences(
                         campaignsEnabled: value,
                         wasteRemindersEnabled: _wasteRemindersEnabled,
+                        householdAnalyticsEnabled: _householdAnalyticsEnabled,
                       ),
               ),
               const Divider(color: Colors.white12, height: 20),
@@ -275,6 +281,22 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                     : (value) => _saveNotificationPreferences(
                         campaignsEnabled: _campaignNotificationsEnabled,
                         wasteRemindersEnabled: value,
+                        householdAnalyticsEnabled: _householdAnalyticsEnabled,
+                      ),
+              ),
+              const Divider(color: Colors.white12, height: 20),
+              _buildSwitchRow(
+                icon: '📊',
+                title: 'Share anonymous device statistics',
+                subtitle:
+                    'Allow only combined, non-identifying device counts and usage estimates in government dashboards. Your device names and records stay private.',
+                value: _householdAnalyticsEnabled,
+                onChanged: _notificationPreferencesSaving
+                    ? null
+                    : (value) => _saveNotificationPreferences(
+                        campaignsEnabled: _campaignNotificationsEnabled,
+                        wasteRemindersEnabled: _wasteRemindersEnabled,
+                        householdAnalyticsEnabled: value,
                       ),
               ),
             ],

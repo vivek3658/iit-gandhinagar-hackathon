@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,10 +13,12 @@ import '../../services/api_client.dart';
 /// - Unread badge tracking and live backend sync
 class ActivityFeedNotificationsScreen extends StatefulWidget {
   final VoidCallback onBackToSanctuary;
+  final bool isActive;
 
   const ActivityFeedNotificationsScreen({
     super.key,
     required this.onBackToSanctuary,
+    this.isActive = true,
   });
 
   @override
@@ -38,16 +41,38 @@ class _ActivityFeedNotificationsScreenState
   bool _loading = true;
   String? _error;
   int _unreadCount = 0;
+  Timer? _refreshTimer;
+  bool _requestInFlight = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFeed();
+    if (widget.isActive) _activateFeed();
+  }
+
+  @override
+  void didUpdateWidget(covariant ActivityFeedNotificationsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _activateFeed();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _activateFeed() {
+    _loadFeed();
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && widget.isActive) _loadFeed();
+    });
   }
 
   Future<Map<String, dynamic>> _request(
@@ -64,6 +89,8 @@ class _ActivityFeedNotificationsScreenState
   }
 
   Future<void> _loadFeed() async {
+    if (_requestInFlight) return;
+    _requestInFlight = true;
     setState(() {
       _loading = true;
       _error = null;
@@ -85,6 +112,8 @@ class _ActivityFeedNotificationsScreenState
         _error = error.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
+    } finally {
+      _requestInFlight = false;
     }
   }
 
@@ -98,8 +127,9 @@ class _ActivityFeedNotificationsScreenState
         if (_unreadCount > 0) _unreadCount--;
       });
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      }
     }
   }
 
@@ -112,8 +142,9 @@ class _ActivityFeedNotificationsScreenState
         _unreadCount = 0;
       });
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      }
     }
   }
 

@@ -1093,7 +1093,8 @@ class _WasteDraggableItem extends StatelessWidget {
     feedback: Material(
       color: Colors.transparent,
       child: SizedBox(
-        width: (MediaQuery.sizeOf(context).width - 42) / 3,
+        width: MediaQuery.sizeOf(context).width - 32,
+        height: 142,
         child: card(dragging: true),
       ),
     ),

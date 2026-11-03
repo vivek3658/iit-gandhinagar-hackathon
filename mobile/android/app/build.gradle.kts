@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,10 +7,35 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeyPropertiesFile = rootProject.file("key.properties")
+val releaseKeyProperties = Properties().apply {
+    if (releaseKeyPropertiesFile.exists()) {
+        releaseKeyPropertiesFile.inputStream().use(::load)
+    }
+}
+val releaseStoreFile = releaseKeyProperties.getProperty("storeFile")
+val releaseSigningConfigured =
+    !releaseKeyProperties.getProperty("keyAlias").isNullOrBlank() &&
+        !releaseKeyProperties.getProperty("keyPassword").isNullOrBlank() &&
+        !releaseKeyProperties.getProperty("storePassword").isNullOrBlank() &&
+        !releaseStoreFile.isNullOrBlank() &&
+        rootProject.file(releaseStoreFile).isFile
+
 android {
     namespace = "com.geda.urjavatika.urja"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                keyAlias = releaseKeyProperties.getProperty("keyAlias")
+                keyPassword = releaseKeyProperties.getProperty("keyPassword")
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseKeyProperties.getProperty("storePassword")
+            }
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -32,10 +59,22 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val releaseArtifactRequested = allTasks.any {
+        it.name == "assembleRelease" || it.name == "bundleRelease"
+    }
+    if (releaseArtifactRequested && !releaseSigningConfigured) {
+        throw GradleException(
+            "Release signing is not configured. Create mobile/android/key.properties " +
+                "with valid keystore details before building a release APK or AAB.",
+        )
     }
 }
 

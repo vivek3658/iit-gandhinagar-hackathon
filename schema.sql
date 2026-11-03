@@ -289,6 +289,8 @@ CREATE TABLE IF NOT EXISTS public.notification_campaigns (
   category TEXT NOT NULL CHECK (category IN ('ALERT', 'COMMUNITY', 'HABIT')),
   consent_type TEXT NOT NULL DEFAULT 'CAMPAIGN' CHECK (consent_type IN ('CAMPAIGN', 'WASTE')),
   target_district TEXT,
+  target_ward TEXT,
+  target_provider_id TEXT,
   scheduled_at TIMESTAMPTZ NOT NULL,
   status TEXT NOT NULL DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'COMPLETED', 'CANCELLED')),
   recipient_count INTEGER NOT NULL DEFAULT 0,
