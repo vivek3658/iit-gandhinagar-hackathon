@@ -1,6 +1,6 @@
 # ==============================================================================
-# URJA ONE - Horizontal Scaling Cluster & Microservices Composition
-# Validated for 100k writes/sec (Redis absorption) and 1,000,000 reads/sec
+# URJA ONE - Local multi-container development/demo composition
+# This configuration is not a throughput benchmark or production sizing claim.
 # ==============================================================================
 
 version: '3.8'

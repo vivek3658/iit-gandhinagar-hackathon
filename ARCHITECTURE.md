@@ -2,7 +2,7 @@
 
 ## System context
 
-The diagram distinguishes the Flutter citizen app, the separate Next.js operator portal, the Fastify API, and conditional persistence. The operator proxy forwards only allowlisted API paths and requires its session cookie. The mobile app obtains a Google ID token and sends it to the API; the API verifies the token. PostgreSQL is used when configured; non-production operation can fall back to in-memory stores for selected services.
+The diagram distinguishes the Flutter citizen app, the separate Next.js operator portal, the Fastify API, and its configured integrations. The operator proxy forwards only allowlisted API paths and requires its session cookie. The mobile app obtains a Google ID token and sends it to the API; the API verifies the token. PostgreSQL is used when configured; selected integrations can fall back to in-memory behavior when their URLs are unset or unavailable.
 
 The system view below describes the committed architecture at revision `d9220214798ced11edd181905fb94e2abfea2898`. It is intentionally not evidence for later uncommitted changes.
 
@@ -16,6 +16,10 @@ flowchart LR
   Web -->|Cookie-gated, allowlisted proxy| API
   API -->|When DATABASE_URL is configured| PostgreSQL[(PostgreSQL)]
   API -. Non-production fallback for selected services .-> Memory[(In-memory state)]
+  API -. Optional REDIS_URL .-> Redis[(Redis)]
+  API -. Optional MONGODB_URL .-> Mongo[(MongoDB)]
+  API -. Optional RABBITMQ_URL .-> RabbitMQ[(RabbitMQ)]
+  API -->|Swagger UI /docs and OpenAPI /docs/json| Swagger[API documentation]
 ```
 
 ### Main code boundaries
@@ -23,9 +27,21 @@ flowchart LR
 - **Mobile:** [Google sign-in and profile service](mobile/lib/services/auth_service.dart), [authenticated API client](mobile/lib/services/api_client.dart), and [API configuration](mobile/lib/constants/auth_config.dart).
 - **Operator web:** [operator page](frontend/app/operator/page.tsx), [login route](frontend/app/api/operator/login/route.ts), and [allowlisted proxy route](<frontend/app/api/operator/proxy/[...path]/route.ts>).
 - **API:** [Fastify app and route registration](backend/src/app.ts), [authentication routes](backend/src/modules/auth/auth.routes.ts), and [Google token verification](backend/src/modules/auth/auth.service.ts).
-- **Persistence:** [PostgreSQL plugin](backend/src/plugins/db.ts) creates a pool only when configured and wires selected services to that pool. The code requires `DATABASE_URL` in production and logs an in-memory fallback for selected services outside production.
+- **Persistence and integrations:** [PostgreSQL](backend/src/plugins/db.ts), [Redis](backend/src/plugins/redis.ts), and [MongoDB](backend/src/plugins/mongodb.ts) are configured through environment URLs. The [RabbitMQ plugin](backend/src/plugins/rabbitmq.ts) provides a task queue when `RABBITMQ_URL` is configured and otherwise uses a local mock. These integrations are not all mandatory or provisioned by the Compose file. PostgreSQL is required in production; selected services have non-production in-memory fallbacks.
+- **API documentation:** [Swagger/OpenAPI registration](backend/src/plugins/swagger.ts) serves the interactive UI at `http://localhost:3000/docs` and the OpenAPI document at `http://localhost:3000/docs/json` when the API is running locally.
 
-Redis, MongoDB, and RabbitMQ have plugin code, but this overview does not depict them as mandatory live dependencies or as a proven high-throughput pipeline. Provisioning, end-to-end use, operational behavior, and capacity must be verified separately.
+The default [Docker Compose file](backend/docker-compose.yml) provisions two API containers, Redis, and PostgreSQL. It does not provision MongoDB or RabbitMQ; those remain optional external services. The plugins and diagram describe integration points, not proof of production operations or throughput.
+
+### Local Docker footprint
+
+For a **1 vCPU / 2 GB RAM Docker host**, start one API container with Redis and PostgreSQL for local functional testing:
+
+```bash
+cd backend
+docker compose up -d backend-1 redis postgres
+```
+
+This is a constrained local demo target, not a benchmark, production sizing recommendation, or verified throughput/capacity figure. The Compose services have no CPU or memory limits, and the host must retain resources for Docker itself. MongoDB and RabbitMQ are not included in this local stack unless separately provisioned and configured.
 
 ## Simplified class diagram
 

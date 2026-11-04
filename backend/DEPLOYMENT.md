@@ -22,6 +22,8 @@ Configure the following environment variables in your deployment dashboard (e.g.
 | `CORS_ORIGIN` | No | `*` | Allowed origins (e.g. `https://your-frontend.vercel.app` or `*`) |
 | `REDIS_URL` | Optional | `redis://localhost:6379` | In-memory atomic cache for high-throughput scaling |
 | `DATABASE_URL` | Optional | `postgresql://user:[YOUR-PASSWORD]@host:5432/urjavatika` | PostgreSQL connection string for ACID persistence |
+| `MONGODB_URL` | Optional | `mongodb://localhost:27017/urja` | Optional MongoDB integration; otherwise the plugin reports in-memory fallback mode |
+| `RABBITMQ_URL` | Optional | `amqp://localhost:5672` | Optional RabbitMQ task queue; otherwise the plugin uses its local mock |
 | `IMAGEKIT_PUBLIC_KEY` | Optional | `public_...` | ImageKit public key for media avatar signatures |
 | `IMAGEKIT_PRIVATE_KEY` | Optional | `private_...` | ImageKit private key for media HMAC signatures |
 | `IMAGEKIT_URL_ENDPOINT` | Optional | `https://ik.imagekit.io/urjavatika` | ImageKit CDN endpoint URL |
@@ -89,11 +91,10 @@ docker run -d \
   urja-backend:latest
 ```
 
-### Running the Horizontally-Scaled Microservices Cluster (Docker Compose)
-To launch the 4-instance cluster with Redis atomic queue and PostgreSQL:
+### Running the Docker Compose Stack
+The Compose file starts two API containers, Redis, and PostgreSQL. It does not start MongoDB or RabbitMQ. To run only one API container with Redis and PostgreSQL on a constrained local Docker host (1 vCPU / 2 GB RAM):
 ```bash
-# Start cluster in background
-docker compose up -d
+docker compose up -d backend-1 redis postgres
 
 # Verify running services
 docker compose ps
@@ -101,6 +102,8 @@ docker compose ps
 # Check cluster logs
 docker compose logs -f
 ```
+
+This setup is for local functional testing only. It has no configured CPU or memory limits and is not a benchmark or verified capacity rating. Swagger UI is available at `http://localhost:3000/docs`; the OpenAPI JSON is at `http://localhost:3000/docs/json`.
 
 ---
 

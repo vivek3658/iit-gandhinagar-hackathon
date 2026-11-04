@@ -8,5 +8,5 @@ These documents retain detailed project, implementation, and planning context. T
 - [Implementation specification](IMPLEMENTATION_SPEC.md)
 - [Project memory and objective](MEMORY.md) and [objective](OBJECTIVE.md)
 - [Scale-readiness notes](SCALABILITY.md)
-- [Developer setup notes](SETUP.md)
+- [Developer setup](../../SETUP.md)
 - [Product and scalability roadmap](URJAVATIKA_PRODUCT_AND_SCALABILITY_ROADMAP.md)

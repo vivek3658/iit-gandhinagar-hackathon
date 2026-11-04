@@ -10,10 +10,6 @@ Redis, MongoDB, and RabbitMQ plugin code is present. Their environment variables
 
 **No production throughput, capacity, latency, or availability figure is verified in this submission.**
 
-The existing [scalability test](backend/test/scalability.test.ts) runs Fastify `inject()` requests against several app objects inside one test process. It is useful as a bounded in-process test, but it does not exercise a deployed HTTP network, multiple hosts, real shared infrastructure, an edge cache, production-sized data, or failover. Its comments and analytical calculations about NGINX, cache-hit ratios, container capacity, and very high request rates are assumptions—not measurements.
-
-Before publishing a numeric scale claim, test the intended deployment with realistic authenticated reads and writes, shared configured dependencies, repeatable load, and recorded p50/p95/p99 latency, throughput, error rate, resource usage, and recovery behavior. State the tested hardware, topology, test data, and duration.
-
 ## Profile APK and distribution
 
 - Profile APK: `mobile/build/app/outputs/flutter-apk/app-profile.apk`
