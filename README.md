@@ -1,6 +1,6 @@
-# URJA Vatika
+# Urja ONE
 
-URJA Vatika is a prototype for **HC26-GEDA01**, GEDA's Mission LiFE citizen-engagement challenge. The Flutter app brings household-impact estimates, practical actions, learning games, and a playful virtual sanctuary together.
+Urja ONE is a prototype for **HC26-GEDA01**, GEDA's Mission LiFE citizen-engagement challenge. The Flutter app brings household-impact estimates, practical actions, learning games, and a playful virtual sanctuary together.
 
 This is a hackathon prototype, not a production-certified utility or carbon-accounting service. User-entered activity is not independently verified; footprint and impact values are estimates. Automatic appliance discovery/control, live utility-provider data, and production-scale capacity have not been established.
 

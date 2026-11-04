@@ -1,6 +1,6 @@
-# Urja — Next.js App Router frontend
+# Urja ONE — Next.js App Router frontend
 
-A proper **multi-route Next.js + TypeScript** prototype of the Mission LiFE citizen app. All 14 original Urja WebP assets are in `public/assets`.
+A proper **multi-route Next.js + TypeScript** prototype of the Mission LiFE citizen app. All 14 original Urja ONE WebP assets are in `public/assets`.
 
 ## Run
 
@@ -38,9 +38,9 @@ Open http://localhost:3000. `/` redirects to `/story`.
 - `lib/`: pure calculations, date utilities, browser storage
 - `data/`: chapters, challenges, example data and resources
 - `types/`: domain models
-- `public/assets/`: original Urja character and garden assets
+- `public/assets/`: original Urja ONE character and garden assets
 
-**Demo limitations:** Citizen progress and community features remain device-local examples; the operations console is separately authenticated through the Urja backend and only shows authorized role-scoped data.
+**Demo limitations:** Citizen progress and community features remain device-local examples; the operations console is separately authenticated through the Urja ONE backend and only shows authorized role-scoped data.
 
 ## Verification
 

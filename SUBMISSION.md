@@ -1,6 +1,6 @@
 # HC26-GEDA01 submission overview
 
-**Project:** URJA Vatika
+**Project:** Urja ONE
 **Challenge:** Gujarat Energy Development Agency (GEDA), Mission LiFE citizen engagement
 **Purpose:** Judge-facing overview of the prototype, its actual evidence, and its limits.
 

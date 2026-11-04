@@ -1,4 +1,4 @@
-# UrjaVatika: Implementation Spec (Android-only, no extra hardware)
+# Urja ONE: Implementation Spec (Android-only, no extra hardware)
 **GEDA Mission LiFE Citizen Platform (HC26-GEDA01)**
 Flutter app + Kotlin platform channels + Fastify backend.
 

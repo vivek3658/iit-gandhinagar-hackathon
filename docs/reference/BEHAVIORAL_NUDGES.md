@@ -1,4 +1,4 @@
-# UrjaVatika: Passive Behavioral Nudges & Invisible Carbon Prevention
+# Urja ONE: Passive Behavioral Nudges & Invisible Carbon Prevention
 **GEDA Mission LiFE Citizen Platform (Problem Statement: HC26-GEDA01)**  
 *Blueprint for Zero-Hardware, Context-Aware Micro-Triggers that Save Money and Cut Emissions Without Annoying Citizens.*
 
@@ -8,7 +8,7 @@
 
 Most sustainability apps fail because they act like nagging alarm clocks—spamming notifications until the user uninstalls them.
 
-**UrjaVatika uses "Ambient Intelligence":**
+**Urja ONE uses "Ambient Intelligence":**
 1. **Zero Hardware Cost:** Uses smartphone sensors already in the citizen's pocket (Geofencing, Battery API, Accelerometer, Weather API, Bluetooth connection state).
 2. **Contextual Relevance:** Triggers only at the exact moment and location where the habit can be executed in under 5 seconds.
 3. **Anti-Annoyance Cooldowns:** Enforces strict frequency capping (maximum 2 high-priority ambient notifications per day; never notifies during night or meetings).

@@ -1,4 +1,4 @@
-# UrjaVatika Frontend Engineering Specification
+# Urja ONE Frontend Engineering Specification
 
 **GEDA Mission LiFE Citizen Engagement Application (Problem Statement: HC26-GEDA01)**  
 *This document serves as the implementation blueprint for AI agents and human frontend engineers building web (React/Next.js) or mobile (Flutter/React Native) clients.*
@@ -33,7 +33,7 @@ flowchart TD
     
     UPLOAD_AVATAR -- No --> SUBMIT_PROFILE
     
-    SUBMIT_PROFILE --> HOME_SCREEN[Navigate to UrjaVatika Home 🌿]
+    SUBMIT_PROFILE --> HOME_SCREEN[Navigate to Urja ONE Home 🌿]
     PROFILE_CHECK -- True --> HOME_SCREEN
 ```
 
@@ -184,7 +184,7 @@ App Navigation Root
 │
 └── Authenticated Main App (Bottom Navigation / Drawer)
     ├── Tab 1: HomeScreen (Mascot vitality, daily sustainability micro-habit cards)
-    ├── Tab 2: UrjaVatikaGarden (3x3 grid forest-style garden plot gamification)
+    ├── Tab 2: Urja ONE Garden (3x3 grid forest-style garden plot gamification)
     ├── Tab 3: PeakNudgesScreen (Live Gujarat DISCOM peak alerts & appliance shift commits)
     ├── Tab 4: SolarCalculator (Rooftop solar kW estimator & PM Surya Ghar subsidies)
     ├── Tab 5: DistrictLeaderboard (Live state-wide district & ward ranking)

@@ -1,4 +1,4 @@
-# UrjaVatika Project Memory & Session State
+# Urja ONE Project Memory & Session State
 > **Platform:** GEDA Mission LiFE Citizen Engagement Platform  
 > **Problem Statement:** `HC26-GEDA01` (Track 1: Green Energy & Sustainability)  
 > **Host Agency:** Gujarat Energy Development Agency (GEDA)  
@@ -144,7 +144,7 @@ Zero-hardware ambient nudges utilizing smartphone sensors:
 
 2. **Should Daily Streaks be Added?**
    * **Do NOT use punitive zero-reset streaks.** Standard zero-reset streaks (e.g. Duolingo/Snapchat) cause anxiety, guilt, and churn if a user travels, experiences power outages, or forgets to check in.
-   * **Recommended Alternative (Urja Consistency Model):**
+   * **Recommended Alternative (Urja ONE Consistency Model):**
      * **Weekly Target Days (e.g., 5/7 Green Days):** Missing Saturday does not punish the user for Monday–Friday efforts.
      * **Eco-Shields:** Automatically awarded for high-impact activities (e.g. weekend tree planting or solar export) that freeze/protect the streak.
      * **Cumulative Milestones:** Track "100 Cumulative Hours Shifted Away from Peak" or "50 kg CO2 Saved". These never reset to zero, ensuring positive, enduring engagement.

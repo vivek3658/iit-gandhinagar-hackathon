@@ -1,6 +1,6 @@
-# UrjaVatika: Product, Data, and Scalability Roadmap
+# Urja ONE: Product, Data, and Scalability Roadmap
 
-**Purpose:** Turn UrjaVatika from a compelling prototype into a trustworthy citizen product that works end to end.
+**Purpose:** Turn Urja ONE from a compelling prototype into a trustworthy citizen product that works end to end.
 
 **Planning choices from the brainstorm**
 

@@ -6,7 +6,7 @@ The project targets GEDA problem statement **HC26-GEDA01**, “Development of an
 
 ## Prototype objective
 
-URJA Vatika prototypes that engagement loop through:
+Urja ONE prototypes that engagement loop through:
 
 1. A Flutter Android citizen experience with Google sign-in and profile setup.
 2. Rule-based household footprint estimates and action suggestions.

@@ -1,6 +1,6 @@
-# UrjaVatika: Frontend Engineering Guidelines & Architecture Rules
+# Urja ONE: Frontend Engineering Guidelines & Architecture Rules
 
-> **Target App:** `urja` (Flutter Mobile & Cross-Platform Web)  
+> **Target App:** `Urja ONE` (Flutter Mobile & Cross-Platform Web)  
 > **Agency:** Gujarat Energy Development Agency (GEDA) — Mission LiFE Citizen Platform  
 > **Version:** 1.0.0  
 > **Updated:** October 30, 2026
@@ -20,7 +20,7 @@ mobile/lib/
 │   ├── constants/               # Emission factors (0.82 kg/kWh), asset paths, district list
 │   ├── network/                 # Dio client, JWT auth interceptor, 401 silent token refresher
 │   ├── storage/                 # Encrypted FlutterSecureStorage wrapper (key-value tokens)
-│   ├── theme/                   # UrjaVatika design system (colors, typography, spacing, shadows)
+│   ├── theme/                   # Urja ONE design system (colors, typography, spacing, shadows)
 │   ├── utils/                   # CO2-to-EXP calculators, currency formatters, date helpers
 │   └── widgets/                 # Reusable atomic UI (UrjaButton, MudraBadge, DialogueBubble)
 └── features/                    # Self-contained business modules

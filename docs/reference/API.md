@@ -1,4 +1,4 @@
-# UrjaVatika API
+# Urja ONE API
 
 The generated OpenAPI document at `GET /docs/json` is the authoritative reference for current routes, request/response schemas, and authentication. This file summarizes user-facing behavior and production limitations.
 

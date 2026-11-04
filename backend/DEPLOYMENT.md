@@ -21,7 +21,7 @@ Configure the following environment variables in your deployment dashboard (e.g.
 | `GOOGLE_CLIENT_ID` | Optional | `382767...apps.googleusercontent.com` | Google OAuth Web Client ID for JWT verification |
 | `CORS_ORIGIN` | No | `*` | Allowed origins (e.g. `https://your-frontend.vercel.app` or `*`) |
 | `REDIS_URL` | Optional | `redis://localhost:6379` | In-memory atomic cache for high-throughput scaling |
-| `DATABASE_URL` | Optional | `postgresql://user:[YOUR-PASSWORD]@host:5432/urjavatika` | PostgreSQL connection string for ACID persistence |
+| `DATABASE_URL` | Optional | `postgresql://user:[YOUR-PASSWORD]@host:5432/urjaone` | PostgreSQL connection string for ACID persistence |
 | `MONGODB_URL` | Optional | `mongodb://localhost:27017/urja` | Optional MongoDB integration; otherwise the plugin reports in-memory fallback mode |
 | `RABBITMQ_URL` | Optional | `amqp://localhost:5672` | Optional RabbitMQ task queue; otherwise the plugin uses its local mock |
 | `IMAGEKIT_PUBLIC_KEY` | Optional | `public_...` | ImageKit public key for media avatar signatures |
